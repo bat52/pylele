@@ -20,7 +20,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 
 from api.pylele_api import ShapeAPI, Shape, Fidelity, Implementation
 from api.pylele_api_constants import DEFAULT_TEST_DIR
-from api.pylele_utils import ensureFileExtn, descreteBezierChain, superGradient, encureClosed2DPath
+from api.pylele_utils import ensureFileExtn, lineSplineXY
 from conversion.stlascii2stlbin import stlascii2stlbin
 from conversion.scad2stl import scad2stl, OPENSCAD
 
@@ -170,38 +170,6 @@ class Sp2Shape(Shape):
     def segsByDim(self, dim: float) -> int:
         return ceil((abs(dim)) * self.api.fidelity.smoothingSegments()**.25)
 
-    # draw mix of straight lines from pt to pt, draw spline when given list of (x,y,dx,dy)
-    def lineSplineXY(
-        self,
-        start: tuple[float, float],
-        path: list[Union[tuple[float, float], list[tuple[float, float, float, float]]]],
-    ):
-    
-        # lastX, lastY = start
-        result = [start]
-
-        for p_or_s in path:
-            if isinstance(p_or_s, tuple):
-                # a point so draw line
-                x, y = p_or_s
-                result.append((x, y))
-                lastX, lastY = x, y
-            elif isinstance(p_or_s, list):
-                # a list of points and gradients/tangents to trace spline thru
-                spline: list[tuple[float, ...]] = p_or_s
-                x1, y1 = spline[0][0:2]
-                # insert first point if diff from last
-                if lastX != x1 or lastY != y1:
-                    dx0 = x1 - lastX
-                    dy0 = y1 - lastY
-                    grad0 = superGradient(dy=dy0, dx=dx0)
-                    spline.insert(0, (lastX, lastY, grad0, 0, .5))
-                curvePts = descreteBezierChain(spline, self.segsByDim)
-                result.extend(curvePts)
-                lastX, lastY = spline[-1][0:2]
-                
-        return encureClosed2DPath(result)
-
     def mirrorXZ(self) -> Sp2Shape:
         cmirror = self.solid.mirror([0,1,0])
         dup = copy.copy(self)
@@ -288,7 +256,7 @@ class Sp2LineSplineExtrusionZ(Sp2Shape):
         super().__init__(api)
         self.path = path
         self.ht = ht
-        self.solid = polygon(self.lineSplineXY(start, path)).linear_extrude(ht)
+        self.solid = polygon(lineSplineXY(start, path, self.segsByDim)).linear_extrude(ht)
 
 # draw mix of straight lines from pt to pt, or draw spline with 
 # [(x,y,grad, pre ctrl ratio, post ctl ratio), ...], then revolve on X-axis
@@ -303,7 +271,7 @@ class Sp2LineSplineRevolveX(Sp2Shape):
         super().__init__(api)
         self.path = path
         self.deg = deg
-        self.solid = polygon(self.lineSplineXY(start, path)).rotateZ(90).rotate_extrude(deg).rotateY(90).rotateX(-90)
+        self.solid = polygon(lineSplineXY(start, path,self.segsByDim)).rotateZ(90).rotate_extrude(deg).rotateY(90).rotateX(-90)
 
 class Sp2TextZ(Sp2Shape):
     def __init__(

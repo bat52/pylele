@@ -243,38 +243,6 @@ class BlenderShape(Shape):
         joiner.remove()
         return self.repairMesh()
 
-
-    # draw mix of straight lines from pt to pt, draw spline when given list of (x,y,dx,dy)
-    def lineSplineXY(
-        self,
-        start: tuple[float, float],
-        lineSpline: list[tuple[float, float] | list[tuple[float, ...]]],
-    ) -> list[tuple[float, float]]:
-
-        lastX, lastY = start
-        polyPath = [start]
-        for p_or_s in lineSpline:
-            if isinstance(p_or_s, tuple):
-                # a point so draw line
-                x, y = p_or_s
-                polyPath.append((x, y))
-                lastX, lastY = x, y
-            elif isinstance(p_or_s, list):
-                # a list of points and gradients/tangents to trace spline thru
-                spline: list[tuple[float, ...]] = p_or_s
-                x1, y1 = spline[0][0:2]
-                # insert first point if diff from last
-                if lastX != x1 or lastY != y1:
-                    dx0 = x1 - lastX
-                    dy0 = y1 - lastY
-                    grad0 = superGradient(dy=dy0, dx=dx0)
-                    spline.insert(0, (lastX, lastY, grad0, 0, .5))
-                curvePts = descreteBezierChain(spline, self.segsByDim)
-                polyPath.extend(curvePts)
-                lastX, lastY = spline[-1][0:2]
-
-        return polyPath
-
     def mirror(self, plane: tuple[bool, bool, bool]) -> BlenderShape:
 
         cp = copy.copy(self)
@@ -562,7 +530,7 @@ class BlenderLineSplineExtrusionZ(BlenderShape):
     ):
         super().__init__(api)
         # optimization:instead of detecting winding direction of polypath, detect the winding direction of input line-spline
-        polyPath = self.lineSplineXY(start, path)
+        polyPath = lineSplineXY(start, path, self.segsByDim)
         if not isPathCounterClockwise(simplifyLineSpline(start, path)):
             polyPath.reverse()
         polyExt = BlenderPolyExtrusionZ(polyPath, ht, api, checkWinding=False)
@@ -577,7 +545,7 @@ class BlenderLineSplineRevolveX(BlenderShape):
         api: BlenderShapeAPI,
     ):
         super().__init__(api)
-        polyPath = self.lineSplineXY(start, path)
+        polyPath = lineSplineXY(start, path, self.segsByDim)
 
         mesh = bpy.data.meshes.new(name="Polygon")
         bpy.ops.object.select_all(action='DESELECT')
