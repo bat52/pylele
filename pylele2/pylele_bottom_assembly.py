@@ -67,7 +67,7 @@ class LeleBottomAssembly(LeleBase):
                 )
 
         ## Fretboard Spines
-        if self.cli.separate_fretboard or self.cli.separate_neck or self.cli.separate_top:
+        if (self.cli.separate_fretboard or self.cli.separate_neck or self.cli.separate_top) and self.cli.num_spines > 0:
             bodyCutters.append(
                 LeleFretboardSpines(cli=self.cli, isCut=True).mv(0, 0, -self.api.getJoinCutTol())
             )

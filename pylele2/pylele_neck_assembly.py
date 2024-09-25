@@ -41,7 +41,7 @@ class LeleNeckAssembly(LeleBase):
             neckJoiners.append(fretbd)
 
         ## Spines
-        if self.cli.num_strings > 1:
+        if self.cli.num_spines > 0:
             neckCutters.append(LeleSpines(cli=self.cli, isCut=True).mv(0, 0, self.api.getJoinCutTol()))
 
         ## Neck Join
@@ -53,7 +53,7 @@ class LeleNeckAssembly(LeleBase):
             neckJoiners.append(LeleNeckBend(cli=self.cli))
 
         ## Fretboard Spines
-        if self.cli.separate_fretboard or self.cli.separate_top or self.cli.separate_neck:
+        if (self.cli.separate_fretboard or self.cli.separate_top or self.cli.separate_neck) and self.cli.num_spines > 0:
             neckCutters.append(
                 LeleFretboardSpines(cli=self.cli, isCut=True).mv(0, 0, -self.api.getJoinCutTol())
                             )

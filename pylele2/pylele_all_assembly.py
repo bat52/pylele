@@ -35,7 +35,7 @@ class LeleAllAssembly(LeleBase):
         bodyCutters = []
 
         ## Spines
-        if self.cli.num_strings > 1:
+        if self.cli.num_spines > 0:
             bodyCutters.append(
                 LeleSpines(cli=self.cli, isCut=True).mv(0, 0, self.api.getJoinCutTol())
             )
