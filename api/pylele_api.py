@@ -57,14 +57,7 @@ class Fidelity(LeleStrEnum):
                 return 19
 
     def code(self) -> str:
-        match self:
-            case Fidelity.LOW:
-                return "L"
-            case Fidelity.MEDIUM:
-                return "M"
-            case Fidelity.HIGH:
-                return "H"
-
+        return str(self)[0].upper()
 class Implementation(LeleStrEnum):
     """ Pylele API implementations """
     MOCK = 'mock'
@@ -81,17 +74,7 @@ class Implementation(LeleStrEnum):
 
     def code(self) -> str:
         """ Return Code that identifies Implementation """
-        match self:
-            case Implementation.MOCK:
-                return 'M'
-            case Implementation.CAD_QUERY:
-                return 'C'
-            case Implementation.BLENDER:
-                return 'B'
-            case Implementation.TRIMESH:
-                return 'T'
-            case Implementation.SOLID2:
-                return 'S'
+        return str(self)[0].upper()
 
     def module_name(self):
         """ Returns the module name of the API """
