@@ -32,7 +32,7 @@ class LeleNeck(LeleBase):
         else:
             coneCut = self.api.genBox(nkLen, nkWth, nkWth).mv(nkLen/2, 0, nkWth/2)
         neckCone = neckCone.cut(coneCut).scale(1, 1, botRat).mv(0, 0, joinTol -midTck)
-        neck = neckCone if neck is None else neck.join(neckCone)
+        neck = neckCone + neck
 
         return neck
 
