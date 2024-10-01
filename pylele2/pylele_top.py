@@ -36,7 +36,6 @@ class LeleTop(LeleBase):
         if self.isCut:
             self.api.setFidelity(origFidel)
 
-        self.shape = top
         return top
 
 def main(args=None):

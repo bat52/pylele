@@ -58,14 +58,14 @@ class LeleNeckAssembly(LeleBase):
                 LeleFretboardSpines(cli=self.cli, isCut=True).mv(0, 0, -self.api.getJoinCutTol())
                             )
         ## Neck
-        self.shape = LeleNeck(cli=self.cli,
+        shape = LeleNeck(cli=self.cli,
                         joiners=neckJoiners,
                         cutters=neckCutters)
         
         fretbd.gen_full()
         self.add_parts(fretbd.get_parts())
 
-        return self.shape.gen_full()
+        return shape.gen_full()
     
     def gen_parser(self,parser=None):
         """

@@ -34,7 +34,6 @@ class LeleNeck(LeleBase):
         neckCone = neckCone.cut(coneCut).scale(1, 1, botRat).mv(0, 0, joinTol -midTck)
         neck = neckCone if neck is None else neck.join(neckCone)
 
-        self.shape = neck
         return neck
 
 def main(args = None):

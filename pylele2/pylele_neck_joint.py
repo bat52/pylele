@@ -23,7 +23,6 @@ class LeleNeckJoint(LeleBase):
         jntTck = self.cfg.neckJntTck + 2*FIT_TOL + 2*self.api.getJoinCutTol() # to match cut grooves for spines
         jnt = self.api.genBox(jntLen, jntWth, jntTck).mv(nkLen+jntLen/2, 0, -jntTck/2)
 
-        self.shape = jnt
         return jnt
 
 def main(args = None):

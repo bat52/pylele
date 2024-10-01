@@ -88,9 +88,7 @@ class LeleBottomAssembly(LeleBase):
         ## Body
         body = LeleBody(cli=self.cli, joiners=bodyJoiners, cutters=bodyCutters)
 
-        self.shape = body.gen_full()
-
-        return self.shape
+        return body.gen_full()
     
     def gen_parser(self,parser=None):
         """

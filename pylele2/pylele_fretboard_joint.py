@@ -24,7 +24,6 @@ class LeleFretboardJoint(LeleBase):
         jntWth = self.cfg.neckJntWth + 2*cutAdj # to align with spine cuts
         jntTck = .8*fbHt + 2*cutAdj
         jnt = self.api.genBox(jntLen, jntWth, jntTck).mv(nkLen+jntLen/2, 0, jntTck/2)
-        self.shape = jnt
         return jnt
 
 def main(args=None):

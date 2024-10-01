@@ -23,17 +23,17 @@ class LeleFretboardSpines(LeleBase):
         fspLen = self.cfg.fbSpineLen() + 2*cutAdj + 2*(self.api.getJoinCutTol() if self.isCut else 0)
         fspX = self.cfg.NUT_HT
 
-        self.shape = None
+        shape = None
         for y_spine in self.cfg.spineY:
             spine = self.api.genBox(fspLen, spWth, fspTck)\
                 .mv(fspX + fspLen/2 - 2*cutAdj, y_spine, -fspTck/2)
             
-            if self.shape is None:
-                self.shape = spine
+            if shape is None:
+                shape = spine
             else:
-                self.shape = self.shape.join(spine)
+                shape = shape.join(spine)
 
-        return self.shape
+        return shape
 
 def main(args = None):
     """ Generate Fretboard Spines """

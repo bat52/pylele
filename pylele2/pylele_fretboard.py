@@ -36,7 +36,6 @@ class LeleFretboard(LeleBase):
             fretbd = fretbd.cut(topCut)
             fretbd = fretbd.filletByNearestEdges([(fbLen, 0, fbHt)], fbTck/2)
 
-        self.shape = fretbd
         return fretbd
 
 def main(args = None):

@@ -33,8 +33,6 @@ class LeleBrace(LeleBase):
         # generate top cut
         brace = brace.cut(cutter).mv(0,0,self.api.getJoinCutTol())
 
-        self.shape = brace
-
         return brace
 
 def main(args = None):

@@ -76,7 +76,6 @@ class LeleFretboardDots(LeleBase):
             acclen += flen
             n += 1
     
-        self.shape = dots
         return dots
     
     def gen_parser(self,parser=None):

@@ -33,11 +33,7 @@ class LeleStrings(LeleBase):
         if self.isCut:
             self.api.setFidelity(origFidel)
 
-        self.shape = strs
-
         return strs
-
-        pass
 
 def main(args=None):
     """ Generate Strings """

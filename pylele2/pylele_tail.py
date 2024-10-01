@@ -84,7 +84,6 @@ class LeleTail(LeleBase):
         else:
             tail.cut(tuners_cut.shape)
 
-        self.shape = tail
         return tail
     
     def gen_parser(self, parser=None):

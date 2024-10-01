@@ -48,7 +48,6 @@ class LeleWormKey(LeleBase):
         btn = btn.join(base).join(key)
         maxTnrY = max([y for _, y, _ in txyzs])
         btn = btn.mv(tailX - joinTol, maxTnrY + btnTck -1, -1 -btnWth/2)
-        self.shape = btn
         return btn
 
 def main(args=None):

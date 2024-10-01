@@ -131,7 +131,6 @@ class LeleBridge(LeleBase):
         strings = LeleStrings(cli=self.cli,isCut=True)
         brdg.cut(strings.gen_full())
 
-        self.shape = brdg
         return brdg
     
     def gen_parser(self, parser=None):

@@ -26,7 +26,6 @@ class LeleRim(LeleBase):
         rimBack = self.api.genHalfDisc(rad, False, tck).scale(backWthRatio, 1, 1)
         rimFront.mv(scLen, 0, joinTol-tck/2).join(rimBack.mv(scLen-joinTol, 0, joinTol-tck/2))
 
-        self.shape = rimFront
         return rimFront
 
 def main(args=None):

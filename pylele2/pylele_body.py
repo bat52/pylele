@@ -81,7 +81,6 @@ class LeleBody(LeleBase):
         else:
             assert self.cli.body_type in LeleBodyType.list(), f'Unsupported Body Type {self.cli.body_type}'
 
-        self.shape = bot
         return bot
     
     def gen_parser(self,parser=None):

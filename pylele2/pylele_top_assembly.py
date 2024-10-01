@@ -76,9 +76,8 @@ class LeleTopAssembly(LeleBase):
             ]
 
         top = LeleTop(cli=self.cli, joiners=topJoiners, cutters=topCutters, fillets=topFillets)
-        self.shape = top.gen_full()
 
-        return self.shape
+        return top.gen_full()
     
     def gen_parser(self,parser=None):
         """

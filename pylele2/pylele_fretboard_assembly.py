@@ -119,8 +119,7 @@ class LeleFretboardAssembly(LeleBase):
             if self.cli.num_spines > 0:
                 fretbd = fretbd.join(LeleFretboardSpines(cli=self.cli))
         
-        self.shape = fretbd.shape
-        return self.shape
+        return fretbd.shape
     
     def gen_parser(self,parser=None):
         """

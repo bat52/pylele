@@ -28,7 +28,7 @@ class LeleSoundhole(LeleBase):
         hole = self.api.genRodZ(bodyWth + midTck, minRad)\
             .scale(1, maxRad/minRad, 1)\
             .rotateZ(ang).mv(x, y, -midTck)
-        self.shape = hole
+
         return hole
 
 def main(args=None):
