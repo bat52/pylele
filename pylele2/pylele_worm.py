@@ -179,7 +179,6 @@ class LeleWorm(LeleBase):
             slit = self.api.genBox(sltLen, sltWth, 100).mv(0, 0, 50 - 2*axlRad)
             worm = worm.join(slit)
 
-        self.shape = worm
         return worm
     
     def gen_parser(self,parser=None):
