@@ -10,6 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 
 from api.pylele_api import Shape
 from pylele2.pylele_base import LeleBase, test_loop, main_maker
+from pylele2.pylele_strings import LeleStrings
 
 class LeleHead(LeleBase):
     """ Pylele Head Generator class """
@@ -36,18 +37,20 @@ class LeleHead(LeleBase):
         if midTck > 0:
             midR = self.api.genLineSplineExtrusionZ(orig, path, midTck)\
                 .mv(0, 0, -midTck)
-            hd = hd.join(midR.mirrorXZ_and_join())
+            hd += midR.mirrorXZ_and_join()
 
         if topRat > 0:
             top = self.api.genLineSplineRevolveX(orig, path, 180)\
                 .scale(1, 1, topRat).mv(0, 0, -joinTol/2)
-            hd = hd.join(top)
+            hd += top
 
         topCut = self.api.genRodY(2*hdWth, hdLen)\
             .mv(-ntHt, 0, .8*hdLen + fbTck + ntHt)
         frontCut = self.api.genRodY(2*hdWth, .7*spHt)\
             .scale(.5, 1, 1).mv(-hdLen, 0, -fspTck - .65*spHt)
-        hd = hd.cut(frontCut).cut(topCut)
+        strings = LeleStrings(cli=self.cli,isCut=True).gen_full()
+    
+        hd = hd - frontCut - topCut - strings
 
         self.shape = hd
         return hd
