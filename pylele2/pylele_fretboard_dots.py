@@ -69,7 +69,7 @@ class LeleFretboardDots(LeleBase):
                 for p in pos:
                     dot = self.api.genRodZ(
                         2 * dep, dotRad).mv(acclen - .5*flen, p*sgap, ht)
-                    dots = dot if dots is None else dots.join(dot)
+                    dots = dot + dots
 
             sgap = .5 * acclen * math.tan(radians(wideAng)) + nutSGap
             flen /= SEMI_RATIO
