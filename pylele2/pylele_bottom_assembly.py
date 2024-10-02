@@ -33,60 +33,47 @@ class LeleBottomAssembly(LeleBase):
        
     def gen(self) -> Shape:
         """ Generate Body Bottom Assembly """
-
-        ## Initialize Joiners and Cutters
-        bodyJoiners = []
-        bodyCutters = []
+       
+        ## Body
+        body = LeleBody(cli=self.cli)
 
         ## Text
         if self.cli.text_en:
-            bodyCutters.append(LeleTexts(cli=self.cli, isCut=True))
+            body -= LeleTexts(cli=self.cli, isCut=True)
 
         ## Chamber
         if not self.cli.body_type in [LeleBodyType.FLAT, LeleBodyType.HOLLOW]:
-            chamber_cutters = []
+            chamber = LeleChamber(cli=self.cli, isCut=True)
             if not self.cli.body_type in [LeleBodyType.TRAVEL]:
-                chamber_cutters.append(LeleBrace(cli=self.cli))
-            bodyCutters.append(
-                LeleChamber(cli=self.cli, isCut=True, cutters=chamber_cutters)
-            )
+                chamber -= LeleBrace(cli=self.cli)
+                body -= chamber
 
         ## Spines
-        """
         if self.cli.num_strings > 1:
-            bodyCutters.append(
-                LeleSpines(cli=self.cli, isCut=True).mv(0, 0, self.api.getJoinCutTol())
-            )
-        """
+            body -= LeleSpines(cli=self.cli, isCut=True).mv(0, 0, self.api.getJoinCutTol())
 
         ## Neck Joint
         if self.cli.separate_neck:
-            bodyCutters.append(
-                LeleNeckJoint(cli=self.cli, isCut=True)\
+            body -= LeleNeckJoint(cli=self.cli, isCut=True)\
                 .mv(-self.api.getJoinCutTol(), 0, self.api.getJoinCutTol())
-                )
 
         ## Fretboard Spines
-        if (self.cli.separate_fretboard or self.cli.separate_neck or self.cli.separate_top) and self.cli.num_spines > 0:
-            bodyCutters.append(
-                LeleFretboardSpines(cli=self.cli, isCut=True).mv(0, 0, -self.api.getJoinCutTol())
-            )
+        if (self.cli.separate_fretboard or
+            self.cli.separate_neck or
+            self.cli.separate_top) and self.cli.num_spines > 0:
+            body -= LeleFretboardSpines(cli=self.cli, isCut=True).mv(0, 0, -self.api.getJoinCutTol())
             
         ## Tuners
         if not self.cli.separate_end:
-            tnrsCut = LeleTuners(cli=self.cli, isCut=True)
-            bodyCutters.append(tnrsCut)
+            body -= LeleTuners(cli=self.cli, isCut=True)
            
         ## Tail
         if TunerType[self.cli.tuner_type].value.is_worm():
             if self.cli.separate_end:
-                bodyCutters.append( LeleTail(cli=self.cli, isCut=True))
+                body -= LeleTail(cli=self.cli, isCut=True)
             elif self.cli.body_type in [LeleBodyType.HOLLOW]:
                 # join tail to body if flat hollow and not separate end
-                bodyJoiners.append( LeleTail(cli=self.cli) )
-
-        ## Body
-        body = LeleBody(cli=self.cli, joiners=bodyJoiners, cutters=bodyCutters)
+                body += LeleTail(cli=self.cli)
 
         return body.gen_full()
     

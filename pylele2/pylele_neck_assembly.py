@@ -26,46 +26,42 @@ class LeleNeckAssembly(LeleBase):
 
         jtol = self.api.getJoinCutTol()
 
-        neckJoiners = [LeleHead(cli=self.cli).mv(jtol,0,0)]
-        neckCutters = []
+        ## Neck
+        neck = LeleNeck(cli=self.cli)
+
+        ## Head
+        neck += LeleHead(cli=self.cli).mv(jtol,0,0)
 
         ## Fretboard
         fretbd = LeleFretboardAssembly(cli=self.cli)
         if self.cli.separate_fretboard:
-            fbCut = LeleFretboard(cli=self.cli, isCut=True)\
+            neck -= LeleFretboard(cli=self.cli, isCut=True)\
                 .mv(0, 0, -jtol)
-            neckCutters.append(fbCut)
             self.add_part(fretbd)
         else:
             # if not self.cli.separate_top:
-            neckJoiners.append(fretbd)
-
-        ## Spines
-        if self.cli.num_spines > 0:
-            neckCutters.append(LeleSpines(cli=self.cli, isCut=True).mv(0, 0, self.api.getJoinCutTol()))
+            neck += fretbd
 
         ## Neck Join
         if self.cli.separate_neck:
-            neckJoiners.append(LeleNeckJoint(cli=self.cli, isCut=False))
+            neck += LeleNeckJoint(cli=self.cli, isCut=False).mv(0, 0, -self.api.getJoinCutTol())
+
+        ## Spines
+        if self.cli.num_spines > 0:
+            neck -= LeleSpines(cli=self.cli, isCut=True).mv(0, 0, self.api.getJoinCutTol())
 
         ## Neck Bend
         if self.cli.body_type in [LeleBodyType.FLAT, LeleBodyType.HOLLOW, LeleBodyType.TRAVEL]:
-            neckJoiners.append(LeleNeckBend(cli=self.cli))
+            neck += LeleNeckBend(cli=self.cli)
 
         ## Fretboard Spines
         if (self.cli.separate_fretboard or self.cli.separate_top or self.cli.separate_neck) and self.cli.num_spines > 0:
-            neckCutters.append(
-                LeleFretboardSpines(cli=self.cli, isCut=True).mv(0, 0, -self.api.getJoinCutTol())
-                            )
-        ## Neck
-        shape = LeleNeck(cli=self.cli,
-                        joiners=neckJoiners,
-                        cutters=neckCutters)
-        
+            neck -= LeleFretboardSpines(cli=self.cli, isCut=True).mv(0, 0, -self.api.getJoinCutTol())
+
         fretbd.gen_full()
         self.add_parts(fretbd.get_parts())
 
-        return shape.gen_full()
+        return neck.gen_full()
     
     def gen_parser(self,parser=None):
         """
