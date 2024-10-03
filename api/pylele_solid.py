@@ -260,26 +260,7 @@ class LeleSolid(ABC):
     def gen_full(self):
         """ Generate full shape including joiners, cutters, and fillets """
         # generate self.shape
-        self._gen_if_no_shape()
-    
-        for j in self.joiners:
-            if not j.has_shape():
-                print(f'# Warning: joiner {j} has no shape!')
-                j.gen_full()
-            self.shape = self.shape.join(j.shape)
-
-        for c in self.cutters:
-            if not c.has_shape():
-                print(f'# Warning: cutter {c} has no shape!')
-                c.gen_full()
-            self.shape = self.shape.cut(c.shape)
-
-        for rad in self.fillets.keys():
-            try:
-                self.shape = self.shape.filletByNearestEdges(nearestPts=self.fillets[rad], rad=rad)
-            except:
-                print(f'# WARNING: Failed Fillet in {self.fileNameBase} on nearest edges {self.fillets[rad]}, with radius {rad}')
-        
+        self._gen_if_no_shape()                
         return self.shape
     
     def _gen_full_if_no_shape(self):
@@ -300,9 +281,6 @@ class LeleSolid(ABC):
 
     def __init__(self,
         isCut: bool = False,
-        joiners: list[LeleSolid] = [],
-        cutters: list[LeleSolid] = [],
-        fillets: dict[float, list[tuple[float, float, float]]] = {},
         args=None,
         cli=None
     ):
@@ -312,12 +290,9 @@ class LeleSolid(ABC):
             self.cli = cli
 
         self.isCut = self.cli.is_cut or isCut
-        self.color = self.cli.color # ColorEnum[self.cli.color]
+        # self.color = self.cli.color # ColorEnum[self.cli.color]
         self.outdir = self.cli.outdir
 
-        self.joiners = joiners
-        self.cutters = cutters
-        self.fillets = fillets
         self.fileNameBase = self.__class__.__name__ + ('_cut' if self.isCut else '')
     
     def configure(self):
@@ -354,7 +329,7 @@ class LeleSolid(ABC):
                          fname = self.fileNameBase + '_args.txt',
                          dictdata = self.cli )
 
-    def exportSTL(self, out_path=None, check_volume=True,report_en=True) -> str:
+    def exportSTL(self, out_path=None, report_en=True) -> str:
         """ Generate .stl output file """
         if out_path is None:
             out_path = self._make_out_path()

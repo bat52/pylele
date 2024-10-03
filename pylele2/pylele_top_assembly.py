@@ -28,20 +28,23 @@ class LeleTopAssembly(LeleBase):
     def gen(self) -> Shape:
         """ Generate Body Top Assembly """
 
-        sh_cfg = self.cfg.soundhole_config(scaleLen=self.cli.scale_length)
-        topFillets = { FILLET_RAD: [(sh_cfg.sndholeX, sh_cfg.sndholeY, self.cfg.fretbdHt)] }
-        if TunerType[self.cli.tuner_type].value.is_worm() and self.cli.implementation == Implementation.CAD_QUERY and \
-            not self.cli.body_type == LeleBodyType.FLAT:
-            wcfg: WormConfig = TunerType[self.cli.tuner_type].value
-            topFillets[wcfg.slitWth] = [
-                (xyz[0] - wcfg.slitLen, xyz[1], xyz[2] + wcfg.holeHt)
-                for xyz in self.cfg.tnrXYZs
-            ]
-
-        top = LeleTop(cli=self.cli, fillets=topFillets)
-       
+        # top
+        top = LeleTop(cli=self.cli)
+        
         # tuners
         top -= LeleTuners(cli=self.cli, isCut=True)
+
+        # fillet worm tuners slit
+        if TunerType[self.cli.tuner_type].value.is_worm() and \
+            not self.cli.body_type == LeleBodyType.FLAT:
+            wcfg: WormConfig = TunerType[self.cli.tuner_type].value
+            top = top.filletByNearestEdges(
+                nearestPts=[
+                    (xyz[0] - wcfg.slitLen, xyz[1], xyz[2] + wcfg.holeHt)
+                    for xyz in self.cfg.tnrXYZs
+                ],
+                rad = wcfg.slitWth
+            )
 
         if self.cli.separate_top:
             top += LeleRim(cli=self.cli, isCut=False)
@@ -49,11 +52,19 @@ class LeleTopAssembly(LeleBase):
             top -= LeleChamber(cli=self.cli,isCut=True)
         if not self.cli.body_type in [LeleBodyType.FLAT,LeleBodyType.TRAVEL]:
             top -= LeleSoundhole(cli=self.cli, isCut=True)
+            # soundhole fillet
+            sh_cfg = self.cfg.soundhole_config(scaleLen=self.cli.scale_length)
+            top = top.filletByNearestEdges(
+                nearestPts=[(sh_cfg.sndholeX, sh_cfg.sndholeY, self.cfg.fretbdHt)],
+                rad = FILLET_RAD
+            )
+            # brace
+            top += LeleBrace(cli=self.cli)
 
         if self.cli.separate_fretboard or self.cli.separate_neck:
             top -= LeleFretboardJoint(cli=self.cli, isCut=True)\
                 .mv(-self.api.getJoinCutTol(), 0, -self.api.getJoinCutTol())
-                   
+
         # gen bridge
         brdg = LeleBridge(cli=self.cli)
         if self.cli.separate_bridge:
@@ -61,7 +72,7 @@ class LeleTopAssembly(LeleBase):
             self.add_part(brdg)
         else:
             top += brdg
-       
+
         if TunerType[self.cli.tuner_type].value.is_peg():
             # gen guide if using tuning pegs
             guide = LeleGuide(cli=self.cli)
@@ -70,9 +81,6 @@ class LeleTopAssembly(LeleBase):
                 self.add_part(guide)
             else:
                 top +=guide
-
-        if not self.cli.body_type in [LeleBodyType.TRAVEL]:
-            top += LeleBrace(cli=self.cli)
 
         return top.gen_full()
     
