@@ -43,10 +43,7 @@ class LeleFrets(LeleBase):
     def gen(self) -> Shape:
         """ Generate Frets """
 
-        fitTol = FIT_TOL
         fbTck = self.cfg.FRETBD_TCK
-        ntHt = self.cfg.NUT_HT
-        ntWth = self.cfg.nutWth + fbTck/4 + .5  # to be wider than fretbd
         fWth = self.cfg.nutWth - 1  # to be narrower than fretbd
         scLen = float(self.cli.scale_length)
         fbLen = self.cfg.fretbdLen
@@ -54,24 +51,12 @@ class LeleFrets(LeleBase):
         maxFrets = self.cfg.MAX_FRETS
         wideAng = self.cfg.neckWideAng
         riseAng = self.cfg.fretbdRiseAng
-        f0X = -fitTol if self.isCut else 0
-
-        if False:
-            # zero-fret
-            f0Top = self.api.genRndRodY(ntWth, ntHt, 1/4)
-            f0TopCut = self.api.genBox(2*ntHt, 2*ntWth, fbTck).mv(0, 0, -fbTck/2)
-            f0Top = f0Top.cut(f0TopCut).mv(f0X, 0, fbTck)
-            f0Bot = self.api.genRndRodY(ntWth, ntHt, 1/4)
-            f0BotCut = self.api.genBox(2*ntHt, 2*ntWth, fbTck).mv(0, 0, fbTck/2)
-            f0Bot = f0Bot.cut(f0BotCut).scale(1, 1, fbTck/ntHt).mv(f0X, 0, fbTck)
-            frets = f0Top.join(f0Bot)
-        else:
-            frets =  None
 
         # Not generating frets, if they are cut ?
         fx = 0
         gap = (scLen / 2) / accumDiv(1, 12, SEMI_RATIO)
         count = 0
+        frets =  None
         while (fx < (fbLen - gap - 2 * fHt)):
             fx = fx + gap
             fy = fWth / 2 + math.tan(radians(wideAng)) * fx
