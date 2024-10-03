@@ -9,7 +9,7 @@ import argparse
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 
-from api.pylele_api import Shape
+from api.pylele_api import Shape, Direction
 from pylele2.pylele_base import LeleBase, LeleStrEnum, test_loop, main_maker, FIT_TOL
 from pylele2.pylele_strings import LeleStrings
 
@@ -43,21 +43,21 @@ class LeleNut(LeleBase):
         fbTck = self.cfg.FRETBD_TCK
         ntHt = self.cfg.NUT_HT
         ntWth = self.cfg.nutWth + fbTck/4 + .5  # to be wider than fretbd
-        fWth = self.cfg.nutWth - 1  # to be narrower than fretbd
         f0X = -fitTol if self.isCut else 0
 
-        f0Top = self.api.genRndRodY(ntWth, ntHt, 1/4)
-        f0TopCut = self.api.genBox(2*ntHt, 2*ntWth, fbTck).mv(0, 0, -fbTck/2)
-        f0Top = f0Top.cut(f0TopCut).mv(f0X, 0, fbTck)
-        f0Bot = self.api.genRndRodY(ntWth, ntHt, 1/4)
-        f0BotCut = self.api.genBox(2*ntHt, 2*ntWth, fbTck).mv(0, 0, fbTck/2)
-        f0Bot = f0Bot.cut(f0BotCut).scale(1, 1, fbTck/ntHt).mv(f0X, 0, fbTck)
-        nut = f0Top.join(f0Bot)
+        f0Top    = self.api.genRndRodY(ntWth, ntHt, 1/4)
+        f0Top   -= self.api.genBox(2*ntHt, 2*ntWth, fbTck).mv(0, 0, -fbTck/2)
+
+        f0Bot    = self.api.genRndRodY(ntWth, ntHt, 1/4)
+        f0Bot   -= self.api.genBox(2*ntHt, 2*ntWth, fbTck).mv(0, 0, fbTck/2)
+        f0Bot   *= Direction(z=fbTck/ntHt)
+        
+        nut = f0Top + f0Bot
+        nut  <<= (f0X, 0, fbTck)
 
         # Add strings cut
         if not self.cli.nut_type == NutType.ZEROFRET: # and not self.isCut:
-            strings = LeleStrings(isCut=True,cli=self.cli)
-            nut = nut.cut(strings.gen_full())
+            nut -= LeleStrings(isCut=True,cli=self.cli).gen_full()
 
         return nut
     
