@@ -64,12 +64,13 @@ def test_loop(module,apis=None,tests=None): # ,component):
     if apis is None:
         apis = supported_apis()
 
+    test_count = 0
     for test,args in tests.items():
         for api in apis:
             test_iteration(
                         module=module,
                         component=module,
-                        test=test,
+                        test=f'{test_count:02d}_{test}',
                         api=api,
                         args=args,
                         )
