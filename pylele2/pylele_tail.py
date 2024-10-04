@@ -33,56 +33,43 @@ class LeleTail(LeleBase):
         tailLen = tailX - chmBackX + 2*cutAdj
         endWth = self.cli.end_flat_width + 2*cutAdj
         botRat = cfg.BOT_RATIO
+        rimWth = cfg.rimWth+ 2*cutAdj
+        
+        ## flat middle section
         if self.cli.body_type in [LeleBodyType.FLAT, LeleBodyType.HOLLOW, LeleBodyType.TRAVEL]:
             midBotTck = self.cli.flat_body_thickness
         else:
             midBotTck = cfg.extMidBotTck + 2*cutAdj
-        rimWth = cfg.rimWth+ 2*cutAdj
-        topCut = self.api.genBox(2000, 2000, 2000).mv(0,0,1000)
-        
-        top = None
+
         if midBotTck > 0:
             extTop = self.api.genBox(10 if self.isCut else rimWth, endWth, midBotTck)\
                 .mv(tailX + (5 - rimWth if self.isCut else -rimWth/2), 0, -midBotTck/2)
             inrTop = self.api.genBox(2*tailLen, endWth -2*rimWth, midBotTck)\
                 .mv(tailX -rimWth -tailLen, 0, -midBotTck/2)
-            top = extTop.join(inrTop)
+            tail = extTop + inrTop
 
         if self.cli.body_type in [LeleBodyType.FLAT, LeleBodyType.HOLLOW,LeleBodyType.TRAVEL]:
-            extBot = None
-            inrBot = None
+            # flat bodies do not have rounded bottom
             if self.cli.body_type in [LeleBodyType.TRAVEL]:
-                top = top.mv(5,0,0) # for whatever reason...
+                tail = tail.mv(5,0,0) # for whatever reason...
         else:
-            extBot = self.api.genRodX(10 if self.isCut else rimWth, endWth/2).scale(1, 1, botRat)\
-            .mv(tailX + (5 - rimWth if self.isCut else -rimWth/2), 0, -midBotTck)
-            inrBot = self.api.genRodX(2*tailLen, endWth/2 - rimWth).scale(1, 1, botRat)\
-            .mv(tailX - rimWth -tailLen, 0, -midBotTck)
-
-        if inrBot is None and extBot is None:
-            bot = None
-        else:
-            if extBot is None:
-                bot = inrBot
-            else:
-                bot = extBot.join(inrBot).cut(topCut)
-
-        if top is None:
-            tail = bot
-        else:
-            if bot is None:
-                tail = top
-            else:
-                tail = top.join(bot)
-            # tail = top
+            # rounded bottom
+            extBot = self.api.genRodX(10 if self.isCut else rimWth, endWth/2)\
+                .scale(1, 1, botRat)\
+                .mv(tailX + (5 - rimWth if self.isCut else -rimWth/2), 0, -midBotTck)
+            inrBot = self.api.genRodX(2*tailLen, endWth/2 - rimWth)\
+                .scale(1, 1, botRat)\
+                .mv(tailX - rimWth -tailLen, 0, -midBotTck)
+            tail += extBot + inrBot
+            # remove upper section of the rounde bodies
+            tail -= self.api.genBox(2000, 2000, 2000).mv(0,0,1000)
 
         # Tuners
-        tuners_cut=LeleTuners(cli=self.cli,isCut=True)
-        tuners_cut.gen_full()
+        tuners_cut=LeleTuners(cli=self.cli,isCut=True).gen_full()
         if self.isCut:
-            tail.join(tuners_cut.shape)
+            tail += tuners_cut
         else:
-            tail.cut(tuners_cut.shape)
+            tail -= tuners_cut
 
         return tail
     
@@ -100,9 +87,8 @@ def test_tail(self,apis=None):
     """ Test Tail """
 
     tests = {
-        'cut'          : ['-t','worm','-E','-e','10','-C'],
-        'separate_tail': ['-t','worm','-E','-e','4.3'],
         'worm'         : WORM,
+        'worm_cut'     : WORM + ['-C'],
         'bigworm'      : BIGWORM,
     }
 
