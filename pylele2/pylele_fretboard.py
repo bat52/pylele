@@ -8,7 +8,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 
 from api.pylele_api import Shape
-from pylele2.pylele_base import LeleBase, test_loop, main_maker, FIT_TOL
+from pylele2.pylele_base import LeleBase, test_loop, main_maker, FIT_TOL, FILLET_RAD
 
 class LeleFretboard(LeleBase):
     """ Pylele Fretboard Generator class """
@@ -33,8 +33,19 @@ class LeleFretboard(LeleBase):
             topCut = self.api.genBox(fbLen * 2, fbWth, fbHt)\
                 .rotateY(-riseAng)\
                 .mv(0, 0, fbTck + fbHt/2)
-            fretbd = fretbd.cut(topCut)
-            fretbd = fretbd.filletByNearestEdges([(fbLen, 0, fbHt)], fbTck/2)
+            fretbd -= topCut
+
+            ## fillet the end of the fretboard
+            # fretbd = fretbd.filletByNearestEdges([(fbLen, 0, fbHt)], fbTck/2)
+            fretbd -= self.api.gen_rounded_edge_mask(direction='y',l=fbWth,rad=fbTck/2,rot=270)\
+                .mv(fbTck/2,0,fbTck/2)
+
+            ## fillet the start of the fretboard
+            # fretbd = fretbd.filletByNearestEdges(  
+            #    rad = FILLET_RAD, nearestPts=[(self.cfg.fretbdLen, 0, .5*self.cfg.fretbdHt)]
+            # )
+            fretbd -= self.api.gen_rounded_edge_mask(direction='y',l=fbWth,rad=FILLET_RAD,rot=0)\
+                .mv(fbLen-FILLET_RAD,0,fbHt-FILLET_RAD)
 
         return fretbd
 
