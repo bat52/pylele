@@ -38,14 +38,13 @@ class LeleWormKey(LeleBase):
             .mv(50 -btnHt if self.isCut else -btnHt/2, 0, 0)
         
         if self.isCut:
-            btnExtCut = self.api.genRodX(100 if self.isCut else btnHt, btnWth/2)\
+            btn += self.api.genRodX(100 if self.isCut else btnHt, btnWth/2)\
                 .scale(1, .5, 1)\
                 .mv(50 -btnHt if self.isCut else -btnHt/2, btnTck/2, 0)
-            btn = btn.join(btnExtCut)
         else:
             btn = btn.filletByNearestEdges([], FILLET_RAD)
 
-        btn = btn.join(base).join(key)
+        btn += base + key
         maxTnrY = max([y for _, y, _ in txyzs])
         btn = btn.mv(tailX - joinTol, maxTnrY + btnTck -1, -1 -btnWth/2)
         return btn
