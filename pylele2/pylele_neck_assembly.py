@@ -79,7 +79,7 @@ def test_neck_assembly(self, apis=None):
     """ Test Neck Assembly """
 
     tests = {
-        'fret_nails'         : ['-ft', str(FretType.NAIL)],
+        'fret_wire'          : ['-ft', str(FretType.WIRE)],
         'zerofret'           : ['-nt', str(NutType.ZEROFRET)],
         'separate_neck'      : ['-N'],
         'separate_fretboard' : ['-F'],

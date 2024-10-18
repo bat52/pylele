@@ -10,7 +10,7 @@ import sys
 import argparse
 sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 
-from api.pylele_api import Shape
+from api.pylele_api import Shape, ShapeAPI
 from pylele2.pylele_base import LeleBase, test_loop, main_maker, LeleStrEnum, FIT_TOL, SEMI_RATIO
 from api.pylele_utils import radians, accumDiv
 
@@ -18,9 +18,8 @@ FRET_WIRE_WIDTH=0.5
 
 class FretType(LeleStrEnum):
     """ Pylele Fret Type """
-    PRINT = 'print'
-    NAIL = 'nail'
-    WIRE = 'wire'
+    ROUND = 'round'
+    WIRE  = 'wire'
 
 def pylele_frets_parser(parser = None):
     """
@@ -33,10 +32,27 @@ def pylele_frets_parser(parser = None):
                     help="Fret Type",
                     type=FretType,
                     choices=list(FretType),
-                    default=FretType.PRINT
+                    default=FretType.ROUND
                     )
     return parser
 
+def gen_fret(api:ShapeAPI, y, h, ftype:FretType = FretType.ROUND):
+    """ Generate a fret """
+
+    # main fret rod
+    fret = api.genRodY(2 * y, h)
+    # cut rod angles
+    d = 4*h
+    fret -= api.genBox( d, d, d).rotateX(45).mv(0, -y, d/2)
+    fret -= api.genBox( d, d, d).rotateX(45).mv(0,  y, d/2)
+
+    if ftype == FretType.WIRE:
+        # cut bottom
+        fret -= api.genBox(2*h, 2*y, h).mv(0,0,-h/2)
+        # generate fret wire hole
+        fret += api.genBox(FRET_WIRE_WIDTH, 2*y, h).mv(0,0,-h/2)
+
+    return fret
 class LeleFrets(LeleBase):
     """ Pylele Frets Generator class """
 
@@ -61,11 +77,10 @@ class LeleFrets(LeleBase):
             fx = fx + gap
             fy = fWth / 2 + math.tan(radians(wideAng)) * fx
             fz = fbTck + math.tan(radians(riseAng)) * fx
-            if self.cli.fret_type == FretType.WIRE:
-                fret = self.api.genBox(FRET_WIRE_WIDTH, 2*fy, fHt).mv(fx, 0, fz)
-            else:
-                fret = self.api.genRodY(2 * fy, fHt).mv(fx, 0, fz)
             
+            fret = gen_fret(api=self.api, y=fy, h=fHt, ftype=self.cli.fret_type)
+            fret <<= (fx, 0, fz)
+
             frets = fret + frets
             
             gap = gap / SEMI_RATIO
