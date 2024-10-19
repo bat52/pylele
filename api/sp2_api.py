@@ -92,6 +92,18 @@ class Sp2ShapeAPI(ShapeAPI):
 
     def genRodZ(self, l: float, rad: float) -> Sp2Shape:
         return Sp2Cone(l, r1=rad, direction='Z',api=self)
+    
+    def genRndRodZ(self, l: float, rad: float, domeRatio: float = 1) -> Shape:
+        stem_len = l - 2*rad*domeRatio
+        rod = None
+        for bz in [stem_len/2, -stem_len/2]:
+            ball = sphere(rad,_fn=self.fidelity.smoothingSegments()*FIDELITY_K)\
+                .scale([1, 1, domeRatio]).translate([0, 0, bz])
+            if rod is None:
+                rod = ball
+            else:
+                rod += ball
+        return self.genShape(rod.hull())
 
     def genPolyExtrusionZ(self, path: list[tuple[float, float]], ht: float) -> Sp2Shape:
         return Sp2PolyExtrusionZ(path, ht, api=self)
@@ -168,7 +180,7 @@ class Sp2Shape(Shape):
         return self
     
     def segsByDim(self, dim: float) -> int:
-        return ceil((abs(dim)) * self.api.fidelity.smoothingSegments()**.25)
+        return ceil((abs(dim)) * self.api.fidelity.smoothingSegments()/8)
 
     def mirrorXZ(self) -> Sp2Shape:
         cmirror = self.solid.mirror([0,1,0])
@@ -224,7 +236,7 @@ class Sp2Cone(Sp2Shape):
         if sides is None:
             self.r1 = r1
             self.r2 = r1 if r2 is None else r2
-            sects = FIDELITY_K * self.segsByDim(max(self.r1, self.r2))
+            sects = self.api.fidelity.smoothingSegments()*FIDELITY_K
         else:
             self.r1 = r1*sqrt(2)
             self.r2 = self.r1 if r2 is None else r2*sqrt(2)
@@ -307,7 +319,7 @@ class Sp2CirclePolySweep(Sp2Shape):
         super().__init__(api)
         self.path = path
         self.rad = rad
-        segs = FIDELITY_K * self.segsByDim(rad)
+        segs=self.api.fidelity.smoothingSegments()*FIDELITY_K
         self.solid = circle(r=rad, _fn=segs).path_extrude(path)
 
 class Sp2Import(Sp2Shape):
