@@ -103,9 +103,11 @@ def main(args = None):
 
 def test_frets(self,apis=None):
     """ Test Frets """
-    tests = {
-        'wire' : ['-ft','wire']
-    }
+    
+    tests = {}
+    for ft in FretType:
+        tests[ft] = ['-ft',ft]
+
     test_loop(module=__name__,tests=tests,apis=apis)
 
 def test_frets_mock(self):
