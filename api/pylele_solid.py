@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
+from copy import deepcopy
 
 import argparse
 import datetime
@@ -38,18 +39,20 @@ def test_iteration(module,component,test,api,args=None):
     mod = importlib.import_module(module)
 
     if args is None:
-        args = []
+        largs = []
+    else:
+        largs = deepcopy(args)
 
     print(f'#### Test {component} {test} {api}')
     outdir = os.path.join(DEFAULT_TEST_DIR,component,test,api)
-    args += [
+    largs += [
         '-o', outdir,
         '-i', api,
         '-odoff', # do not append date
         '-stlc' # enable stl volume analysis during test
                 ]
-    print(args)
-    mod.main(args=args)
+    print(largs)
+    mod.main(args=largs)
     pass
 
 def test_loop(module,apis=None,tests=None): # ,component):
