@@ -247,8 +247,8 @@ class Sp2Cone(Sp2Shape):
             self.r2 = r1 if r2 is None else r2
             sects = self._smoothing_segments(2 * pi * max(self.r1, self.r2))
         else:
-            self.r1 = r1 * sqrt(2)
-            self.r2 = self.r1 if r2 is None else r2 * sqrt(2)
+            self.r1 = r1 # * sqrt(2)
+            self.r2 = self.r1 if r2 is None else r2 #* sqrt(2)
             sects = sides
 
         self.solid = cylinder(h=ln, r1=self.r1, r2=self.r2, _fn=sects).translateZ(
