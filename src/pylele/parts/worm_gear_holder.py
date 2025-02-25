@@ -14,24 +14,21 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
 from b13d.api.solid import Solid, test_loop, main_maker, Implementation
 from b13d.api.core import Shape
-from pylele.parts.worm_drive import WormDrive
+from pylele.parts.worm_gear import WormGear
 
-class WormGearHolder(WormDrive):
+class WormGearHolder(WormGear):
     """ Generate Worm Gear Holder"""
 
+    def gen_parser(self, parser=None):
+        parser = WormGear.gen_parser(self,parser=parser)
+        parser.add_argument("-g", "--gears_enable", help="Enable Generation of gears", action="store_true")    
+        return parser
+
     def configure(self):
-        WormDrive.configure(self)
+        WormGear.configure(self)
 
         self.wall_thickness = 1.4
-        
-        """
-        self.holder_thickness = max([
-            self.worm_diam-2*self.worm_drive_teeth, # from gear
-            self.worm_diam/2+self.drive_teeth_l   , # from drive
-        ]) + 2*self.wall_thickness + 2*self.cut_tolerance
-        """
         self.holder_thickness = self.worm_diam + 2*self.wall_thickness + 2*self.cut_tolerance
-
         self.holder_width = 2*(self.gear_diam/2 + self.gear_teeth + self.wall_thickness)
 
     def gen(self) -> Shape:
@@ -42,17 +39,10 @@ class WormGearHolder(WormDrive):
             rad = self.holder_width/2
             )
         
-        ## join gear and drive
-        """
-        jx = self.gear_diam/2+self.disk_h
-        joiner = self.api.box(
-            jx,
-            self.holder_width,
+        gear_cut = self.api.cylinder_z(
             self.holder_thickness,
-        )
-        joiner <<= (self.holder_width/2,0,0)
-        gear += joiner
-        """
+            rad = self.gear_out_rad + self.cut_tolerance
+            ).mv(0,0,-self.wall_thickness)
 
         ## drive
         holder_x = self.worm_diam + 2*self.worm_drive_teeth + self.gear_diam/2 + self.wall_thickness
@@ -69,20 +59,32 @@ class WormGearHolder(WormDrive):
         holder = drive + gear
         if self.cli.implementation.has_hull():
             holder = holder.hull()
+        holder = holder - gear_cut
+
+        # prepare common worm gear arguments
+        worm_gear_args = [
+            '-i', self.cli.implementation,
+            '-d',
+            ]
+        if self.cli.minkowski_enable:
+            worm_gear_args += ['-me']
+        if self.cli.carved_gear:
+            worm_gear_args += ['-cg']
 
         # carve tuner hole
-        holder -= WormDrive( args = [
-            '-i', self.cli.implementation,
-            '-g',
-            '-C'
-            ]
+        gears_cut = WormGear( args =
+            worm_gear_args + ['-C']
         ).gen_full()
+        holder -= gears_cut
+        
+        # extrude the cut toward the bottom
+        extrude_steps = 10
+        for i in range(extrude_steps):
+            holder -= gears_cut.mv(0,0,-i*self.wall_thickness/extrude_steps)
 
-        if True and self.cli.implementation == Implementation.SOLID2:
-            holder += WormDrive( args = [
-                '-i', self.cli.implementation,
-                '-g'
-                ]
+        if self.cli.gears_enable:
+            holder += WormGear( args =
+                worm_gear_args
             ).gen_full()
 
         return holder
