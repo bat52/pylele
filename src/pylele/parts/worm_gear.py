@@ -18,26 +18,28 @@ from b13d.api.solid import Solid, test_loop, main_maker, Implementation
 from b13d.api.core import Shape
 from b13d.parts.pencil import Pencil
 from b13d.parts.torus import Torus
+from pylele.parts.worm_drive import WormDrive
 
-class WormGear(Solid):
+class WormGear(WormDrive):
     """ Generate Worm Gear """
+
+    def gen_parser(self, parser=None):
+        parser = WormDrive.gen_parser(self,parser=parser)
+        parser.add_argument("-d", "--drive_enable", help="Enable Generation of drive", action="store_true")        
+        parser.add_argument("-cg", "--carved_gear", help="Carve gear from drive", action="store_true")
+        parser.add_argument("-me", "--minkowski_enable",
+                            help="Enable minkowski-based rounding of drive when using carved_gear option",
+                            action="store_true")
+        return parser
 
     def configure(self):
         Solid.configure(self)
-        
-        # gear parameters
-        self.modulus = 3/2
-        self.circ_pitch = 4      # The circular pitch, the distance between teeth centers around the pitch circle. Default: 5
-        self.worm_diam = 10
-        self.worm_starts = 1
-        self.teeth = 14          # The number of teeth in the mated worm gear.
-        # self.pressure_angle = 25 # 32
-        self.pressure_angle = 29
 
-        # inferred parameters
-        self.gear_diam = 14.6
-        self.worm_drive_teeth = 1.43
-        self.gear_teeth = 3
+        # if self.cli.drive_enable or self.cli.carved_gear:
+        WormDrive.configure(self)
+
+        # gear outer radius
+        self.gear_out_rad = self.gear_diam/2 + self.gear_teeth
 
         # shaft parameters
         self.shaft_h = 10
@@ -46,42 +48,35 @@ class WormGear(Solid):
         # string hole
         self.string_diam = 2
 
-        # cut tolerance
-        self.cut_tolerance = 0.3
-
-        # distance between worm and gear
-        self.dist = worm_dist(circ_pitch=self.circ_pitch,
-                    d=self.worm_diam,
-                    starts=self.worm_starts,
+        if self.cli.carved_gear:
+            self.gear_h = self.worm_diam
+        elif False:
+            self.gear_h = worm_gear_thickness(
+                    circ_pitch=self.circ_pitch,
                     teeth=self.teeth,
-                    # [profile_shift],
-                    pressure_angle=self.pressure_angle
-                    )
-
-        # if False:
-        self.gear_h = worm_gear_thickness(
-                circ_pitch=self.circ_pitch,
-                teeth=self.teeth,
-                worm_diam=self.worm_diam,
-            )
-
-        self.tol = self.cut_tolerance if self.isCut else 0
+                    worm_diam=self.worm_diam,
+                )
+        else:
+            self.gear_h = self.worm_diam-2*self.worm_drive_teeth + 2*self.tol
 
     def gen(self) -> Shape:
         assert self.isCut or (self.cli.implementation in [Implementation.SOLID2, Implementation.MOCK])
         
-        return self.gen_gear()
+        gear = self.gen_gear()
+
+        if self.cli.drive_enable:
+            return gear + self.gen_drive()
+        
+        return gear
     
     def gen_gear(self) -> Shape:
         """ Generate Gear """
 
         ## gear
-        if self.isCut:
+        if self.isCut or self.cli.carved_gear:
             gear = self.api.cylinder_z(
-                    # l   = self.gear_h,
-                    # rad = self.gear_diam/2 + self.tol + int(self.dist)
-                    l   = self.worm_diam-2*self.worm_drive_teeth + 2*self.tol,
-                    rad = self.gear_diam/2 + self.gear_teeth + self.tol
+                    l   = self.gear_h,
+                    rad = self.gear_out_rad + self.tol
                     )
         else:
             gear = self.api.genShape(
@@ -96,6 +91,13 @@ class WormGear(Solid):
                                     )
                 )
 
+        if self.cli.carved_gear:
+            drive = self.gen_drive(minkowski_en=self.cli.minkowski_enable)
+            tooth_arc = 360/self.teeth
+
+            for _ in range(self.teeth):
+                gear -= drive
+                gear = gear.rotate_z(-tooth_arc)
 
         # shaft
         shaft = self.api.cylinder_z(l=self.shaft_h, rad=self.shaft_diam/2 + self.tol)
