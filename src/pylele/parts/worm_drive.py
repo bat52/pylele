@@ -18,12 +18,12 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from b13d.api.solid import Solid, test_loop, main_maker, Implementation
 from b13d.api.core import Shape
 from b13d.parts.pencil import Pencil
-from b13d.parts.torus import Torus
 
 class WormDrive(Solid):
     """ Generate Worm Drive """
 
     def configure(self):
+        Solid.configure(self)
 
         # gear &  worm common parameters
         self.modulus = 3/2
@@ -147,7 +147,7 @@ class WormDrive(Solid):
         return drive
 
 def main(args=None):
-    """ Generate a Tube """
+    """ Generate a Worm """
     return main_maker(module_name=__name__,
                 class_name='WormDrive',
                 args=args)

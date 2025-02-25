@@ -33,7 +33,6 @@ class WormGear(WormDrive):
         return parser
 
     def configure(self):
-        Solid.configure(self)
 
         # if self.cli.drive_enable or self.cli.carved_gear:
         WormDrive.configure(self)
