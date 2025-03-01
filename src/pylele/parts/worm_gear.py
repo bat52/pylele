@@ -25,10 +25,15 @@ class WormGear(WormDrive):
 
     def gen_parser(self, parser=None):
         parser = WormDrive.gen_parser(self,parser=parser)
-        parser.add_argument("-d", "--drive_enable", help="Enable Generation of drive", action="store_true")        
-        parser.add_argument("-cg", "--carved_gear", help="Carve gear from drive", action="store_true")
+        parser.add_argument("-d", "--drive_enable",
+                            help="Enable Generation of drive",
+                            action="store_true")
+        parser.add_argument("-cg", "--carved_gear",
+                            help="Carve gear from drive",
+                            action="store_true")
         parser.add_argument("-me", "--minkowski_enable",
-                            help="Enable minkowski-based rounding of drive when using carved_gear option",
+                            help="Enable minkowski-based rounding "
+                            "of drive when using carved_gear option",
                             action="store_true")
         return parser
 

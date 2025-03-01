@@ -28,9 +28,12 @@ class WormDrive(Solid):
         parser.add_argument("-cp", "--circ_pitch",
                             help="Circular pitch, the distance between teeth centers around the pitch circle.",
                             type=float, default = 4)
-        parser.add_argument("-wd", "--worm_diam",
+        parser.add_argument("-wd", "--worm_diam",                            
                             help="The pitch diameter of the worm gear.",
                             type=float, default = 10)
+        parser.add_argument("-wed", "--worm_extension_diam",
+                    help="Diameter of the extension drive rings.",
+                    type=float, default = 13)
         parser.add_argument("-t", "--teeth",
                     help="Number of teeth of the worm gear.",
                     type=int, default = 14)
@@ -110,7 +113,7 @@ class WormDrive(Solid):
                                 circ_pitch=self.cli.circ_pitch,
                                 d=self.cli.worm_diam,
                                 starts=self.cli.worm_starts,
-                                # l=self.drive_h,
+                                l=self.drive_h,
                                 pressure_angle=self.cli.pressure_angle,
                                 # mod = self.modulus,
                                 mate_teeth = self.cli.teeth,
@@ -137,7 +140,10 @@ class WormDrive(Solid):
         worm_drive = self.gen_worm(spin=spin, minkowski_en=minkowski_en)
 
         # drive cylindrical extensions that keep the worm in place
-        disk_low = self.api.cylinder_z(l=self.disk_h+self.tol, rad=self.cli.worm_diam/2+self.tol)
+        disk_low = self.api.cylinder_z(l=self.disk_h+self.tol, 
+                                       # rad=self.cli.worm_diam/2+self.tol
+                                       rad=self.cli.worm_extension_diam/2+self.tol
+                                       )
         disk_high = disk_low.dup()
         disk_low  <<= (0,0,-(self.drive_h+self.disk_h)/2)
         disk_high <<= (0,0, (self.drive_h+self.disk_h)/2)
