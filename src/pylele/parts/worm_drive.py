@@ -22,17 +22,31 @@ from b13d.parts.pencil import Pencil
 class WormDrive(Solid):
     """ Generate Worm Drive """
 
+    def gen_parser(self, parser=None):
+        parser = super().gen_parser(parser=parser)
+        parser.add_argument("-e", "--enveloping_worm", help="Enveloping Worm", action="store_true")
+        parser.add_argument("-cp", "--circ_pitch",
+                            help="Circular pitch, the distance between teeth centers around the pitch circle.",
+                            type=float, default = 4)
+        parser.add_argument("-wd", "--worm_diam",
+                            help="The pitch diameter of the worm gear.",
+                            type=float, default = 10)
+        parser.add_argument("-t", "--teeth",
+                    help="Number of teeth of the worm gear.",
+                    type=int, default = 14)
+        parser.add_argument("-ws", "--worm_starts",
+                    help="Number of star tooth of the worm drive",
+                    type=int, default = 1)
+        parser.add_argument("-pa", "--pressure_angle",
+                    help="Controls how straight or bulged the tooth sides are. In degrees.",
+                    type=float, default = 29)
+        return parser
+
     def configure(self):
         Solid.configure(self)
 
         # gear &  worm common parameters
-        self.modulus = 3/2
-        self.circ_pitch = 4      # The circular pitch, the distance between teeth centers around the pitch circle. Default: 5
-        self.worm_diam = 10
-        self.worm_starts = 1
-        self.teeth = 14          # The number of teeth in the mated worm gear.
-        # self.pressure_angle = 25 # 32
-        self.pressure_angle = 29
+        # self.modulus = 3/2
 
         # inferred parameters
         self.gear_diam = 14.6
@@ -43,29 +57,25 @@ class WormDrive(Solid):
         self.hex_hole = 4.3
 
         # drive parameters
-        self.drive_h = self.worm_diam + self.gear_teeth
+        self.drive_h = self.cli.worm_diam + self.gear_teeth
         self.drive_teeth_l = 2*0.98
 
         # drive cylindrical extension
         self.disk_h = (self.gear_diam - self.drive_h + 2)/2
 
         # distance between worm and gear
-        self.dist = worm_dist(circ_pitch=self.circ_pitch,
-                    d=self.worm_diam,
-                    starts=self.worm_starts,
-                    teeth=self.teeth,
+        self.dist = worm_dist(
+                    circ_pitch=self.cli.circ_pitch,
+                    d=self.cli.worm_diam,
+                    starts=self.cli.worm_starts,
+                    teeth=self.cli.teeth,
                     # [profile_shift],
-                    pressure_angle=self.pressure_angle
+                    pressure_angle=self.cli.pressure_angle
                     )
 
         # cut tolerance
         self.cut_tolerance = 0.3
         self.tol = self.cut_tolerance if self.isCut else 0
-
-    def gen_parser(self, parser=None):
-        parser = super().gen_parser(parser=parser)
-        parser.add_argument("-e", "--enveloping_worm", help="Enveloping Worm", action="store_true")
-        return parser
 
     def gen(self) -> Shape:
         assert self.isCut or (self.cli.implementation in [Implementation.SOLID2, Implementation.MOCK])
@@ -76,33 +86,35 @@ class WormDrive(Solid):
         drive = self.gen_drive()
         return drive
 
-    def gen_drive(self, minkowski_en = False) -> Shape:
-        """ Generate Drive """
+    def gen_worm(self, spin = 0, minkowski_en = False) -> Shape:
+        """ Generate worm """
 
         ## drive
         if self.isCut:
             drive = self.api.cylinder_z(
                 l = self.drive_h+2*self.tol,
-                rad=self.worm_diam/2+self.drive_teeth_l/2+self.tol
+                rad=self.cli.worm_diam/2+self.drive_teeth_l/2+self.tol
                 )
         else:
             if not self.cli.enveloping_worm:
-                bworm = worm(circ_pitch=self.circ_pitch,
-                                d=self.worm_diam,
-                                starts=self.worm_starts,
+                bworm = worm(   circ_pitch=self.cli.circ_pitch,
+                                d=self.cli.worm_diam,
+                                starts=self.cli.worm_starts,
                                 l=self.drive_h,
-                                pressure_angle=self.pressure_angle,
-                                mod = self.modulus
+                                pressure_angle=self.cli.pressure_angle,
+                                # mod = self.modulus,
+                                spin = spin
                                 )
             else:
                 bworm = enveloping_worm(
-                                circ_pitch=self.circ_pitch,
-                                d=self.worm_diam,
-                                starts=self.worm_starts,
-                                # l=20 , # self.drive_h,
-                                pressure_angle=self.pressure_angle,
-                                mod = self.modulus,
-                                mate_teeth = self.teeth,
+                                circ_pitch=self.cli.circ_pitch,
+                                d=self.cli.worm_diam,
+                                starts=self.cli.worm_starts,
+                                # l=self.drive_h,
+                                pressure_angle=self.cli.pressure_angle,
+                                # mod = self.modulus,
+                                mate_teeth = self.cli.teeth,
+                                spin = spin
                                 )
             
             if minkowski_en:
@@ -116,18 +128,25 @@ class WormDrive(Solid):
                     solid=bworm
                 )
 
-        # drive cylindrical extension
-        disk_low = self.api.cylinder_z(l=self.disk_h+self.tol, rad=self.worm_diam/2+self.tol)
+        return drive
+
+    def gen_drive(self, spin = 0, minkowski_en = False) -> Shape:
+        """ Generate Drive """
+
+        # worm
+        worm_drive = self.gen_worm(spin=spin, minkowski_en=minkowski_en)
+
+        # drive cylindrical extensions that keep the worm in place
+        disk_low = self.api.cylinder_z(l=self.disk_h+self.tol, rad=self.cli.worm_diam/2+self.tol)
         disk_high = disk_low.dup()
         disk_low  <<= (0,0,-(self.drive_h+self.disk_h)/2)
         disk_high <<= (0,0, (self.drive_h+self.disk_h)/2)
-        drive += disk_low + disk_high
+        holders = disk_low + disk_high
 
         # drive extension
         drive_ext = self.api.cylinder_z(l=self.drive_h+2*self.disk_h+2*20*self.tol + 2*2,
                                         rad=self.hex_hole/2+2+2*self.tol
                                         )
-        drive += drive_ext
         
         # hex key hole
         if not self.isCut:
@@ -138,10 +157,12 @@ class WormDrive(Solid):
                         '-fh','0'
                         ]
             ).gen_full()
-            drive -= hex_cut.rotate_y(90)
+            hex_cut = hex_cut.rotate_y(90)
+        else:
+            hex_cut = None
         
         # align drive with gear
-        # drive = drive.rotate_x(90).mv((self.gear_diam+self.worm_diam)/2,0,0)
+        drive = worm_drive + holders + drive_ext - hex_cut
         drive = drive.rotate_x(90).mv(self.dist,0,0)
         
         return drive
