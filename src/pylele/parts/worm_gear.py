@@ -34,7 +34,6 @@ class WormGear(WormDrive):
 
     def configure(self):
 
-        # if self.cli.drive_enable or self.cli.carved_gear:
         WormDrive.configure(self)
 
         # gear outer radius
@@ -48,15 +47,16 @@ class WormGear(WormDrive):
         self.string_diam = 2
 
         if self.cli.carved_gear:
-            self.gear_h = self.worm_diam
+            self.gear_h = self.cli.worm_diam
         elif False:
             self.gear_h = worm_gear_thickness(
-                    circ_pitch=self.circ_pitch,
-                    teeth=self.teeth,
+                    circ_pitch=self.cli.circ_pitch,
+                    teeth=self.cli.teeth,
                     worm_diam=self.worm_diam,
                 )
         else:
-            self.gear_h = self.worm_diam-2*self.worm_drive_teeth + 2*self.tol
+            # infer gear height
+            self.gear_h = self.cli.worm_diam-2*self.worm_drive_teeth + 2*self.tol
 
     def gen(self) -> Shape:
         assert self.isCut or (self.cli.implementation in [Implementation.SOLID2, Implementation.MOCK])
@@ -68,7 +68,7 @@ class WormGear(WormDrive):
         
         return gear
     
-    def gen_gear(self) -> Shape:
+    def gen_gear(self, spin = 19) -> Shape:
         """ Generate Gear """
 
         ## gear
@@ -79,22 +79,23 @@ class WormGear(WormDrive):
                     )
         else:
             gear = self.api.genShape(
-                    solid=worm_gear(circ_pitch=self.circ_pitch,
-                                    teeth=self.teeth,
-                                    worm_diam=self.worm_diam,
-                                    worm_starts=self.worm_starts,
+                    solid=worm_gear(circ_pitch=self.cli.circ_pitch,
+                                    teeth=self.cli.teeth,
+                                    worm_diam=self.cli.worm_diam,
+                                    worm_starts=self.cli.worm_starts,
                                     pressure_angle=self.pressure_angle,
                                     # mod = self.modulus,
-                                    spin = 19,
+                                    spin = spin,
                                     worm_arc = 59
                                     )
                 )
 
         if self.cli.carved_gear:
+            # carve gear from drive profile
             drive = self.gen_drive(minkowski_en=self.cli.minkowski_enable)
-            tooth_arc = 360/self.teeth
+            tooth_arc = 360/self.cli.teeth
 
-            for _ in range(self.teeth):
+            for _ in range(self.cli.teeth):
                 gear -= drive
                 gear = gear.rotate_z(-tooth_arc)
 
@@ -103,7 +104,7 @@ class WormGear(WormDrive):
 
         if not self.isCut:
             # string hole
-            string_cut = self.api.cylinder_x(l=2*self.worm_diam, rad=self.string_diam/2)
+            string_cut = self.api.cylinder_x(l=2*self.cli.worm_diam, rad=self.string_diam/2)
             string_cut <<= (0,0,self.shaft_h/2-self.string_diam)
             shaft -= string_cut
 
