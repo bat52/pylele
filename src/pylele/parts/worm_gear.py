@@ -83,7 +83,7 @@ class WormGear(WormDrive):
                                     teeth=self.cli.teeth,
                                     worm_diam=self.cli.worm_diam,
                                     worm_starts=self.cli.worm_starts,
-                                    pressure_angle=self.pressure_angle,
+                                    pressure_angle=self.cli.pressure_angle,
                                     # mod = self.modulus,
                                     spin = spin,
                                     worm_arc = 59
