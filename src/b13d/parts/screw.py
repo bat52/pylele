@@ -4,6 +4,8 @@
     Screw Solid
 """
 
+from argparse import ArgumentParser
+
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
@@ -11,38 +13,56 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from b13d.api.solid import Solid, test_loop, main_maker
 from b13d.api.core import Shape
 
+def screw_parser(parser=None):
+    """ Screw Parser """
+    
+    if parser is None:
+        parser = ArgumentParser(description="Screw Configuration")
+
+    parser.add_argument("-sd", "--screw_diameter", help="Screw diameter [mm]", type=float, default=3)
+    parser.add_argument("-sh", "--screw_heigth", help="Screw Height [mm]", type=float, default=5)
+    parser.add_argument("-hd", "--head_diameter", help="Head diameter [mm]", type=float, default=5)
+    parser.add_argument("-hh", "--head_heigth", help="Head Height [mm]", type=float, default=2)
+
+    return parser
+
 class Screw(Solid):
     """ Generate a Screw """
 
-    head_diameter = 5
-    in_diameter = 3
-    heigth = 5
-
     def gen_parser(self, parser=None):
         parser = super().gen_parser(parser=parser)
-        parser.add_argument("-sd", "--screw_diameter", help="Screw diameter [mm]", type=float, default=3)
-        parser.add_argument("-sh", "--screw_heigth", help="Screw Height [mm]", type=float, default=5)
-        parser.add_argument("-hd", "--head_diameter", help="Head diameter [mm]", type=float, default=5)
-        parser.add_argument("-hh", "--head_heigth", help="Head Height [mm]", type=float, default=2)
+        parser = screw_parser(parser=parser)
         return parser
 
-    def gen(self) -> Shape:
+    def gen_screw(self) -> Shape:
+        """ Generate Screw """
         shape = None
 
+        screw_l = self.cli.screw_heigth + self.tol
+        screw_rad = self.cli.screw_diameter/2 + self.tol
+        head_l = self.cli.head_heigth + self.tol
+        head_rad = self.cli.head_diameter/2  + self.tol
+
         if self.cli.screw_heigth > 0 and self.cli.screw_diameter > 0:
-            shape = self.api.cylinder_z(self.cli.screw_heigth, self.cli.screw_diameter/2)
+            shape = self.api.cylinder_z(l=screw_l,
+                                        rad=screw_rad)
+            shape <<= (0,0,-screw_l/2)
 
         if self.cli.head_heigth > 0 and self.cli.head_diameter > 0 :
-            head = self.api.cone_z(self.cli.head_heigth,
-                                     r1=self.cli.screw_diameter/2,
-                                     r2=self.cli.head_diameter/2)\
-                                        .mv(0,0,self.cli.screw_heigth/2)
+            head = self.api.cone_z(h=head_l,
+                                     r1=screw_rad,
+                                     r2=head_rad)\
+                                        
             if shape is None:
                 shape = head
             else:
                 shape += head
 
         return shape
+    
+    def gen(self) -> Shape:
+        """ Generate Screw """
+        return self.gen_screw()
 
 def main(args=None):
     """ Generate a Screw """

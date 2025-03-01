@@ -447,6 +447,10 @@ class Solid(ABC):
             self.api.setCommand(self.cli.openscad)
             self.api.setImplicit(self.cli.implicit)
 
+        # cut tolerance
+        self.cut_tolerance = 0.3
+        self.tol = self.cut_tolerance if self.isCut else 0
+
     def cut(self, cutter: Solid) -> Solid:
         """ Cut solid with other shape """
         self.gen_full()

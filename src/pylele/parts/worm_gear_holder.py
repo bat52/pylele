@@ -14,6 +14,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
 from b13d.api.solid import Solid, test_loop, main_maker, Implementation
 from b13d.api.core import Shape
+from b13d.parts.screw_holder import ScrewHolder, screw_holder_parser
 from pylele.parts.worm_gear import WormGear
 
 class WormGearHolder(WormGear):
@@ -21,7 +22,8 @@ class WormGearHolder(WormGear):
 
     def gen_parser(self, parser=None):
         parser = WormGear.gen_parser(self,parser=parser)
-        parser.add_argument("-g", "--gears_enable", help="Enable Generation of gears", action="store_true")    
+        parser.add_argument("-g", "--gears_enable", help="Enable Generation of gears", action="store_true")
+        parser = screw_holder_parser(parser=parser)
         return parser
 
     def configure(self):
@@ -31,34 +33,76 @@ class WormGearHolder(WormGear):
         self.holder_thickness = self.cli.worm_diam + 2*self.wall_thickness + 2*self.cut_tolerance
         self.holder_width = 2*(self.gear_diam/2 + self.gear_teeth + self.wall_thickness)
 
-    def gen(self) -> Shape:
+    def gen_screw_holder(self, cutter=False):
+        """ Generate a screw holder """
+        # sholder = self.api.cylinder_z(rad=self.cli.head_diameter/2+self.wall_thickness,
+        #                    l=self.holder_thickness)
+
+        args=[
+                '-i', self.cli.implementation,
+                '-sd', str(self.cli.screw_diameter),
+                '-sh', str(self.cli.screw_heigth),
+                '-hd', str(self.cli.head_diameter),
+                '-hh', str(self.cli.head_heigth),
+                '-shh', str(self.holder_thickness), # str(self.cli.screw_holder_heigth),
+                '-shw', str(self.cli.screw_holder_wall),   
+            ]
+        if cutter:
+            args += ['-co']
+
+        screw = ScrewHolder(
+            args=args
+        ).gen_full()
+
+        return screw.mv(0,0,-self.holder_thickness/2)
+    
+    def gen_screw_holders(self, cutter=False):
+        holder_rad = self.cli.screw_diameter/2+self.cli.screw_holder_wall
+        screw_holder_l = self.gen_screw_holder(cutter=cutter)
+        screw_holder_r = screw_holder_l.dup()
+        screw_holder_l.mv(-(self.holder_x/2+self.wall_thickness),
+                                        self.holder_width/2 - holder_rad,
+                                        0)
+
+        screw_holder_r.rotate_z(180).mv(self.holder_x+self.wall_thickness, 
+                                        -self.holder_width/2 + holder_rad, 0)
+        return screw_holder_l + screw_holder_r
+
+    def gen_holder(self) -> Shape:
         
         ## gear
         gear = self.api.cylinder_z(
             self.holder_thickness,
             rad = self.holder_width/2
             )
-        
-        gear_cut = self.api.cylinder_z(
-            self.holder_thickness,
-            rad = self.gear_out_rad + self.cut_tolerance
-            ).mv(0,0,-self.wall_thickness)
 
         ## drive
-        holder_x = self.cli.worm_diam + 2*self.worm_drive_teeth + self.gear_diam/2 + self.wall_thickness
+        self.holder_x = self.cli.worm_diam + 2*self.worm_drive_teeth + self.gear_diam/2 + self.wall_thickness
         drive = self.api.box(
-            holder_x,
+            self.holder_x,
             self.holder_width,
             self.holder_thickness,
             )
 
         # align drive with gear
-        drive = drive.mv(holder_x/2,0,0)
+        drive = drive.mv(self.holder_x/2,0,0)
 
         # assemble holder
         holder = drive + gear
+
+        # add screw holders
+        holder += self.gen_screw_holders()
+
         if self.cli.implementation.has_hull():
             holder = holder.hull()
+
+        # remove screw holders cuts
+        holder -= self.gen_screw_holders(cutter=True)
+
+        gear_cut = self.api.cylinder_z(
+            self.holder_thickness,
+            rad = self.gear_out_rad + self.cut_tolerance
+            ).mv(0,0,-self.wall_thickness)
         holder = holder - gear_cut
 
         # prepare common worm gear arguments
@@ -88,6 +132,9 @@ class WormGearHolder(WormGear):
             ).gen_full()
 
         return holder
+    
+    def gen(self) -> Shape:
+        return self.gen_holder()
 
 def main(args=None):
     """ Generate a Tube """
