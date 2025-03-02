@@ -24,6 +24,7 @@ class PyleleTestMethods(unittest.TestCase):
     from pylele.parts.tunable_bridge import test_tunable_bridge, test_tunable_bridge_mock
     from pylele.parts.worm_gear import test_worm_gear, test_worm_gear_mock
     from pylele.parts.worm_gear_holder import test_worm_gear_holder, test_worm_gear_holder_mock
+    from pylele.parts.worm_gear_holder_cover import test_worm_gear_holder_cover, test_worm_gear_holder_cover_mock
     from pylele.parts.tuner_knob import test_tuner_knob, test_tuner_knob_mock
 
     ## Pylele Individual Parts

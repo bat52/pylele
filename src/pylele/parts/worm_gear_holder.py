@@ -67,8 +67,38 @@ class WormGearHolder(WormGear):
         screw_holder_r.rotate_z(180).mv(self.holder_x+self.wall_thickness, 
                                         -self.holder_width/2 + holder_rad, 0)
         return screw_holder_l + screw_holder_r
+    
+    def gen_gears_cut(self, cut_en = True) -> Shape:
+        """ Generate the gears cut """
 
-    def gen_holder(self) -> Shape:
+        tol = self.cut_tolerance if cut_en else 0
+        cut_arg = ['-C'] if cut_en else []
+
+        gear_cut = self.api.cylinder_z(
+            self.holder_thickness - 2 * (self.wall_thickness + tol),
+            rad = self.gear_out_rad + tol
+            ).mv(0,0,-self.wall_thickness)
+
+        # prepare common worm gear arguments
+        worm_gear_args = [
+            '-i', self.cli.implementation,
+            '-d',
+            ]
+        if self.cli.minkowski_enable:
+            worm_gear_args += ['-me']
+        if self.cli.carved_gear:
+            worm_gear_args += ['-cg']
+
+        # carve tuner hole
+        gears_cut = WormGear( args =
+            worm_gear_args + cut_arg
+        ).gen_full()
+    
+        self.worm_gear_args = worm_gear_args
+
+        return gear_cut + gears_cut
+
+    def gen_holder_solid(self) -> Shape:
         
         ## gear
         gear = self.api.cylinder_z(
@@ -96,39 +126,31 @@ class WormGearHolder(WormGear):
         if self.cli.implementation.has_hull():
             holder = holder.hull()
 
-        # remove screw holders cuts
-        holder -= self.gen_screw_holders(cutter=True)
+        return holder
+    
+    def gen_holder_gears_cut(self, extrude_en = True, cut_en = True) -> Shape:
+        holder = self.gen_holder_solid()
 
-        gear_cut = self.api.cylinder_z(
-            self.holder_thickness,
-            rad = self.gear_out_rad + self.cut_tolerance
-            ).mv(0,0,-self.wall_thickness)
-        holder = holder - gear_cut
-
-        # prepare common worm gear arguments
-        worm_gear_args = [
-            '-i', self.cli.implementation,
-            '-d',
-            ]
-        if self.cli.minkowski_enable:
-            worm_gear_args += ['-me']
-        if self.cli.carved_gear:
-            worm_gear_args += ['-cg']
-
-        # carve tuner hole
-        gears_cut = WormGear( args =
-            worm_gear_args + ['-C']
-        ).gen_full()
+        # remove gear cuts
+        gears_cut = self.gen_gears_cut(cut_en = cut_en)
         holder -= gears_cut
         
         # extrude the cut toward the bottom
-        extrude_steps = 10
+        extrude_steps = 10 if extrude_en else 0
         for i in range(extrude_steps):
             holder -= gears_cut.mv(0,0,-i*self.wall_thickness/extrude_steps)
+        
+        return holder
+    
+    def gen_holder(self) -> Shape:
+        holder = self.gen_holder_gears_cut(extrude_en=True)
+
+        # remove screw holders cuts
+        holder -= self.gen_screw_holders(cutter=True)
 
         if self.cli.gears_enable:
             holder += WormGear( args =
-                worm_gear_args
+                self.worm_gear_args
             ).gen_full()
 
         return holder
@@ -137,7 +159,7 @@ class WormGearHolder(WormGear):
         return self.gen_holder()
 
 def main(args=None):
-    """ Generate a Tube """
+    """ Generate the Worm Gear Holder """
     return main_maker(module_name=__name__,
                 class_name='WormGearHolder',
                 args=args)
