@@ -44,7 +44,10 @@ def openscad_version(command=OPENSCAD):
         lines = f.readlines()
 
     # print(f'<{lines}>')
-    ans = lines[0].split()
+    version_str = lines[0]
+    # Remove .snap if present
+    version_str = version_str.split(".snap")[0]
+    ans = version_str.split()
     assert len(ans)==3, f'Missing arguments in openscad version output <{ans}>'
 
     ver=ans[2]
