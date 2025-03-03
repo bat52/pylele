@@ -25,7 +25,10 @@ class WormDrive(Solid):
     def gen_parser(self, parser=None):
         parser = super().gen_parser(parser=parser)
         parser.add_argument("-e", "--enveloping_worm", help="Enveloping Worm", action="store_true")
-        parser.add_argument("-me", "--minkowski_en", help="Enable Minkowski rounding", action="store_true")
+        parser.add_argument("-me", "--minkowski_enable",
+                            help="Enable minkowski-based rounding "
+                            "of drive when using carved_gear option",
+                            action="store_true")
         parser.add_argument("-cp", "--circ_pitch",
                             help="Circular pitch, the distance between teeth centers around the pitch circle.",
                             type=float, default = 3.5)
