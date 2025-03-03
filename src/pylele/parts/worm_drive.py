@@ -25,6 +25,7 @@ class WormDrive(Solid):
     def gen_parser(self, parser=None):
         parser = super().gen_parser(parser=parser)
         parser.add_argument("-e", "--enveloping_worm", help="Enveloping Worm", action="store_true")
+        parser.add_argument("-me", "--minkowski_en", help="Enable Minkowski rounding", action="store_true")
         parser.add_argument("-cp", "--circ_pitch",
                             help="Circular pitch, the distance between teeth centers around the pitch circle.",
                             type=float, default = 3.5)
@@ -86,7 +87,7 @@ class WormDrive(Solid):
     def gen(self) -> Shape:
         assert self.isCut or (self.cli.implementation in [Implementation.SOLID2, Implementation.MOCK])
     
-        drive = self.gen_drive()
+        drive = self.gen_drive(minkowski_en=self.cli.minkowski_en)
         return drive
 
     def gen_worm(self, spin = 0, minkowski_en = False) -> Shape:
