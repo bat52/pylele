@@ -45,12 +45,15 @@ def openscad_version(command=OPENSCAD):
 
     # print(f'<{lines}>')
     version_str = lines[0]
-    # Remove .snap if present
-    version_str = version_str.split(".snap")[0]
     ans = version_str.split()
-    assert len(ans)==3, f'Missing arguments in openscad version output <{ans}>'
-
+    # print(ans)
     ver=ans[2]
+    # print(ver)
+
+    # Remove .snap or other terminators if present
+    ver_list = ver.split('.')
+    ver = '.'.join(ver_list[:3])
+
     # print(ver)
 
     # remove temporary file
