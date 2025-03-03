@@ -28,9 +28,9 @@ def stlascii2stlbin(infile,outfile='') -> str:
         os.system(cmdstr)
         assert os.path.isfile(outfile), f"ERROR: Output File {outfile} does not exist!"
         return outfile
-    else:
-        print(f'WARNING: .stl {infile} is already in binary format!')
-        return infile
+
+    print(f'WARNING: .stl {infile} is already in binary format!')
+    return infile
 
 if __name__ == '__main__':
     stlascii2stlbin(sys.argv[1])
