@@ -41,6 +41,9 @@ Miniconda*
 pip-log.txt
 pip-delete-this-directory.txt
 
+# AppImage
+*.AppImage
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
