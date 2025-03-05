@@ -3,13 +3,15 @@
 from __future__ import annotations
 import copy
 from math import pi, ceil
-from manifold3d import Manifold, CrossSection, FillRule
+from manifold3d import Manifold, CrossSection, FillRule, Mesh
 import numpy as np
 import os
 from pathlib import Path
 import sys
 from typing import Union
 from svgpathtools import svg2paths, Arc
+import trimesh
+import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
@@ -468,6 +470,36 @@ def svg_to_extruded_geometry(svg_path: str, extrusion_height: float):
     
     return all_points
 
+def load_mesh(file_path: str):
+    """
+    Load a mesh from a file.
+    
+    Parameters:
+        file_path (str): Path to the mesh file.
+    
+    Returns:
+        trimesh.base.Trimesh: A trimesh object representing the mesh.
+    """
+    mesh = trimesh.load_mesh(file_path)
+
+    # Convert trimesh data to manifold-compatible format
+    vertices = np.array(mesh.vertices, dtype=np.float32)
+    faces = np.array(mesh.faces, dtype=np.int32)
+
+    # Create a manifold.Mesh object
+    mesh_manifold = Mesh(vert_properties=vertices, tri_verts=faces)
+
+    # Create a manifold object from the mesh
+    return Manifold(mesh_manifold)
+
+def load_svg(file_path: str, extrude: float):
+    """
+    Load an SVG file and extrude it into a 3D geometry.
+    """
+    path = svg_to_extruded_geometry(svg_path=file_path,extrusion_height=extrude)
+    polygon = CrossSection([path], FillRule.EvenOdd)
+    return Manifold.extrude(polygon, extrude)
+
 class MFImport(MFShape):
     def __init__(
         self,
@@ -476,13 +508,15 @@ class MFImport(MFShape):
         api: MFShapeAPI = MFShapeAPI,
     ):
         super().__init__(api)
-        assert os.path.isfile(infile) or os.path.isdir(
-            infile
-        ), f"ERROR: file/directory {infile} does not exist!"
-        self.infile = infile
-        path = svg_to_extruded_geometry(svg_path=infile,extrusion_height=extrude)
-        polygon = CrossSection([path], FillRule.EvenOdd)
-        self.solid = Manifold.extrude(polygon, extrude)
+        assert os.path.isfile(infile), f"ERROR: file {infile} does not exist!"
+        
+        if infile.endswith(".svg"):
+            self.solid = load_svg(infile, extrude)
+        elif infile.endswith(".stl"):
+            self.solid = load_mesh(infile)
+        else:
+            raise ValueError(f"Unsupported file format: {infile}")
+        
 
 if __name__ == "__main__":
     test_api(Implementation.MANIFOLD)

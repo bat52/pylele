@@ -64,6 +64,7 @@ def test_import3d(self,apis=supported_apis()):
         }
     
     tests[Implementation.MANIFOLD]={
+        'mf_stl': ['-imp',test_stl],
         'mf_svg': ['-imp',test_svg, '-eh', '10'],
         }
     
