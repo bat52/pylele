@@ -27,7 +27,7 @@ setup(
         "fake-bpy-module-4.1; python_version == '3.11'",
         "trimesh==4.4.8",
         "mathutils",
-        "manifold3d",
+        "manifold3d<=3.0.0", # 3.0.1 causes pylele1 to crash with segmentation fault
         "pillow",
         "shapely",
         "scipy",
