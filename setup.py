@@ -20,7 +20,7 @@ setup(
     install_requires=[
         "numpy==1.26.4",
         "nlopt==2.7.1",
-        "cadquery==2.4.0",
+        "cadquery<=2.5.2",
         "bpy==4.0.0; python_version < '3.11'",
         "fake-bpy-module-4.0; python_version < '3.11'",
         "bpy==4.1.0; python_version == '3.11'",
@@ -34,7 +34,7 @@ setup(
         "networkx",
         "pyglet<2",
         "fonttools",
-        "solidpython2",
+        "solidpython2<=2.1.1", # for enveloping worm
         "numpy-stl",
         "packaging",
         "json-tricks",
@@ -51,6 +51,7 @@ setup(
             "pylele2=pylele.pylele2.all_assembly:main",
             "stl2glb=b13d.conversion.stl2glb:stl2glb",
             "stlascii2stlbin=b13d.conversion.stlascii2stlbin:stlascii2stlbin",
+            "stlbin2stlascii=b13d.conversion.stlbin2stlascii:stlbin2stlascii",
             "scad2stl=b13d.conversion.scad2stl:scad2stl_main",
             "scad2csg=b13d.conversion.scad2csg:scad2csg",
             "b1scad=b1scad.scad2py:b1scad",

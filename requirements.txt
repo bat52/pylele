@@ -1,6 +1,6 @@
 numpy==1.26.4
 nlopt==2.7.1
-cadquery==2.4.0
+cadquery<=2.5.2
 bpy==4.0.0; python_version < '3.11'
 fake-bpy-module-4.0; python_version < '3.11'
 bpy==4.1.0; python_version == '3.11' # blender python API
@@ -14,7 +14,7 @@ scipy
 networkx
 pyglet<2
 fonttools
-solidpython2
+solidpython2<=2.1.1 # for enveloping worm
 numpy-stl
 packaging
 json-tricks
