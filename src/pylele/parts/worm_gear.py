@@ -8,15 +8,14 @@
     https://www.thingiverse.com/thing:6664561
 """
 
-from solid2.extensions.bosl2.gears import worm_gear, worm, enveloping_worm, worm_gear_thickness, worm_dist
+from solid2.extensions.bosl2.gears import worm_gear, worm_gear_thickness
 
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
-from b13d.api.solid import Solid, test_loop, main_maker, Implementation
+from b13d.api.solid import test_loop, main_maker, Implementation
 from b13d.api.core import Shape
-from b13d.parts.pencil import Pencil
 from b13d.parts.torus import Torus
 from pylele.parts.worm_drive import WormDrive
 
@@ -60,7 +59,10 @@ class WormGear(WormDrive):
             self.gear_h = self.cli.worm_diam-2*self.worm_drive_teeth + 2*self.tol
 
     def gen(self) -> Shape:
-        assert self.isCut or (self.cli.implementation in [Implementation.SOLID2, Implementation.MOCK])
+        assert self.isCut or (self.cli.implementation in [Implementation.SOLID2,
+                                                          Implementation.MANIFOLD,
+                                                          Implementation.MOCK]
+                                                          )
         
         gear = self.gen_gear()
 
@@ -69,16 +71,46 @@ class WormGear(WormDrive):
         
         return gear
     
+    def gen_gear_cylinder(self) -> Shape:
+        gear = self.api.cylinder_z(
+                l   = self.gear_h,
+                rad = self.gear_out_rad + self.tol
+                )    
+        return gear
+    
+    def gen_carved_gear(self) -> Shape:
+        """ Generate Carved Gear """
+        
+        # gear cylinder
+        gear = self.gen_gear_cylinder()
+
+        ## drive cut
+        if self.cli.implementation == Implementation.SOLID2:
+            drive = self.gen_drive(minkowski_en=self.cli.minkowski_enable)
+        else:
+            drive = self.api.genImport(
+                os.path.join(os.path.dirname(__file__), 
+                             'WormDriveRoundedAscii.stl')
+                             )
+        
+        # carve gear from drive profile
+        tooth_arc = 360/self.cli.teeth
+
+        for _ in range(self.cli.teeth):
+            gear -= drive
+            gear = gear.rotate_z(-tooth_arc)
+
+        return gear
+    
     def gen_gear(self, spin = 19) -> Shape:
         """ Generate Gear """
 
         ## gear
-        if self.isCut or self.cli.carved_gear:
-            gear = self.api.cylinder_z(
-                    l   = self.gear_h,
-                    rad = self.gear_out_rad + self.tol
-                    )
-        else:
+        if self.isCut:
+            gear = self.gen_gear_cylinder()
+        elif self.cli.carved_gear:
+            gear = self.gen_carved_gear()
+        elif self.cli.implementation == Implementation.SOLID2:
             gear = self.api.genShape(
                     solid=worm_gear(circ_pitch=self.cli.circ_pitch,
                                     teeth=self.cli.teeth,
@@ -90,15 +122,8 @@ class WormGear(WormDrive):
                                     worm_arc = 59
                                     )
                 )
-
-        if self.cli.carved_gear:
-            # carve gear from drive profile
-            drive = self.gen_drive(minkowski_en=self.cli.minkowski_enable)
-            tooth_arc = 360/self.cli.teeth
-
-            for _ in range(self.cli.teeth):
-                gear -= drive
-                gear = gear.rotate_z(-tooth_arc)
+        else:
+            assert False, f"Native worm gear generation only supported with {Implementation.SOLID2} api"
 
         # shaft
         shaft = self.api.cylinder_z(l=self.shaft_h, rad=self.shaft_diam/2 + self.tol)
@@ -143,4 +168,5 @@ def test_worm_gear_mock(self):
     test_loop(module=__name__,apis=[Implementation.MOCK])
 
 if __name__ == '__main__':
-    main(args=sys.argv[1:]+['-i',Implementation.SOLID2])
+    # main(args=sys.argv[1:]+['-i',Implementation.SOLID2])
+    main()
