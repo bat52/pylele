@@ -106,7 +106,7 @@ class WormGear(WormDrive):
         """ Generate Gear """
 
         ## gear
-        if self.isCut:
+        if self.isCut or self.cli.implementation == Implementation.MOCK:
             gear = self.gen_gear_cylinder()
         elif self.cli.carved_gear:
             gear = self.gen_carved_gear()
