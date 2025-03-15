@@ -67,7 +67,7 @@ class WormGear(WormDrive):
         gear = self.gen_gear()
 
         if self.cli.drive_enable:
-            return gear + self.gen_drive()
+            gear += self.gen_drive_wrapper()
         
         return gear
     
@@ -77,7 +77,23 @@ class WormGear(WormDrive):
                 rad = self.gear_out_rad + self.tol
                 )    
         return gear
+
+    def gen_import_drive(self, minkowski_en = False) -> Shape:
+        if minkowski_en:
+            drive_stl = 'WormDriveRoundedAscii.stl'
+        else:
+            drive_stl = 'WormDriveAscii.stl'
+        return self.api.genImport(
+            os.path.join(os.path.dirname(__file__), drive_stl )
+        )
     
+    def gen_drive_wrapper(self, minkowski_en = False, cut_en = False):
+        if self.cli.implementation == Implementation.SOLID2 or self.isCut or cut_en:
+            drive = self.gen_drive(minkowski_en=minkowski_en, cut_en=cut_en)
+        else:
+            drive = self.gen_import_drive(minkowski_en=minkowski_en)
+        return drive.mv(self.dist,0,0)
+
     def gen_carved_gear(self) -> Shape:
         """ Generate Carved Gear """
         
@@ -85,14 +101,8 @@ class WormGear(WormDrive):
         gear = self.gen_gear_cylinder()
 
         ## drive cut
-        if self.cli.implementation == Implementation.SOLID2:
-            drive = self.gen_drive(minkowski_en=self.cli.minkowski_enable)
-        else:
-            drive = self.api.genImport(
-                os.path.join(os.path.dirname(__file__), 
-                             'WormDriveRoundedAscii.stl')
-                             )
-        
+        drive = self.gen_drive_wrapper(minkowski_en=self.cli.minkowski_en)
+         
         # carve gear from drive profile
         tooth_arc = 360/self.cli.teeth
 
@@ -128,7 +138,12 @@ class WormGear(WormDrive):
         # shaft
         shaft = self.api.cylinder_z(l=self.shaft_h, rad=self.shaft_diam/2 + self.tol)
 
-        if not self.isCut:
+        if self.isCut:
+            # cut shaft hole on the other side too
+            shaft2 = self.api.cylinder_z(l=self.shaft_h, rad=self.shaft_diam/2 + self.tol)
+            shaft2 <<= (0,0,-self.shaft_h/2)
+            gear += shaft2
+        else:
             # string hole
             string_cut = self.api.cylinder_x(l=2*self.cli.worm_diam, rad=self.string_diam/2)
             string_cut <<= (0,0,self.shaft_h/2-self.string_diam)

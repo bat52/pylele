@@ -25,7 +25,7 @@ class WormDrive(Solid):
     def gen_parser(self, parser=None):
         parser = super().gen_parser(parser=parser)
         parser.add_argument("-e", "--enveloping_worm", help="Enveloping Worm", action="store_true")
-        parser.add_argument("-me", "--minkowski_enable",
+        parser.add_argument("-me", "--minkowski_en",
                             help="Enable minkowski-based rounding "
                             "of drive when using carved_gear option",
                             action="store_true")
@@ -74,14 +74,17 @@ class WormDrive(Solid):
         self.disk_h = (self.gear_diam - self.drive_h + 2)/2
 
         # distance between worm and gear
-        self.dist = worm_dist(
-                    circ_pitch=self.cli.circ_pitch,
-                    d=self.cli.worm_diam,
-                    starts=self.cli.worm_starts,
-                    teeth=self.cli.teeth,
-                    # [profile_shift],
-                    pressure_angle=self.cli.pressure_angle
-                    )
+        if self.cli.implementation == Implementation.SOLID2:
+            self.dist = worm_dist(
+                        circ_pitch=self.cli.circ_pitch,
+                        d=self.cli.worm_diam,
+                        starts=self.cli.worm_starts,
+                        teeth=self.cli.teeth,
+                        # [profile_shift],
+                        pressure_angle=self.cli.pressure_angle
+                        )
+        else:
+            self.dist = (self.gear_diam+self.cli.worm_diam)/2 # + self.worm_drive_teeth # + self.gear_teeth
 
         # cut tolerance
         self.cut_tolerance = 0.3
@@ -93,11 +96,11 @@ class WormDrive(Solid):
         drive = self.gen_drive(minkowski_en=self.cli.minkowski_en)
         return drive
 
-    def gen_worm(self, spin = 0, minkowski_en = False) -> Shape:
+    def gen_worm(self, spin = 0, minkowski_en = False, cut_en = False) -> Shape:
         """ Generate worm """
 
         ## drive
-        if self.isCut:
+        if self.isCut or cut_en:
             drive = self.api.cylinder_z(
                 l = self.drive_h+2*self.tol,
                 rad=self.cli.worm_diam/2+self.drive_teeth_l/2+self.tol
@@ -147,11 +150,11 @@ class WormDrive(Solid):
         disk_high <<= (0,0, (h+gap)/2)
         return disk_low + disk_high
 
-    def gen_drive(self, spin = 0, minkowski_en = False) -> Shape:
+    def gen_drive(self, spin = 0, minkowski_en = False, cut_en = False) -> Shape:
         """ Generate Drive """
 
         # worm
-        worm_drive = self.gen_worm(spin=spin, minkowski_en=minkowski_en)
+        worm_drive = self.gen_worm(spin=spin, minkowski_en=minkowski_en, cut_en=cut_en)
 
         # drive cylindrical extensions that keep the worm in place
         holders = self.simmetric_cylinders( rad=self.cli.worm_extension_diam/2+self.tol,
@@ -180,7 +183,7 @@ class WormDrive(Solid):
         
         # align drive with gear
         drive = worm_drive + holders + drive_ext - hex_cut
-        drive = drive.rotate_x(90).mv(self.dist,0,0)
+        drive = drive.rotate_x(90)#.mv(self.dist,0,0)
         
         return drive
 

@@ -12,7 +12,7 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
-from b13d.api.solid import Solid, test_loop, main_maker, Implementation
+from b13d.api.solid import test_loop, main_maker, Implementation
 from b13d.api.core import Shape
 from b13d.parts.screw_holder import ScrewHolder, screw_holder_parser
 from pylele.parts.worm_gear import WormGear
@@ -84,7 +84,7 @@ class WormGearHolder(WormGear):
             '-i', self.cli.implementation,
             '-d',
             ]
-        if self.cli.minkowski_enable:
+        if self.cli.minkowski_en:
             worm_gear_args += ['-me']
         if self.cli.carved_gear:
             worm_gear_args += ['-cg']
@@ -173,6 +173,6 @@ def test_worm_gear_holder_mock(self):
     test_loop(module=__name__,apis=[Implementation.MOCK])
 
 if __name__ == '__main__':
-    main(args=sys.argv[1:]+['-i',Implementation.SOLID2])
-    # main()
+    # main(args=sys.argv[1:]+['-i',Implementation.SOLID2])
+    main()
 

@@ -26,8 +26,8 @@ class WormGearHolderCover(WormGearHolder):
 
     def gen(self) -> Shape:
         cover  = self.gen_holder_gears_cut(extrude_en = False).half([False,False,True])
-        cover -= self.gen_holder_gears_cut(extrude_en = True, cut_en=False)
-
+        cover -= self.gen_holder_gears_cut(extrude_en = True, cut_en=True)        
+    
         if self.cli.holder_enable:
             cover += self.gen_holder()
  
@@ -48,6 +48,6 @@ def test_worm_gear_holder_cover_mock(self):
     test_loop(module=__name__,apis=[Implementation.MOCK])
 
 if __name__ == '__main__':
-    main(args=sys.argv[1:]+['-i',Implementation.SOLID2])
-    # main()
+    # main(args=sys.argv[1:]+['-i',Implementation.SOLID2])
+    main()
 
