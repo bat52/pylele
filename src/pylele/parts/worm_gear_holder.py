@@ -42,7 +42,7 @@ class WormGearHolder(WormGear):
                 '-i', self.cli.implementation,
                 '-sd', str(self.cli.screw_diameter),
                 '-sh', str(self.cli.screw_heigth),
-                '-hd', str(self.cli.head_diameter),
+                '-hd', str(self.cli.head_diameter + self.cut_tolerance),
                 '-hh', str(self.cli.head_heigth),
                 '-shh', str(self.holder_thickness), # str(self.cli.screw_holder_heigth),
                 '-shw', str(self.cli.screw_holder_wall),   
