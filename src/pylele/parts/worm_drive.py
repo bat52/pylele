@@ -163,10 +163,13 @@ class WormDrive(Solid):
         )
 
         # drive extension
-        drive_ext = self.simmetric_cylinders( rad=self.hex_hole/2+1+self.tol,
-                                           h=self.cli.wall_thickness + self.disk_h+self.tol,
-                                           gap=self.drive_h
-        )
+        if self.isCut:
+            drive_ext = self.simmetric_cylinders( rad=self.hex_hole/2+1+self.tol,
+                                            h=self.cli.wall_thickness + self.disk_h+self.tol,
+                                            gap=self.drive_h
+            )
+        else:
+            drive_ext = None
         
         # hex key hole
         if not self.isCut:
