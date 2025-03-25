@@ -41,7 +41,7 @@ class WormGear(WormDrive):
 
         # shaft parameters
         self.shaft_h = 10
-        self.shaft_diam = 8
+        self.shaft_diam = 9.5
 
         # string hole
         self.string_diam = 2
