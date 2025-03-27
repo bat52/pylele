@@ -4,7 +4,7 @@
     Tuner Knob
 """
 
-from math import sqrt, cos, sin, pi
+from math import cos, sin, pi
 
 import os
 import sys
@@ -12,7 +12,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
 from b13d.api.solid import Solid, test_loop, main_maker, Implementation
 from b13d.api.core import Shape
-from b13d.parts.pencil import Pencil
+from pylele.parts.tuner_knob_hole import TunerKnobHole, tuner_knob_hole_gen_parser
 
 class TunerKnob(Solid):
     """ Generate a Tunable Saddle """
@@ -46,23 +46,8 @@ class TunerKnob(Solid):
         bottom_cut <<= (0,0,-self.cli.knob_height/2+self.cli.bottom_cut_height/2)
         knob -= bottom_cut
         
-        # round hole
-        round_hole = self.api.cylinder_z(
-            l=self.cli.knob_height + tol,
-            rad=self.cli.round_hole_diameter/2
-        )
-       
-        # squared hole
-        hole_sides = self.api.cylinder_z(
-            l=self.cli.knob_height + tol,
-            rad=self.cli.round_hole_diameter/2 + tol
-        )
-        hole_sides -= self.api.box(
-            self.cli.square_hole_diam,
-            self.cli.round_hole_diameter + 2*tol,
-            self.cli.knob_height + 2*tol,
-        )
-        hole_sides = hole_sides.intersection(knob.dup())
+        # hole
+        hole = TunerKnobHole(cli=self.cli).gen_full()
 
         # grip
         r = self.cli.knob_diameter/2
@@ -79,7 +64,7 @@ class TunerKnob(Solid):
             grip_hole <<= (xg,yg,0)
             grip = grip_hole + grip
 
-        return knob - round_hole + hole_sides - grip
+        return knob - hole - grip
         
 def main(args=None):
     """ Generate the tunable saddle """
@@ -94,7 +79,7 @@ def test_tuner_knob(self,apis=None):
 
 def test_tuner_knob_mock(self):
     """ Test Tuner KNob Mock """
-    test_tuner_knob(self, apis=['mock'])
+    test_tuner_knob(self, apis=[Implementation.MOCK])
 
 if __name__ == '__main__':
     main()

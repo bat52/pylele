@@ -18,6 +18,7 @@ from b13d.api.solid import test_loop, main_maker, Implementation
 from b13d.api.core import Shape
 from b13d.parts.torus import Torus
 from pylele.parts.worm_drive import WormDrive
+from pylele.parts.tuner_knob_hole import TunerKnobHole
 
 class WormGear(WormDrive):
     """ Generate Worm Gear """
@@ -30,6 +31,17 @@ class WormGear(WormDrive):
         parser.add_argument("-cg", "--carved_gear",
                             help="Carve gear from drive",
                             action="store_true")
+        # friction shaft arguments
+        parser.add_argument("-fse", "--friction_shaft_enable",
+                            help="Use friction tuner shaft instead of 3D printing",
+                            action="store_true")
+        parser.add_argument("-fsrd", "--friction_round_hole_diameter",
+                            help="friction shaft round hole diameter", 
+                            type=float, default=4.9)
+        parser.add_argument("-fssd", "--friction_square_hole_diameter", 
+                            help="friction shaft squared hole size", 
+                            type=float, default=4.2)
+
         return parser
 
     def configure(self):
@@ -40,8 +52,8 @@ class WormGear(WormDrive):
         self.gear_out_rad = self.gear_diam/2 + self.gear_teeth
 
         # shaft parameters
-        self.shaft_h = 10
-        self.shaft_diam = 9.5
+        self.shaft_h = 33
+        self.shaft_diam = 9
 
         # string hole
         self.string_diam = 2
@@ -136,13 +148,30 @@ class WormGear(WormDrive):
             assert False, f"Native worm gear generation only supported with {Implementation.SOLID2} api"
 
         # shaft
+        if self.cli.friction_shaft_enable:
+            gear -= TunerKnobHole(
+                args = [
+                    '-i', self.cli.implementation,
+                    '-rd', f'{self.cli.friction_round_hole_diameter}',
+                    '-sd', f'{self.cli.friction_square_hole_diameter}'
+                    ]
+                ).gen_full()
+        else:
+            gear += self.gen_shaft()
+
+        return gear
+
+    def gen_shaft(self) -> Shape:
+        """ Generate Shaft """
+
+        # shaft
         shaft = self.api.cylinder_z(l=self.shaft_h, rad=self.shaft_diam/2 + self.tol)
 
         if self.isCut:
             # cut shaft hole on the other side too
             shaft2 = self.api.cylinder_z(l=self.shaft_h, rad=self.shaft_diam/2 + self.tol)
             shaft2 <<= (0,0,-self.shaft_h/2)
-            gear += shaft2
+            shaft += shaft2
         else:
             # string hole
             string_cut = self.api.cylinder_x(l=2*self.cli.worm_diam, rad=self.string_diam/2)
@@ -162,9 +191,7 @@ class WormGear(WormDrive):
             shaft -= torus
             
         shaft <<= (0,0,self.shaft_h/2)
-        gear += shaft
-
-        return gear
+        return shaft
 
 def main(args=None):
     """ Generate a Tube """
@@ -174,8 +201,10 @@ def main(args=None):
 
 def test_worm_gear(self,apis=[Implementation.SOLID2]):
     """ Test worm gear """
-    tests = {'default':[],
-             'cut'    :['-C']}
+    tests = {'default'  :[],
+             'cut'      :['-C'],
+             'carved'   :['-cg'],
+             'friction' :['-fse']}
     test_loop(module=__name__,apis=apis, tests=tests)
 
 def test_worm_gear_mock(self):
