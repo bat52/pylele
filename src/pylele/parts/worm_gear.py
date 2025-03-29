@@ -37,10 +37,10 @@ class WormGear(WormDrive):
                             action="store_true")
         parser.add_argument("-fsrd", "--friction_round_hole_diameter",
                             help="friction shaft round hole diameter", 
-                            type=float, default=4.9)
+                            type=float, default=4.6)
         parser.add_argument("-fssd", "--friction_square_hole_diameter", 
                             help="friction shaft squared hole size", 
-                            type=float, default=4.2)
+                            type=float, default=3.9)
 
         return parser
 
