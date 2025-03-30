@@ -151,13 +151,6 @@ class WormConfig(TunerConfig):
         driveOffset: float = 9.75,
         gapAdj: float = 1,
         tailAdj: float = 0,
-        buttonTck: float = 9.5,
-        buttonWth: float = 16,
-        buttonHt: float = 8,
-        buttonKeyLen: float = 6,
-        buttonKeyRad: float = 2.25,
-        buttonKeybaseRad: float = 3.8,
-        buttonKeybaseHt: float = 3,
         code: str = 'W',
     ):
         super().__init__(code = code)
@@ -173,13 +166,6 @@ class WormConfig(TunerConfig):
         self.driveOffset = driveOffset
         self.gapAdj = gapAdj
         self.tailAdj = tailAdj
-        self.buttonTck = buttonTck
-        self.buttonWth = buttonWth
-        self.buttonHt = buttonHt
-        self.buttonKeyRad = buttonKeyRad
-        self.buttonKeyLen = buttonKeyLen
-        self.buttonKeybaseRad = buttonKeybaseRad
-        self.buttonKeybaseHt = buttonKeybaseHt
 
     def minGap(self) -> float:
         return self.diskTck + self.axleLen + self.gapAdj
@@ -224,13 +210,6 @@ class TurnaroundConfig(WormConfig):
         driveOffset: float = 0,
         gapAdj: float = 1,
         tailAdj: float = 0,
-        buttonTck: float = 9.5,
-        buttonWth: float = 16,
-        buttonHt: float = 8,
-        buttonKeyLen: float = 6,
-        buttonKeyRad: float = 2.25,
-        buttonKeybaseRad: float = 3.8,
-        buttonKeybaseHt: float = 3,
         code: str = 'T',
         peg_config = PegConfig(topCutTck=25)
     ):
@@ -247,13 +226,6 @@ class TurnaroundConfig(WormConfig):
         self.driveOffset = driveOffset
         self.gapAdj = gapAdj
         self.tailAdj = tailAdj
-        self.buttonTck = buttonTck
-        self.buttonWth = buttonWth
-        self.buttonHt = buttonHt
-        self.buttonKeyRad = buttonKeyRad
-        self.buttonKeyLen = buttonKeyLen
-        self.buttonKeybaseRad = buttonKeybaseRad
-        self.buttonKeybaseHt = buttonKeybaseHt
         self.peg_config = peg_config
 
 FRICTION_PEG_CFG = PegConfig()

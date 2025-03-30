@@ -23,7 +23,6 @@ class WormGearHolder(WormGear):
     def gen_parser(self, parser=None):
         parser = WormGear.gen_parser(self,parser=parser)
         parser.add_argument("-g", "--gears_enable", help="Enable Generation of gears", action="store_true")
-        parser.add_argument("-mirror", "--mirror_enable", help="Mirror solid", action="store_true")
         parser = screw_holder_parser(parser=parser)
         return parser
 

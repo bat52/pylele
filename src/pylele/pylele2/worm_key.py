@@ -17,6 +17,7 @@ from b13d.api.solid import main_maker, test_loop
 from b13d.api.core import Shape, Implementation
 from pylele.pylele2.base import LeleBase, pylele_base_parser
 from b13d.parts.rounded_box import RoundedBox
+from b13d.parts.pencil import Pencil
 
 def pylele_worm_key_parser(parser=None):
     """
@@ -34,6 +35,15 @@ def pylele_worm_key_parser(parser=None):
 class LeleWormKey(LeleBase):
     """Pylele Worm Key Generator class"""
 
+    buttonTck: float = 9.5
+    buttonWth: float = 16
+    buttonHt: float = 8
+    buttonKeyLen: float = 6
+    hex_hole: float = 4.3
+    buttonKeybaseRad: float = 3.8
+    buttonKeybaseHt: float = 3
+    gapAdj: float = 1
+
     def gen_parser(self, parser=None):
         parser = super().gen_parser(parser=parser)
         return pylele_worm_key_parser(parser=parser)
@@ -45,22 +55,32 @@ class LeleWormKey(LeleBase):
         tailX = self.cfg.tailX
         txyzs = self.cfg.tnrXYZs
         assert TunerType[self.cli.tuner_type].value.is_worm()
-        wcfg: WormConfig = TunerType[self.cli.tuner_type].value
+        # wcfg: WormConfig = TunerType[self.cli.tuner_type].value
         cutAdj = (FIT_TOL + joinTol) if self.isCut else 0
-        btnHt = wcfg.buttonHt + 2 * cutAdj
-        btnWth = wcfg.buttonWth + 2 * cutAdj
-        btnTck = wcfg.buttonTck + 2 * cutAdj
-        kbHt = wcfg.buttonKeybaseHt + 2 * cutAdj
-        kbRad = wcfg.buttonKeybaseRad + cutAdj
-        kyRad = wcfg.buttonKeyRad + cutAdj
-        kyLen = wcfg.buttonKeyLen + 2 * cutAdj
-        gapAdj = wcfg.gapAdj
+        btnHt = self.buttonHt + 2 * cutAdj
+        btnWth = self.buttonWth + 2 * cutAdj
+        btnTck = self.buttonTck + 2 * cutAdj
+        kbHt = self.buttonKeybaseHt + 2 * cutAdj
+        kbRad = self.buttonKeybaseRad + cutAdj
+        # kyRad = wcfg.buttonKeyRad + cutAdj
+        kyRad = self.hex_hole
+        kyLen = self.buttonKeyLen + 2 * cutAdj
+        gapAdj = self.gapAdj
 
         if self.cli.worm_key_carved_hex:
             kyRad += 2 * cutAdj
             kyLen += btnHt
 
-        key = self.api.regpoly_extrusion_x(kyLen, kyRad, 6)
+        # hex key
+        key = Pencil(
+                args = ['-i', self.cli.implementation,
+                        '-s', f'{kyRad}',
+                        '-d','0',
+                        '-fh','0',
+                        '-H', f'{kyLen}',
+                        ]
+            ).gen_full()
+        # key = self.api.regpoly_extrusion_x(kyLen, kyRad, 6)
         
         if self.cli.worm_key_carved_hex:
             key <<= (-btnHt, 0, 0)
@@ -80,6 +100,7 @@ class LeleWormKey(LeleBase):
             box = RoundedBox(args=['-x', f'{btnHt}',
                                    '-y', f'{btnTck}',
                                    '-z', f'{btnWth}',
+                                   '-r', '2', # rounding radius
                                    '-i', self.cli.implementation]
                                    )\
                 .mv(-btnHt/2, 0, 0)
