@@ -41,7 +41,6 @@ class WormGear(WormDrive):
         parser.add_argument("-fssd", "--friction_square_hole_diameter", 
                             help="friction shaft squared hole size", 
                             type=float, default=3.9)
-
         return parser
 
     def configure(self):
@@ -104,6 +103,9 @@ class WormGear(WormDrive):
             drive = self.gen_drive(minkowski_en=minkowski_en, cut_en=cut_en)
         else:
             drive = self.gen_import_drive(minkowski_en=minkowski_en)
+            if self.cli.mirror_enable:
+                drive = drive.mirror()
+
         return drive.mv(self.dist,0,0)
 
     def gen_carved_gear(self) -> Shape:

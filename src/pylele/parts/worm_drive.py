@@ -50,6 +50,7 @@ class WormDrive(Solid):
         parser.add_argument("-wt", "--wall_thickness",
                     help="Wall thickness",
                     type=float, default = 4)
+        parser.add_argument("-mirror", "--mirror_enable", help="Mirror to inverse thread direction", action="store_true")
         return parser
 
     def configure(self):
@@ -187,6 +188,9 @@ class WormDrive(Solid):
         # align drive with gear
         drive = worm_drive + holders + drive_ext - hex_cut
         drive = drive.rotate_x(90)#.mv(self.dist,0,0)
+
+        if self.cli.mirror_enable:
+            drive = drive.mirror()
         
         return drive
 
