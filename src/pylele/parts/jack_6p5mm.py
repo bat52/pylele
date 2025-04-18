@@ -36,6 +36,7 @@ class Jack6p5(Solid):
         r1 = 1.5
         r2 = rad + r1/2
         torus = Torus(args=[
+            '-i', self.cli.implementation,
             '-r1', f'{r1}',
             '-r2', f'{r2}'
             ]
