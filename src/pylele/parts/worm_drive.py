@@ -60,7 +60,10 @@ class WormDrive(Solid):
         # self.modulus = 3/2
 
         # inferred parameters
-        self.gear_diam = 14.6
+        if self.cli.teeth > 12:
+            self.gear_diam = 14.6
+        else:
+            self.gear_diam = 11
         self.worm_drive_teeth = 1.43
         self.gear_teeth = 3
         

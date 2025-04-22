@@ -82,6 +82,7 @@ class WormGearHolder(WormGear):
         # prepare common worm gear arguments
         worm_gear_args = [
             '-i', self.cli.implementation,
+            '-t', f'{self.cli.teeth}',
             '-d',
             ]
         if self.cli.minkowski_en:
