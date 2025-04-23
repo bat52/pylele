@@ -31,6 +31,9 @@ class WormGear(WormDrive):
         parser.add_argument("-cg", "--carved_gear",
                             help="Carve gear from drive",
                             action="store_true")
+        parser.add_argument("-cw", "--concealed_worm",
+                            help="Enable concealed worm",
+                            action="store_true")
         # friction shaft arguments
         parser.add_argument("-fse", "--friction_shaft_enable",
                             help="Use friction tuner shaft instead of 3D printing",
@@ -50,10 +53,6 @@ class WormGear(WormDrive):
         # gear outer radius
         self.gear_out_rad = self.gear_diam/2 + self.gear_teeth
 
-        # shaft parameters
-        self.shaft_h = 33
-        self.shaft_diam = 9
-
         # string hole
         self.string_diam = 2
 
@@ -68,6 +67,13 @@ class WormGear(WormDrive):
         else:
             # infer gear height
             self.gear_h = self.cli.worm_diam-2*self.worm_drive_teeth + 2*self.tol
+
+        # shaft parameters
+        if self.cli.concealed_worm:
+            self.shaft_h = 6 + self.gear_h/2
+        else:
+            self.shaft_h = 33
+        self.shaft_diam = 9
 
     def gen(self) -> Shape:
         assert self.isCut or (self.cli.implementation in [Implementation.SOLID2,
