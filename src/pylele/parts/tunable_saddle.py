@@ -18,7 +18,7 @@ class TunableSaddle(Solid):
 
     def gen_parser(self, parser=None):
         parser = super().gen_parser(parser=parser)
-        parser.add_argument("-x", "--x", help="X [mm]", type=float, default=2)
+        parser.add_argument("-x", "--x", help="X [mm]", type=float, default=3)
         parser.add_argument("-y", "--y", help="Y [mm]", type=float, default=6)
         parser.add_argument("-z", "--z", help="Z [mm]", type=float, default=4)
         parser.add_argument("-sh", "--saddle_height", help="saddle height [mm]", type=float, default=5)
