@@ -7,6 +7,7 @@ from ast import literal_eval
 from abc import ABC, abstractmethod
 
 SEMI_RATIO = 2**(1/12)
+CUT_TOLERANCE = 0.3
 
 class LeleScaleEnum(IntEnum):
     """ Enumerator for Scale Length Names """
@@ -265,6 +266,23 @@ BIGWORM_TUNER_CFG = WormConfig(
     code = 'B',
 )
 
+# fatworm is pylele2 worm drive with 11 teeth 
+FATWORM_TUNER_CFG = WormConfig(
+    slitHt=43,
+    slitLen=10,
+    diskTck=10 + 2*CUT_TOLERANCE,
+    diskRad=13/2 + 2*CUT_TOLERANCE,
+    axleRad=3 * 1.5,
+    axleLen=5,
+    driveRad=10/2 + CUT_TOLERANCE,
+    driveLen=13 + 2*CUT_TOLERANCE,
+    # driveOffset=9.75 * 1.5,
+    driveOffset=13/2+10/2 - 3,
+    gapAdj=1 * 1.5,
+    tailAdj=0,
+    code = 'F',
+)
+
 TURNAROUND_CFG = TurnaroundConfig()
 TURNAROUND90_CFG = TurnaroundConfig(peg_config=PEG_90_CFG)
 
@@ -274,6 +292,7 @@ class TunerType(Enum):
     GOTOH = GOTOH_PEG_CFG
     WORM = WORM_TUNER_CFG
     BIGWORM = BIGWORM_TUNER_CFG
+    FATWORM = FATWORM_TUNER_CFG
     TURNAROUND = TURNAROUND_CFG
     TURNAROUND90 = TURNAROUND90_CFG
 

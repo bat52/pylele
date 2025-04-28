@@ -185,6 +185,7 @@ class LeleWorm(LeleBase):
     def worm_config(self):
         """worm configuration"""
         tnrCfg = TunerType[self.cli.tuner_type].value
+        print(f"# Using {self.cli.tuner_type} for worm configuration")
         assert tnrCfg.is_worm()
 
         cutAdj = FIT_TOL if self.isCut else 0
@@ -273,7 +274,8 @@ class LeleWorm(LeleBase):
         """
         pylele Command Line Interface
         """
-        return super().gen_parser(parser=pylele_worm_parser(parser=parser))
+        parser = pylele_worm_parser(parser=parser)
+        return super().gen_parser(parser=parser)
 
 
 def main(args=None):
@@ -297,4 +299,5 @@ def test_worm_mock(self):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:]+["-t","worm"])
+    # main(sys.argv[1:]+["-t","worm"])
+    main(sys.argv[1:])
