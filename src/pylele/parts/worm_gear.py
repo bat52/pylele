@@ -44,6 +44,13 @@ class WormGear(WormDrive):
         parser.add_argument("-fssd", "--friction_square_hole_diameter", 
                             help="friction shaft squared hole size", 
                             type=float, default=3.9)
+        # axle
+        parser.add_argument("-wa", "--worm_axle",
+                            help="Create a hole in the gear for the axle (suggested for concealed worm)",
+                            action="store_true")
+        parser.add_argument("-wad", "--worm_axle_diameter", 
+                            help="Worm Axle Diameter", 
+                            type=float, default=3)
         return parser
 
     def configure(self):
@@ -70,10 +77,11 @@ class WormGear(WormDrive):
 
         # shaft parameters
         if self.cli.concealed_worm:
-            self.shaft_h = 6 + self.gear_h/2
+            self.shaft_h = 4.5 + self.gear_h/2
+            self.shaft_diam = 7
         else:
             self.shaft_h = 33
-        self.shaft_diam = 9
+            self.shaft_diam = 9
 
     def gen(self) -> Shape:
         assert self.isCut or (self.cli.implementation in [Implementation.SOLID2,
@@ -167,6 +175,32 @@ class WormGear(WormDrive):
         else:
             gear += self.gen_shaft()
 
+        if self.cli.worm_axle:
+            # add hole for axle
+            gear -= self.api.cylinder_z(
+                l=self.gear_h+2*self.shaft_h,
+                rad=self.cli.worm_axle_diameter/2 + self.tol
+                )
+            
+        if self.cli.concealed_worm:
+            # add hole for string
+            string_hole = self.api.cylinder_z(
+                l=self.gear_h+2*self.shaft_h,
+                rad=self.string_diam/2
+                )
+            string_hole2 = string_hole.dup()
+            string_hole <<= (self.shaft_diam/2,0,0)
+            string_hole2 <<= (0,self.shaft_diam/2,0)
+            gear -= string_hole
+            gear -= string_hole2
+            
+            back_hole = self.api.cylinder_z(
+                l=self.string_diam,
+                rad=self.shaft_diam/2
+                )
+            back_hole <<= (0,0,-self.gear_h/2+self.string_diam/2)
+            gear -= back_hole
+
         return gear
 
     def gen_shaft(self) -> Shape:
@@ -182,9 +216,10 @@ class WormGear(WormDrive):
             shaft += shaft2
         else:
             # string hole
-            string_cut = self.api.cylinder_x(l=2*self.cli.worm_diam, rad=self.string_diam/2)
-            string_cut <<= (0,0,self.shaft_h/2-self.string_diam)
-            shaft -= string_cut
+            if not self.cli.concealed_worm:
+                string_cut = self.api.cylinder_x(l=2*self.cli.worm_diam, rad=self.string_diam/2)
+                string_cut <<= (0,0,self.shaft_h/2-self.string_diam)
+                shaft -= string_cut
 
             # torus to shape shaft
             torus_rad = self.shaft_diam/4
