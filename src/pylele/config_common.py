@@ -269,10 +269,10 @@ BIGWORM_TUNER_CFG = WormConfig(
 # fatworm is pylele2 worm drive with 11 teeth 
 FATWORM_TUNER_CFG = WormConfig(
     slitHt=43,
-    slitLen=10,
-    diskTck=10, # + 2*CUT_TOLERANCE,
-    diskRad=13/2 + 2*CUT_TOLERANCE,
-    axleRad=7,
+    slitLen=5,
+    diskTck=10 + 2*CUT_TOLERANCE,
+    diskRad=14/2 + 2*CUT_TOLERANCE,
+    axleRad=7/2 + 2*CUT_TOLERANCE,
     axleLen=5,
     driveRad=10/2 + CUT_TOLERANCE,
     driveLen=13 + 2*CUT_TOLERANCE,
