@@ -194,10 +194,11 @@ class WormGear(WormDrive):
             gear -= string_hole
             gear -= string_hole2
             
-            back_hole = self.api.cylinder_z(
-                l=self.string_diam,
-                rad=self.shaft_diam/2
-                )
+            back_hole = self.api.cylinder_rounded_z(
+                l=2*self.string_diam,
+                rad=self.shaft_diam/2,
+                domeRatio=1.5*self.string_diam/self.shaft_diam
+            )
             back_hole <<= (0,0,-self.gear_h/2+self.string_diam/2)
             gear -= back_hole
 
