@@ -68,7 +68,7 @@ class WormDrive(Solid):
         self.gear_teeth = 3
         
         # hex hole
-        self.hex_hole = 4.3
+        self.hex_hole = 4.5
 
         # drive parameters
         self.drive_h = self.cli.worm_diam + self.gear_teeth
