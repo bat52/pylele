@@ -17,6 +17,8 @@ from pathlib import Path
 from abc import ABC, abstractmethod
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
+import inspect
+from typing import get_type_hints, Type
 
 import os
 import sys
@@ -187,6 +189,54 @@ def solid_operand(joiner)->ShapeAPI:
         return joiner.shape
     if isinstance(joiner, ShapeAPI):
         return joiner
+
+def create_parser_from_class(cls: Type, parser = None) -> ArgumentParser:
+
+    if parser is None:
+        parser = ArgumentParser(description=f"Parser for {cls.__name__}")
+    else:
+        assert isinstance(parser, ArgumentParser), "parser must be an instance of ArgumentParser"
+
+    annotations = get_type_hints(cls)
+    
+    sig = inspect.signature(cls)
+    for k, v in sig.parameters.items():
+        print(f'k: {k}')
+    defaults = {k: v.default for k, v in sig.parameters.items() if v.default is not inspect.Parameter.empty}
+
+    # Create a default instance to extract default values
+    try:
+        instance = cls()
+    except Exception as e:
+        raise ValueError(f"Cannot instantiate class {cls.__name__} without arguments: {e}")
+
+    for attr in annotations:
+        typ = annotations.get(attr, str)  # Default to str
+
+        default_value = getattr(instance, attr, None)
+        kwargs = {
+            "required": False,
+            "default": default_value
+        }
+
+        # Handle booleans as flags
+        if typ == bool:
+            if attr in defaults and defaults[attr] is False:
+                kwargs["action"] = "store_true"
+            elif attr in defaults and defaults[attr] is True:
+                kwargs["action"] = "store_false"
+            else:
+                kwargs["type"] = lambda x: x.lower() in ("true", "1", "yes")
+        else:
+            kwargs["type"] = typ
+
+        # Create shortcut like -d for debug, -lf for log_file
+        shortcut_parts = [attr[0]] + [s[0] for s in attr.split('_')[1:]]
+        short_flag = '-' + ''.join(shortcut_parts)
+
+        parser.add_argument(short_flag, f"--{attr}", **kwargs)
+    
+    return parser
 
 def lele_solid_parser(parser=None):
     """
