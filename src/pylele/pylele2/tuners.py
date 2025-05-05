@@ -12,7 +12,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.core import Shape
-from b13d.api.solid import main_maker, test_loop
+from b13d.api.solid import main_maker, test_loop, create_parser_from_class
 from pylele.config_common import TunerType
 from pylele.pylele2.base import LeleBase
 from pylele.pylele2.peg import LelePeg
@@ -21,6 +21,17 @@ from pylele.pylele2.worm import LeleWorm, pylele_worm_parser
 from pylele.pylele2.worm_key import LeleWormKey
 from pylele.pylele2.turnaround import LeleTurnaround
 
+class LeleTunersConfig:
+    """Pylele Tuners Config class"""
+    tuners_turnaround_spacing: float = 40
+
+def pylele_tuners_parser(parser=None):
+    """
+    Pylele Tuners Command Line Interface
+    """
+    parser = pylele_worm_parser(parser=parser)
+    parser = create_parser_from_class(LeleTunersConfig, parser=parser)
+    return parser
 
 class LeleTuners(LeleBase):
     """Pylele Tuners Generator class"""
@@ -63,7 +74,7 @@ class LeleTuners(LeleBase):
                     tnr = LelePeg(isCut=self.isCut, cli=self.cli).gen_full()
                 peg_cfg = TunerType[self.cli.tuner_type].value.peg_config
                 tnr <<= (0,0,peg_cfg.botLen)
-                tnr.rotate_x(90).mv(float(self.cli.scale_length) - 35 * (1 + i),
+                tnr.rotate_x(90).mv(float(self.cli.scale_length) - self.cli.tuners_turnaround_spacing * (1 + i),
                                     self.cfg.bodyWth/2 + 5,
                                     -self.cli.flat_body_thickness/2)
                 ta_tnr = tnr + ta_tnr
@@ -98,8 +109,10 @@ class LeleTuners(LeleBase):
         """
         pylele Command Line Interface
         """
-        return super().gen_parser(parser=pylele_worm_parser(parser=parser))
-
+        parser = pylele_tuners_parser( parser=parser)
+        parser = super().gen_parser(parser=parser)
+        
+        return parser
 
 def main(args=None):
     """Generate Tuners"""

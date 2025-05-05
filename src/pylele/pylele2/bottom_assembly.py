@@ -24,10 +24,10 @@ from pylele.pylele2.body import LeleBody
 from pylele.pylele2.spines import LeleSpines
 from pylele.pylele2.fretboard_spines import LeleFretboardSpines
 from pylele.pylele2.chamber import LeleChamber, pylele_chamber_parser
-from pylele.pylele2.tuners import LeleTuners
+from pylele.pylele2.tuners import LeleTuners, pylele_tuners_parser
 from pylele.pylele2.fretboard_assembly import pylele_fretboard_assembly_parser
 from pylele.pylele2.neck_assembly import LeleNeckAssembly
-from pylele.pylele2.worm import pylele_worm_parser
+# from pylele.pylele2.worm import pylele_worm_parser
 
 class LeleBottomAssembly(LeleBase):
     """Pylele Body Bottom Assembly Generator class"""
@@ -102,7 +102,7 @@ class LeleBottomAssembly(LeleBase):
         parser = pylele_fretboard_assembly_parser(parser=parser)
         parser = pylele_chamber_parser(parser=parser)
         parser = pylele_texts_parser(parser=parser)
-        parser = pylele_worm_parser(parser=parser)
+        parser = pylele_tuners_parser(parser=parser)
         return super().gen_parser(parser=parser)
 
 
