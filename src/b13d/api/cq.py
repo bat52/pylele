@@ -151,8 +151,8 @@ class CQShape(Shape):
         return self
 
     def dup(self) -> CQShape:
-        duplicate = copy.copy(self)
-        duplicate.solid = self.solid.val().copy()
+        duplicate = CQShape(self.api)
+        duplicate.solid = copy.copy(self.solid)
         return duplicate
 
     def fillet(
