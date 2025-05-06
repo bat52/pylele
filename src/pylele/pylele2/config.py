@@ -58,6 +58,7 @@ CONFIGURATIONS = {
                             '-e','65',
                             '-cbr','1.5',
                             '-fbt','20',
+                            '-fbsr','0.6',
                             '-x','PyTravelele:8:Arial,Merlin-2025:8:Arial'] + WORM_SLIT + TUNEBRIDGE
     }
 
@@ -293,7 +294,7 @@ class LeleConfig:
 
         # Length based configs
         self.fretbdLen = scaleLen * self.cli.fretboard_ratio
-        self.fretbdRiseAng = 1 + numStrs/10
+        self.fretbdRiseAng = 1 # + numStrs/10
         self.chmFront = scaleLen - self.fretbdLen - wallTck
         self.chmBack = self.cli.chamber_back_ratio * self.chmFront
         (tnrFront, tnrBack, _, _, _, _) = tnrType.dims()
