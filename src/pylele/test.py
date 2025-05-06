@@ -28,6 +28,7 @@ class PyleleTestMethods(unittest.TestCase):
     from pylele.parts.tuner_knob import test_tuner_knob, test_tuner_knob_mock
     from pylele.parts.jack_6p5mm import test_jack_6p5mm, test_jack_6p5mm_mock
     from pylele.parts.jack_hole_6p5mm import test_jack_hole_6p5mm, test_jack_hole_6p5mm_mock
+    from pylele.parts.jack_holder import test_jack_holder, test_jack_holder_mock
 
     ## Pylele Individual Parts
     from pylele.pylele2.frets import test_frets, test_frets_mock
