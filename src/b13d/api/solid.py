@@ -190,14 +190,51 @@ def solid_operand(joiner)->ShapeAPI:
     if isinstance(joiner, ShapeAPI):
         return joiner
 
+from typing import Any, Dict, Tuple, List
+
+
+def get_class_fields(cls: Type) -> List[Tuple[str, Any, type]]:
+    """
+    Return a list of (attribute_name, default_value, inferred_type) tuples
+    for all public, non-callable attributes of a class instance.
+    """
+    try:
+        instance = cls()
+    except Exception as e:
+        raise ValueError(f"Cannot instantiate class {cls.__name__} without arguments: {e}")
+
+    annotations = get_type_hints(cls)
+    fields = []
+
+    for attr in dir(instance):
+        if attr.startswith('_'):
+            continue
+        value = getattr(instance, attr)
+        if callable(value):
+            continue
+        typ = annotations.get(attr) or type(value) or str
+        fields.append(
+                {
+                'name': attr, 
+                'value': value, 
+                'typ': typ
+                }
+            )
+
+    return fields
+
 def create_parser_from_class(cls: Type, parser = None) -> ArgumentParser:
+    """
+    Create a command line parser from a class definition.
+    """
 
     if parser is None:
         parser = ArgumentParser(description=f"Parser for {cls.__name__}")
     else:
         assert isinstance(parser, ArgumentParser), "parser must be an instance of ArgumentParser"
 
-    annotations = get_type_hints(cls)
+    # annotations = get_type_hints(cls)
+    annotations = get_class_fields(cls)
     
     sig = inspect.signature(cls)
     for k, v in sig.parameters.items():
@@ -211,30 +248,30 @@ def create_parser_from_class(cls: Type, parser = None) -> ArgumentParser:
         raise ValueError(f"Cannot instantiate class {cls.__name__} without arguments: {e}")
 
     for attr in annotations:
-        typ = annotations.get(attr, str)  # Default to str
 
-        default_value = getattr(instance, attr, None)
+        typ = attr['typ']
+        default_value = attr['value']
+        attr_name = attr['name']
+
         kwargs = {
             "required": False,
-            "default": default_value
         }
 
         # Handle booleans as flags
-        if typ == bool:
-            if attr in defaults and defaults[attr] is False:
+        if typ==bool:
+            if default_value is False:
                 kwargs["action"] = "store_true"
-            elif attr in defaults and defaults[attr] is True:
-                kwargs["action"] = "store_false"
             else:
-                kwargs["type"] = lambda x: x.lower() in ("true", "1", "yes")
+                kwargs["action"] = "store_false"
         else:
             kwargs["type"] = typ
+            kwargs["default"] = default_value
 
         # Create shortcut like -d for debug, -lf for log_file
-        shortcut_parts = [attr[0]] + [s[0] for s in attr.split('_')[1:]]
+        shortcut_parts = [attr_name[0]] + [s[0] for s in attr_name.split('_')[1:]]
         short_flag = '-' + ''.join(shortcut_parts)
 
-        parser.add_argument(short_flag, f"--{attr}", **kwargs)
+        parser.add_argument(short_flag, f"--{attr_name}", **kwargs)
     
     return parser
 
