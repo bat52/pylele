@@ -26,6 +26,7 @@ class JackHolderConfig(object):
     jack_hole_d: float = 8.6
     wall_thickness: float = 2
     screw_hole_d: float = 3
+    screw_holes_en: bool = True
     hull_en = False
 
 class JackHolder(Solid):
@@ -40,54 +41,79 @@ class JackHolder(Solid):
         """ generate 6,5mm jack holder"""
         tol = self.api.tolerance()
 
+        main_cylinder = self.gen_main_cylinder()
+        main_cylinder += self.gen_plate()
+        if self.cli.hull_en:
+            main_cylinder = main_cylinder.hull()
+
+        main_cylinder -= self.gen_cut_box()
+        main_cylinder -= self.gen_inner_cylinder()
+        main_cylinder -= self.gen_jack_hole()
+        if self.cli.screw_holes_en:
+            main_cylinder -= self.gen_screw_holes()
+
+        return main_cylinder
+
+    def gen_main_cylinder(self) -> Shape:
+        """ generate main cylinder """
+
         # main cylinder
         main_cylinder = self.api.cylinder_rounded_z(l=self.cli.main_cylinder_h,
                                 rad=self.cli.main_cylinder_d/2,
                                 domeRatio=0.2)
         main_cylinder <<= (0, 0, self.cli.main_cylinder_h/2 - self.cli.wall_thickness)
         main_cylinder = main_cylinder.rotate_y(self.cli.main_cylinder_angle)
+    
+        return main_cylinder
 
+    def gen_plate(self) -> Shape:
+        """ generate plate """
         # plate
-        cosa = cos(radians(self.cli.main_cylinder_angle))
-        sina = sin(radians(self.cli.main_cylinder_angle))
+        self.cosa = cos(radians(self.cli.main_cylinder_angle))
+        self.sina = sin(radians(self.cli.main_cylinder_angle))
 
-        plate_h = self.cli.main_cylinder_h * cosa + \
-                  self.cli.main_cylinder_d * sina + \
-                  2 * self.cli.screw_hole_d + \
-                  4 * self.cli.wall_thickness
+        self.plate_h = self.cli.main_cylinder_h * self.cosa + \
+                       self.cli.main_cylinder_d * self.sina + \
+                        2 * self.cli.screw_hole_d + \
+                        4 * self.cli.wall_thickness
+        
         plate = RoundedRectangle(args = [
-                                      "-x", str(self.cli.wall_thickness),
-                                      "-y", str(self.cli.main_cylinder_d),
-                                      "-z", str(plate_h),
-                                      "-r", str(self.cli.screw_hole_d),
-                                      '-rx', # '-ry', # '-rz',
-                                      "-i", self.cli.implementation
-                                      ], 
+                                    "-x", str(self.cli.wall_thickness),
+                                    "-y", str(self.cli.main_cylinder_d),
+                                    "-z", str(self.plate_h),
+                                    "-r", str(self.cli.screw_hole_d),
+                                    '-rx', # '-ry', # '-rz',
+                                    "-i", self.cli.implementation
+                                    ], 
                                     ).gen_full()
-        plate_zshift = plate_h/2 - self.cli.main_cylinder_d/2 * sina - \
+        
+        plate_zshift = self.plate_h/2 - self.cli.main_cylinder_d/2 * self.sina - \
                 self.cli.screw_hole_d - 2*self.cli.wall_thickness
+        self.plate_zshift = plate_zshift
         plate <<= (
-            self.cli.main_cylinder_d/2 * cosa,
+            self.cli.main_cylinder_d/2 * self.cosa,
             0,
             plate_zshift
-        )
-        
-        main_cylinder += plate
-        if self.cli.hull_en:
-            main_cylinder = main_cylinder.hull()
+        )    
+        return plate
 
+    def gen_cut_box(self) -> Shape:
+        """ generate cut box """
         # cut box
-        box_h = plate_h # self.cli.main_cylinder_h * 2
+        box_h = self.plate_h # self.cli.main_cylinder_h * 2
         cut_box = self.api.box(self.cli.main_cylinder_d,
                                self.cli.main_cylinder_d,
                                box_h)
         cut_box <<= (
             self.cli.main_cylinder_d,
             0,
-            plate_zshift
+            self.plate_zshift
         )
-        main_cylinder -= cut_box
+        # main_cylinder -= cut_box
+        return cut_box
 
+    def gen_inner_cylinder(self) -> Shape:
+        """ generate inner cylinder """
         # inner cylinder
         inner_cylinder = self.api.cylinder_z(
                                 l=self.cli.main_cylinder_h - 4*self.cli.wall_thickness,
@@ -95,8 +121,10 @@ class JackHolder(Solid):
                                 )
         inner_cylinder <<= (0, 0, self.cli.main_cylinder_h/2 - self.cli.wall_thickness)
         inner_cylinder = inner_cylinder.rotate_y(self.cli.main_cylinder_angle)
-        main_cylinder -= inner_cylinder
+        return inner_cylinder
 
+    def gen_jack_hole(self) -> Shape:
+        """ generate jack hole """
         # jack hole
         if False:
             jack_hole = JackHole6p5(cli=self.cli, isCut=False).gen_full()
@@ -105,17 +133,21 @@ class JackHolder(Solid):
                                 l=8*self.cli.wall_thickness,
                                 rad=self.cli.jack_hole_d/2,
                                 )        
-        jack_hole = jack_hole.rotate_y(self.cli.main_cylinder_angle)        
-        main_cylinder -= jack_hole
+            jack_hole = jack_hole.rotate_y(self.cli.main_cylinder_angle)        
+        # main_cylinder -= jack_hole
+        return jack_hole
+    
+    def gen_screw_holes(self) -> Shape:
+        """ generate screw holes """
 
-        # screw holes  
+        # screw holes 
         screw_hole = self.api.cylinder_x(
                                 l=self.cli.main_cylinder_d,
                                 rad=self.cli.screw_hole_d/2,
                                 )
         
         yscrew        = self.cli.main_cylinder_d/2 - self.cli.wall_thickness - self.cli.screw_hole_d/2
-        zscrew_bottom = -self.cli.main_cylinder_d/2 * sina-self.cli.screw_hole_d/2
+        zscrew_bottom = -self.cli.main_cylinder_d/2 * self.sina-self.cli.screw_hole_d/2
 
         screw_hole_lb = screw_hole.dup()
         screw_hole_lb <<= ( 0, 
@@ -125,14 +157,12 @@ class JackHolder(Solid):
         screw_hole_lt = screw_hole.dup()
         screw_hole_lt <<= ( 0, 
                         yscrew, 
-                        plate_h/2 + plate_zshift - self.cli.screw_hole_d - self.cli.wall_thickness) 
+                        self.plate_h/2 + self.plate_zshift - self.cli.screw_hole_d - self.cli.wall_thickness) 
         
         screw_holes_l = screw_hole_lb + screw_hole_lt
         screw_holes_r = screw_holes_l.mirror()
         
-        main_cylinder -= (screw_holes_l + screw_holes_r)
-
-        return main_cylinder
+        return screw_holes_l + screw_holes_r
         
 def main(args=None):
     """ Generate Jack Holder """
@@ -140,7 +170,14 @@ def main(args=None):
                 class_name='JackHolder',
                 args=args)
 
-def test_jack_holder(self,apis=None):
+def test_jack_holder(self,
+                     apis=[
+                         Implementation.MANIFOLD,
+                         Implementation.SOLID2,
+                         Implementation.CADQUERY,
+                         Implementation.TRIMESH,
+                         # Implementation.BLENDER,                         
+                         ]):
     """ Test Jack Holder """
     tests={'default':[]}
     test_loop(module=__name__,tests=tests,apis=apis)
