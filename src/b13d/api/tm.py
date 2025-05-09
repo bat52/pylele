@@ -318,6 +318,13 @@ class TMShape(Shape):
             face_colors = (c[0], c[1], c[2], 255)
             self.solid.visual.face_colors = face_colors
         return self
+    
+    def bbox(self) -> tuple[float, float, float]:
+        min_bounds, max_bounds = self.solid.bounds
+        # print(f"min_bounds: {min_bounds}, max_bounds: {max_bounds}")
+        return (min_bounds[0], max_bounds[0],
+                min_bounds[1], max_bounds[1],
+                min_bounds[2], max_bounds[2])
 
 class TMBall(TMShape):
     def __init__(self, rad: float, api: TMShapeAPI):

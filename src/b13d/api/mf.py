@@ -249,6 +249,9 @@ class MFShape(Shape):
         self.solid = self.solid.hull()
         return self
 
+    def bbox(self) -> tuple[float, float, float, float, float, float]:
+        return self.solid.bounding_box()
+
 class MFBall(MFShape):
     def __init__(self, rad: float, api: MFShapeAPI):
         super().__init__(api)
