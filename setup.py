@@ -23,7 +23,7 @@ setup(
         "cadquery<=2.5.2",
         "bpy==4.0.0; python_version < '3.11'",
         "fake-bpy-module-4.0; python_version < '3.11'",
-        "bpy==4.1.0; python_version == '3.11'",
+        "bpy==4.4.0; python_version == '3.11'",
         "fake-bpy-module-4.1; python_version == '3.11'",
         "trimesh==4.4.8",
         "mathutils",

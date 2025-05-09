@@ -53,9 +53,15 @@ class BlenderShapeAPI(ShapeAPI):
         bpy.context.view_layer.objects.active = shape.solid
         
         if fmt == ".stl":
-            bpy.ops.export_mesh.stl(
-            filepath=file_ensure_extension(path, ".stl"), use_selection=True
-            )
+            stl_fname=file_ensure_extension(path, ".stl")
+            if bpy.app.version <= (4, 1, 0):
+                bpy.ops.export_mesh.stl(
+                filepath=stl_fname, use_selection=True
+                )
+            else:
+                bpy.ops.wm.stl_export(
+                filepath=stl_fname, export_selected_objects=True
+                )                
         elif fmt == ".glb":
             bpy.ops.export_scene.gltf(
             filepath=file_ensure_extension(path, ".glb"), use_selection=True
@@ -922,7 +928,14 @@ class BlenderImport(BlenderShape):
         ), f"ERROR: file extension {fext} not supported!"
 
         if fext in [".stl",".ply"]:
-            bpy.ops.import_mesh.stl(filepath=infile)
+            if bpy.app.version <= (4, 1, 0):
+                bpy.ops.import_mesh.stl(filepath=infile)
+            else:
+                if fext == ".stl":
+                    bpy.ops.wm.stl_import(filepath=infile)
+                elif fext == ".ply":
+                    bpy.ops.wm.ply_import(filepath=infile)
+                    
             self.solid = bpy.context.object
 
         elif fext in [".svg"]:
