@@ -513,6 +513,25 @@ class BlenderShape(Shape):
     def _smoothing_segments(self, dim: float) -> int:
         return ceil(abs(dim) ** 0.5 * self.api.fidelity.smoothing_segments())
 
+    def bbox(self) -> tuple[float, float, float, float, float, float]:
+        bpy.context.view_layer.objects.active = self.solid
+        self.solid.select_set(True)
+
+        obj = bpy.context.active_object
+
+        # Get world-space bounding box corners
+        world_bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+
+        # Compute min and max in world space
+        minx = min(v.x for v in world_bbox_corners)
+        miny = min(v.y for v in world_bbox_corners)
+        minz = min(v.z for v in world_bbox_corners)
+
+        maxx = max(v.x for v in world_bbox_corners)
+        maxy = max(v.y for v in world_bbox_corners)
+        maxz = max(v.z for v in world_bbox_corners)
+
+        return (minx, maxx, miny, maxy, minz, maxz)
 
 class BlenderBall(BlenderShape):
     def __init__(
