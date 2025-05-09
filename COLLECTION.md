@@ -15,6 +15,7 @@
 * [geogram](https://github.com/BrunoLevy/geogram): mesh library. Native support for .csg input format (easily derivable from .scad), )targeting having python bindings [pygeogram](https://github.com/BrunoLevy/pygeogram)
 * [point cloud utils](https://github.com/fwilliams/point-cloud-utils): easy-to-use Python library for processing and manipulating 3D point clouds and meshes
 * [Vapory](https://github.com/Zulko/vapory): povray image generation of solid geometry
+* [COMPAS.geometry](https://compas.dev/compas/latest/api/compas.geometry.html) abstract geometric primitives, transformations, curves and surfaces, shapes, general polygons and polyhedrons, boundary representations (B-reps), and a number of geometry processing algorithms.
 
 # Ukulele: 3d print
 * [Playable Ukulele](https://www.thingiverse.com/thing:268090)
