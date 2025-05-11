@@ -218,13 +218,15 @@ class Sp2Shape(Shape):
             c = [v/255.0 for v in self.color.value]
             self.solid = self.solid.color(c)
         return self
+    
+    def bbox(self) -> tuple[float, float, float]:
+        assert False, "bbox not implemented in SolidPython2"
 
 class Sp2Ball(Sp2Shape):
     def __init__(self, rad: float, api: Sp2ShapeAPI):
         super().__init__(api)
         self.rad = rad
         self.solid = sphere(rad, _fn=self._smoothing_segments(2 * pi * rad))
-
 
 class Sp2Box(Sp2Shape):
     def __init__(self, ln: float, wth: float, ht: float, api: Sp2ShapeAPI):

@@ -303,7 +303,51 @@ class Shape(ABC):
         if operand is None:
             return self
         return self.mv(*operand)
-
+    
+    @abstractmethod
+    def bbox(self) -> tuple[float, float, float]: ...
+        
+    def top(self) -> float:
+        """Get the top Z coordinate of the bounding box."""
+        if self.solid is None:
+            return 0
+        bbox = self.bbox()
+        return bbox[5]
+    
+    def bottom(self) -> float:  
+        """Get the bottom Z coordinate of the bounding box."""
+        if self.solid is None:
+            return 0
+        bbox = self.bbox()
+        return bbox[4]
+    
+    def left(self) -> float:
+        """Get the left X coordinate of the bounding box."""
+        if self.solid is None:
+            return 0
+        bbox = self.bbox()
+        return bbox[0]
+    
+    def right(self) -> float:
+        """Get the right X coordinate of the bounding box."""
+        if self.solid is None:
+            return 0
+        bbox = self.bbox()
+        return bbox[1]
+    
+    def front(self) -> float:       
+        """Get the front Y coordinate of the bounding box."""
+        if self.solid is None:
+            return 0
+        bbox = self.bbox()
+        return bbox[2]
+    
+    def back(self) -> float:    
+        """Get the back Y coordinate of the bounding box."""
+        if self.solid is None:
+            return 0
+        bbox = self.bbox()
+        return bbox[3]
 
 class ShapeAPI(ABC):
     """ Prototype for Implementation API """
