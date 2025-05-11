@@ -12,7 +12,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
 from b13d.api.solid import Solid, test_loop, main_maker, Implementation, create_parser_from_class
 from b13d.api.utils import radians
-from b13d.api.core import Shape
+from b13d.api.core import Shape, BBoxEnum
 from b13d.parts.rounded_rectangle_extrusion import RoundedRectangle
 # from pylele.parts.jack_hole_6p5mm import JackHole6p5
 from pylele.parts.jack_6p5mm import Jack6p5
@@ -45,7 +45,8 @@ class JackHolder(Solid):
 
         main_cylinder = self.gen_main_cylinder()
         main_cylinder -= self.gen_cut_box()
-        main_cylinder += self.gen_plate()
+        plate = self.gen_plate()
+        main_cylinder += plate
         main_cylinder -= self.gen_cut_plate_border()
         if self.cli.hull_en:
             main_cylinder = main_cylinder.hull()
@@ -53,7 +54,7 @@ class JackHolder(Solid):
         main_cylinder -= self.gen_inner_cylinder()
         main_cylinder -= self.gen_jack_hole()
         if self.cli.screw_holes_en:
-            main_cylinder -= self.gen_screw_holes()
+            main_cylinder -= self.gen_screw_holes(plate.bbox())
         if self.cli.jack_en:         
             main_cylinder += self.gen_jack()
 
@@ -66,9 +67,10 @@ class JackHolder(Solid):
         main_cylinder = self.api.cylinder_rounded_z(l=self.cli.main_cylinder_h,
                                 rad=self.cli.main_cylinder_d/2,
                                 domeRatio=0.2)
-        main_cylinder <<= (0, 0, self.cli.main_cylinder_h/2 - self.cli.wall_thickness)
-        main_cylinder = main_cylinder.rotate_y(self.cli.main_cylinder_angle)
-    
+
+        main_cylinder <<= (0, 0, -main_cylinder.bottom() - self.cli.wall_thickness)
+        main_cylinder = main_cylinder.rotate_y(self.cli.main_cylinder_angle)    
+
         return main_cylinder
 
     def gen_plate(self) -> Shape:
@@ -105,17 +107,20 @@ class JackHolder(Solid):
     
     def gen_cut_plate_border(self) -> Shape:
         """ generate cut plate border """
+
+        plate = self.gen_plate()
+
         # cut plate border
         plate_cut=self.api.box(2*self.cli.wall_thickness,
                                2*self.cli.main_cylinder_d,
                                2*self.plate_h
                                )
         plate_cut <<= (
-            self.cli.main_cylinder_d/2 * self.cosa + self.cli.wall_thickness,
-            0,
-            self.plate_zshift                             
+            plate.left()-plate_cut.left(),
+            plate.center()[1]-plate_cut.center()[1],
+            plate.center()[2]-plate_cut.center()[2]
         )
-        plate_cut -= self.gen_plate()
+        plate_cut -= plate
         return plate_cut
 
     def gen_cut_box(self) -> Shape:
@@ -157,7 +162,7 @@ class JackHolder(Solid):
         # main_cylinder -= jack_hole
         return jack_hole
     
-    def gen_screw_holes(self) -> Shape:
+    def gen_screw_holes(self, bbox) -> Shape:
         """ generate screw holes """
 
         # screw holes 
