@@ -12,6 +12,7 @@ from typing import Union
 from svgpathtools import svg2paths, Arc
 import trimesh
 import numpy as np
+from enum import Enum
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
@@ -250,7 +251,24 @@ class MFShape(Shape):
         return self
 
     def bbox(self) -> tuple[float, float, float, float, float, float]:
-        return self.solid.bounding_box()
+
+        mf_bb = self.solid.bounding_box()
+
+        return (mf_bb[MFBBoxEnum.MINX.value],
+                mf_bb[MFBBoxEnum.MAXX.value],
+                mf_bb[MFBBoxEnum.MINY.value],
+                mf_bb[MFBBoxEnum.MAXY.value],
+                mf_bb[MFBBoxEnum.MINZ.value],
+                mf_bb[MFBBoxEnum.MAXZ.value],
+                )
+    
+class MFBBoxEnum(Enum):
+    MINX = 0
+    MINY = 1
+    MINZ = 2
+    MAXX = 3
+    MAXY = 4
+    MAXZ = 5
 
 class MFBall(MFShape):
     def __init__(self, rad: float, api: MFShapeAPI):

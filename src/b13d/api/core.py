@@ -55,6 +55,14 @@ class Fidelity(StringEnum):
     def code(self) -> str:
         return str(self)[0].upper()
 
+class BBoxEnum(Enum):
+    MINX = 0
+    MAXX = 1
+    MINY = 2
+    MAXY = 3
+    MINZ = 4
+    MAXZ = 5
+
 class Implementation(StringEnum):
     """Pylele API implementations"""
 
@@ -312,42 +320,53 @@ class Shape(ABC):
         if self.solid is None:
             return 0
         bbox = self.bbox()
-        return bbox[5]
+        return bbox[BBoxEnum.MAXZ.value]
     
     def bottom(self) -> float:  
         """Get the bottom Z coordinate of the bounding box."""
         if self.solid is None:
             return 0
         bbox = self.bbox()
-        return bbox[4]
+        return bbox[BBoxEnum.MINZ.value]
     
     def left(self) -> float:
         """Get the left X coordinate of the bounding box."""
         if self.solid is None:
             return 0
         bbox = self.bbox()
-        return bbox[0]
+        return bbox[BBoxEnum.MINX.value]
     
     def right(self) -> float:
         """Get the right X coordinate of the bounding box."""
         if self.solid is None:
             return 0
         bbox = self.bbox()
-        return bbox[1]
+        return bbox[BBoxEnum.MAXX.value]
     
     def front(self) -> float:       
         """Get the front Y coordinate of the bounding box."""
         if self.solid is None:
             return 0
         bbox = self.bbox()
-        return bbox[2]
+        return bbox[BBoxEnum.MINY.value]
     
     def back(self) -> float:    
         """Get the back Y coordinate of the bounding box."""
         if self.solid is None:
             return 0
         bbox = self.bbox()
-        return bbox[3]
+        return bbox[BBoxEnum.MAXY.value]
+    
+    def center(self) -> tuple[float, float, float]:
+        """Get the center of the bounding box."""
+        if self.solid is None:
+            return 0, 0, 0
+        bbox = self.bbox()
+        return (
+            (bbox[BBoxEnum.MINX.value] + bbox[BBoxEnum.MAXX.value]) / 2,
+            (bbox[BBoxEnum.MINY.value] + bbox[BBoxEnum.MAXY.value]) / 2,
+            (bbox[BBoxEnum.MINZ.value] + bbox[BBoxEnum.MAXZ.value]) / 2,
+        )
 
 class ShapeAPI(ABC):
     """ Prototype for Implementation API """
