@@ -154,7 +154,6 @@ class Sp2ShapeAPI(ShapeAPI):
     def setImplicit(self, implicit=False) -> None:
         self.implicit = implicit
 
-
 class Sp2Shape(Shape):
     """
     SolidPython2 Pylele Shape implementation for test
@@ -162,9 +161,16 @@ class Sp2Shape(Shape):
 
     backup_solid = None # use backup API to track solid properties for query ie bbox    
 
+    def _check_backup_solid(self):
+        if self.backup_solid is None:
+            print("# WARNING: backup_solid is None, cannot join")
+            return False
+        return True        
+
     def cut(self, cutter: Sp2Shape) -> Sp2Shape:
         self.solid = self.solid - cutter.solid
-        self.backup_solid = self.backup_solid - cutter.backup_solid
+        if self._check_backup_solid() and cutter._check_backup_solid():
+            self.backup_solid = self.backup_solid - cutter.backup_solid
         return self
 
     def dup(self) -> Sp2Shape:
@@ -172,12 +178,14 @@ class Sp2Shape(Shape):
 
     def join(self, joiner: Sp2Shape) -> Sp2Shape:
         self.solid = self.solid + joiner.solid
-        self.backup_solid = self.backup_solid + joiner.backup_solid
+        if self._check_backup_solid() and joiner._check_backup_solid():
+            self.backup_solid = self.backup_solid + joiner.backup_solid
         return self
 
     def intersection(self, intersector: Sp2Shape) -> Sp2Shape:
         self.solid = self.solid & intersector.solid
-        self.backup_solid = self.backup_solid & intersector.backup_solid
+        if self._check_backup_solid() and intersector._check_backup_solid():
+            self.backup_solid = self.backup_solid & intersector.backup_solid
         return self
 
     def _smoothing_segments(self, dim: float) -> int:
@@ -187,43 +195,53 @@ class Sp2Shape(Shape):
         cmirror = self.solid.mirror([0, 1, 0])
         dup = copy.copy(self)
         dup.solid = cmirror
-        dup.backup_solid = self.backup_solid.mirror()
+        
+        if self._check_backup_solid():
+            dup.backup_solid = self.backup_solid.mirror()
         return dup
 
     def mv(self, x: float, y: float, z: float) -> Sp2Shape:
         self.solid = self.solid.translate([x, y, z])
-        self.backup_solid = self.backup_solid.mv(x, y, z)
+        if self._check_backup_solid():
+            self.backup_solid = self.backup_solid.mv(x, y, z)
         return self
 
     def rotate_x(self, ang: float) -> Sp2Shape:
         self.solid = self.solid.rotate([ang, 0, 0])
-        self.backup_solid = self.backup_solid.rotate([ang, 0, 0])
+        if self._check_backup_solid():
+            self.backup_solid = self.backup_solid.rotate([ang, 0, 0])
         return self
 
     def rotate_y(self, ang: float) -> Sp2Shape:
         self.solid = self.solid.rotate([0, ang, 0])
-        self.backup_solid = self.backup_solid.rotate([0, ang, 0])
+        if self._check_backup_solid():
+            self.backup_solid = self.backup_solid.rotate([0, ang, 0])
         return self
 
     def rotate_z(self, ang: float) -> Sp2Shape:
         self.solid = self.solid.rotate([0, 0, ang])
-        self.backup_solid = self.backup_solid.rotate([0, 0, ang])
+        if self._check_backup_solid():
+            self.backup_solid = self.backup_solid.rotate([0, 0, ang])
         return self
     
     def rotate(self, ang: float | int |  tuple[float,float,float], direction: Direction = Direction.Z) -> Sp2Shape:
         if isinstance(ang,float) or isinstance(ang,int):
             return Shape.rotate(self, ang, direction)
         self.solid = self.solid.rotate(ang)
+        if self._check_backup_solid():
+            self.backup_solid = self.backup_solid.rotate(ang)
         return self
 
     def scale(self, x: float, y: float, z: float) -> Sp2Shape:
         self.solid = self.solid.scale([x, y, z])
-        self.backup_solid = self.backup_solid.scale(x, y, z)
+        if self._check_backup_solid():
+            self.backup_solid = self.backup_solid.scale(x, y, z)
         return self
 
     def hull(self) -> Sp2Shape:
         self.solid = self.solid.hull()
-        self.backup_solid = self.backup_solid.hull()
+        if self._check_backup_solid():
+            self.backup_solid = self.backup_solid.hull()
         return self
     
     def set_color(self, rgb: tuple[int, int, int] = None) -> Shape:
@@ -235,7 +253,10 @@ class Sp2Shape(Shape):
         return self
     
     def bbox(self) -> tuple[float, float, float]:
-        return self.backup_solid.bbox()
+        if self._check_backup_solid():
+            return self.backup_solid.bbox()
+        else:
+            return (0,0,0,0,0,0)
 
 class Sp2Ball(Sp2Shape):
     def __init__(self, rad: float, api: Sp2ShapeAPI):
