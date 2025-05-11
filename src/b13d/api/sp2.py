@@ -420,12 +420,13 @@ class Sp2Import(Sp2Shape):
             self.infile = stlascii2stlbin(infile)
 
         self.solid = import_(os.path.abspath(self.infile))
-        self.backup_solid = self.api.backup_api.genImport(infile)
+        
 
         if isinstance(extrude, float):
             self.solid = self.solid.linear_extrude(extrude)
-            self.backup_solid = self.backup_solid.linear_extrude(extrude)
 
+        self.backup_solid = self.api.backup_api.genImport(os.path.abspath(self.infile)
+                                                          , extrude=extrude)
 
 if __name__ == "__main__":
     test_api("solid2")
