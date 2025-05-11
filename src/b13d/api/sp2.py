@@ -9,10 +9,11 @@ import sys
 from typing import Union
 
 try:
-    from solid2 import cube, sphere, polygon, text, cylinder, import_
+    from solid2 import cube, sphere, polygon, text, cylinder, import_, scad_render, render
     from solid2.extensions.bosl2 import circle
 except:
     # only a subset allowed when using implicitcad
+    print("# WARNING: import solid2 failed, using implicitcad ?")
     from solid2 import cube, sphere, polygon, cylinder
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
@@ -24,6 +25,22 @@ from b13d.conversion.stlascii2stlbin import stlascii2stlbin
 from b13d.conversion.scad2stl import scad2stl, OPENSCAD
 from b13d.conversion.scad2csg import scad2csg
 
+def sp2num(num: float) -> str:
+    print('sp2num:')
+    print(render(num))
+    # c = echo(f"num={num}")  # OpenSCAD will print this
+
+    # Generate SCAD code and render (capturing output)
+    print('scad_code:')
+    scad_code = scad_render(sphere(num))
+    print(scad_code)  # Contains the echoed value
+
+    # If running OpenSCAD CLI, parse the output:
+    # (Example of parsing the echoed value)
+    # output = "ECHO: Volume=125"  # Simulated OpenSCAD output
+    #volume = float(re.search(r'Volume=([0-9.]+)', output).group(1))
+    # print(f"Extracted volume: {volume}")
+
 class Sp2ShapeAPI(ShapeAPI):
     """
     SolidPython2 Pylele API implementation for test
@@ -33,7 +50,14 @@ class Sp2ShapeAPI(ShapeAPI):
     implicit = False
 
     backup_api = MFShapeAPI(implementation=Implementation.MANIFOLD) # use backup API to track solid properties for query ie bbox    
+    tmp_counter = 0
 
+    def _gen_tmp_fname(self) -> str:
+        """ Generate a temporary filename """
+        tmp_fname = f"sp2_tmp_{self.tmp_counter}.stl"
+        self.tmp_counter += 1
+        return tmp_fname
+    
     def export(self, shape: Sp2Shape, path: Union[str, Path],fmt=".stl") -> None:
         """ Export any of all supported filetypes """
         assert fmt in [".stl",".scad",".csg"]
@@ -159,13 +183,55 @@ class Sp2Shape(Shape):
     SolidPython2 Pylele Shape implementation for test
     """
 
-    backup_solid = None # use backup API to track solid properties for query ie bbox    
+    backup_solid = None # use backup API to track solid properties for query ie bbox
+
+    def __init__(self,
+                 api: Sp2ShapeAPI,
+                 solid=None,
+                 color : tuple[int, int, int] = None):
+        self.api: ShapeAPI = api
+        self.color = color
+
+        if not solid is None:
+            # main solid
+            self.solid = solid
+
+            # backup solid: convert to .stl and import
+            self.backup_solid = self.api.backup_api.genImport(
+                self.api.export_stl(self,self.api._gen_tmp_fname())
+                )
 
     def _check_backup_solid(self):
         if isinstance(self.backup_solid, Shape):
             return True
         print(f"# WARNING: backup_solid wrong type {type(self.backup_solid)}")
         return False
+
+    def _scad_func_eval(self, func):
+        """ Evaluate a function and return the result """
+
+        # generate a fake box embedding the numeric value        
+        lbox = Sp2Shape(self.api, solid=cube(func, 1))   
+
+        # import .stl od the sphere
+        tmp_fname = self.api._gen_tmp_fname()
+        # print(f"tmp_fname = {tmp_fname}")
+        import_stl = self.api.backup_api.genImport(
+                self.api.export_stl(lbox,tmp_fname)
+            )
+        # read box size that embeds the numeric value
+        return 2*import_stl.back()
+    
+    def _check_numeric(self, num: float) -> bool:
+        """ Check if a number is numeric """
+        if isinstance(num, (float, int)):
+            return num
+        else:
+            print(f"# WARNING: {num} is not numeric")
+            try:
+                return self._scad_func_eval(num)
+            except:
+                assert f"# WARNING: {num} is not numeric"
 
     def cut(self, cutter: Sp2Shape) -> Sp2Shape:
         self.solid = self.solid - cutter.solid
@@ -203,13 +269,13 @@ class Sp2Shape(Shape):
     def mv(self, x: float, y: float, z: float) -> Sp2Shape:
         self.solid = self.solid.translate([x, y, z])
         if self._check_backup_solid():
-            if \
-            isinstance(x, (float, int) ) and \
-            isinstance(y, (float, int) ) and \
-            isinstance(z, (float, int) ) :        
-                self.backup_solid = self.backup_solid.mv(x, y, z)
-            else:
-                print(f"# WARNING: mv() with non-float/int {type(x), type(y), type(z)} is not supported by backup api {self.api.backup_api}")
+            try:      
+                xi = self._check_numeric(x)
+                yi = self._check_numeric(y)
+                zi = self._check_numeric(z)                
+                self.backup_solid = self.backup_solid.mv(xi, yi, zi)
+            except:
+                print(f"# WARNING: mv() with non-numeric {type(x), type(y), type(z)} is not supported by backup api {self.api.backup_api}")
         return self
 
     def rotate_x(self, ang: float) -> Sp2Shape:
@@ -447,7 +513,6 @@ class Sp2Import(Sp2Shape):
             self.infile = stlascii2stlbin(infile)
 
         self.solid = import_(os.path.abspath(self.infile))
-        
 
         if isinstance(extrude, float):
             self.solid = self.solid.linear_extrude(extrude)
