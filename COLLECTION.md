@@ -16,6 +16,9 @@
 * [point cloud utils](https://github.com/fwilliams/point-cloud-utils): easy-to-use Python library for processing and manipulating 3D point clouds and meshes
 * [Vapory](https://github.com/Zulko/vapory): povray image generation of solid geometry
 * [COMPAS.geometry](https://compas.dev/compas/latest/api/compas.geometry.html) abstract geometric primitives, transformations, curves and surfaces, shapes, general polygons and polyhedrons, boundary representations (B-reps), and a number of geometry processing algorithms.
+* [PyCSG](https://github.com/timknip/pycsg/tree/master) Constructive Solid Geometry (CSG) is a modeling technique that uses Boolean operations like union and intersection to combine 3D solids.
+* [pyvista] (https://docs.pyvista.org/) 3D plotting and mesh analysis through a streamlined interface for the Visualization Toolkit (VTK)
+* [pymesh](https://pymesh.readthedocs.io/en/latest/) rapid prototyping platform focused on geometry processing.
 
 # Ukulele: 3d print
 * [Playable Ukulele](https://www.thingiverse.com/thing:268090)
