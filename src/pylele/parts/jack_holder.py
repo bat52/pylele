@@ -54,7 +54,7 @@ class JackHolder(Solid):
         main_cylinder -= self.gen_inner_cylinder()
         main_cylinder -= self.gen_jack_hole()
         if self.cli.screw_holes_en:
-            main_cylinder -= self.gen_screw_holes(plate.bbox())
+            main_cylinder -= self.gen_screw_holes(plate)
         if self.cli.jack_en:         
             main_cylinder += self.gen_jack()
 
@@ -159,10 +159,9 @@ class JackHolder(Solid):
                                 rad=self.cli.jack_hole_d/2,
                                 )        
             jack_hole = jack_hole.rotate_y(self.cli.main_cylinder_angle)
-        # main_cylinder -= jack_hole
         return jack_hole
     
-    def gen_screw_holes(self, bbox) -> Shape:
+    def gen_screw_holes(self, plate) -> Shape:
         """ generate screw holes """
 
         # screw holes 
@@ -171,18 +170,23 @@ class JackHolder(Solid):
                                 rad=self.cli.screw_hole_d/2,
                                 )
         
-        yscrew        = self.cli.main_cylinder_d/2 - self.cli.wall_thickness - self.cli.screw_hole_d/2
-        zscrew_bottom = -self.cli.main_cylinder_d/2 * self.sina-self.cli.screw_hole_d/2
+        screw_center_to_border = self.cli.wall_thickness + self.cli.screw_hole_d/2
 
+        yscrew_left    = plate.back()   - screw_center_to_border        
+        zscrew_bottom  = plate.bottom() + screw_center_to_border        
+        zscrew_top     = plate.top()    - screw_center_to_border
+
+        # screw left bottom
         screw_hole_lb = screw_hole.dup()
         screw_hole_lb <<= ( 0, 
-                        yscrew, 
+                        yscrew_left, 
                         zscrew_bottom)
         
+        # screw left top
         screw_hole_lt = screw_hole.dup()
         screw_hole_lt <<= ( 0, 
-                        yscrew, 
-                        self.plate_h/2 + self.plate_zshift - self.cli.screw_hole_d - self.cli.wall_thickness) 
+                        yscrew_left, 
+                        zscrew_top)
         
         screw_holes_l = screw_hole_lb + screw_hole_lt
         screw_holes_r = screw_holes_l.mirror()
