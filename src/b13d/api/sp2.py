@@ -162,10 +162,10 @@ class Sp2Shape(Shape):
     backup_solid = None # use backup API to track solid properties for query ie bbox    
 
     def _check_backup_solid(self):
-        if self.backup_solid is None:
-            print("# WARNING: backup_solid is None, cannot join")
-            return False
-        return True        
+        if isinstance(self.backup_solid, Shape):
+            return True
+        print(f"# WARNING: backup_solid wrong type {type(self.backup_solid)}")
+        return False
 
     def cut(self, cutter: Sp2Shape) -> Sp2Shape:
         self.solid = self.solid - cutter.solid
@@ -203,7 +203,13 @@ class Sp2Shape(Shape):
     def mv(self, x: float, y: float, z: float) -> Sp2Shape:
         self.solid = self.solid.translate([x, y, z])
         if self._check_backup_solid():
-            self.backup_solid = self.backup_solid.mv(x, y, z)
+            if \
+            isinstance(x, (float, int) ) and \
+            isinstance(y, (float, int) ) and \
+            isinstance(z, (float, int) ) :        
+                self.backup_solid = self.backup_solid.mv(x, y, z)
+            else:
+                print(f"# WARNING: mv() with non-float/int {type(x), type(y), type(z)} is not supported by backup api {self.api.backup_api}")
         return self
 
     def rotate_x(self, ang: float) -> Sp2Shape:
