@@ -25,22 +25,6 @@ from b13d.conversion.stlascii2stlbin import stlascii2stlbin
 from b13d.conversion.scad2stl import scad2stl, OPENSCAD
 from b13d.conversion.scad2csg import scad2csg
 
-def sp2num(num: float) -> str:
-    print('sp2num:')
-    print(render(num))
-    # c = echo(f"num={num}")  # OpenSCAD will print this
-
-    # Generate SCAD code and render (capturing output)
-    print('scad_code:')
-    scad_code = scad_render(sphere(num))
-    print(scad_code)  # Contains the echoed value
-
-    # If running OpenSCAD CLI, parse the output:
-    # (Example of parsing the echoed value)
-    # output = "ECHO: Volume=125"  # Simulated OpenSCAD output
-    #volume = float(re.search(r'Volume=([0-9.]+)', output).group(1))
-    # print(f"Extracted volume: {volume}")
-
 class Sp2ShapeAPI(ShapeAPI):
     """
     SolidPython2 Pylele API implementation for test
@@ -99,9 +83,9 @@ class Sp2ShapeAPI(ShapeAPI):
         return Sp2Ball(r, self)
 
     def box(self, l: float, wth: float, ht: float, center: bool = True) -> Sp2Shape:
-        retval = Sp2Box(l, wth, ht, self)
-        if center:
-            return retval.mv(-l / 2, -wth / 2, -ht / 2)
+        retval = Sp2Box(l, wth, ht, self, center=center)
+        # if center:
+        #    return retval.mv(-l / 2, -wth / 2, -ht / 2)
         return retval
 
     def cone_x(self, h: float, r1: float, r2: float) -> Sp2Shape:
@@ -338,12 +322,22 @@ class Sp2Ball(Sp2Shape):
         self.backup_solid = self.api.backup_api.sphere(rad)
 
 class Sp2Box(Sp2Shape):
-    def __init__(self, ln: float, wth: float, ht: float, api: Sp2ShapeAPI):
+    def __init__(self, ln: float, wth: float, ht: float, api: Sp2ShapeAPI, center: bool = True):
+        """
+        Create a box with given dimensions
+        :param ln: length of the box
+        :param wth: width of the box
+        :param ht: height of the box
+        :param api: API to use for the box
+        :param center: if True, the box is centered at (0,0,0)
+        """
         super().__init__(api)
         self.ln = ln
         self.wth = wth
         self.ht = ht
         self.solid = cube(ln, wth, ht)
+        if center:
+            self.solid = self.solid.translate([-ln / 2, -wth / 2, -ht / 2])            
         self.backup_solid = self.api.backup_api.box(ln, wth, ht)
 
 class Sp2Cone(Sp2Shape):
@@ -366,16 +360,20 @@ class Sp2Cone(Sp2Shape):
             -ln / 2
         )
 
-        self.backup_solid = self.api.backup_api.cone_z(
-            h=ln, r1=self.r1, r2=self.r2
-        )
-
         if direction == "X":
             self.solid = self.solid.rotateY(90)
-            self.backup_solid = self.backup_solid.rotate_y(90)
+            self.backup_solid = self.api.backup_api.cone_x(
+                h=ln, r1=self.r1, r2=self.r2
+            ).mv(-ln/2, 0, 0)
         elif direction == "Y":
             self.solid = self.solid.rotateX(90)
-            self.backup_solid = self.backup_solid.rotate_x(90)     
+            self.backup_solid = self.api.backup_api.cone_y(
+                h=ln, r1=self.r1, r2=self.r2
+            ).mv(0, -ln/2, 0)
+        elif direction == "Z":
+            self.backup_solid = self.api.backup_api.cone_z(
+                h=ln, r1=self.r1, r2=self.r2
+            ).mv(0, 0, -ln/2)
 
 class Sp2PolyExtrusionZ(Sp2Shape):
     def __init__(self, path: list[tuple[float, float]], ht: float, api: Sp2ShapeAPI):
