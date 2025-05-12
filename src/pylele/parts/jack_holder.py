@@ -47,7 +47,7 @@ class JackHolder(Solid):
         main_cylinder -= self.gen_cut_box()
         plate = self.gen_plate()
         main_cylinder += plate
-        main_cylinder -= self.gen_cut_plate_border()
+        main_cylinder -= self.gen_cut_plate_border(plate)
         if self.cli.hull_en:
             main_cylinder = main_cylinder.hull()
 
@@ -58,7 +58,7 @@ class JackHolder(Solid):
         if self.cli.jack_en:         
             main_cylinder += self.gen_jack()
 
-        return main_cylinder
+        return main_cylinder    
 
     def gen_main_cylinder(self) -> Shape:
         """ generate main cylinder """
@@ -93,7 +93,7 @@ class JackHolder(Solid):
                                     "-i", self.cli.implementation
                                     ], 
                                     ).gen_full()
-        
+
         plate_zshift = self.plate_h/2 - self.cli.main_cylinder_d/2 * self.sina - \
                 self.cli.screw_hole_d - self.cli.wall_thickness        
         self.plate_zshift = plate_zshift
@@ -105,10 +105,8 @@ class JackHolder(Solid):
         )    
         return plate
     
-    def gen_cut_plate_border(self) -> Shape:
+    def gen_cut_plate_border(self, plate) -> Shape:
         """ generate cut plate border """
-
-        plate = self.gen_plate()
 
         # cut plate border
         plate_cut=self.api.box(2*self.cli.wall_thickness,
