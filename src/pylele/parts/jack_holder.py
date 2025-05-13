@@ -84,15 +84,17 @@ class JackHolder(Solid):
                         4 * self.cli.wall_thickness
                        # elf.cli.main_cylinder_d * self.sina + \
         
-        plate = RoundedRectangle(args = [
-                                    "-x", str(self.cli.wall_thickness),
-                                    "-y", str(self.cli.main_cylinder_d),
-                                    "-z", str(self.plate_h),
-                                    "-r", str(self.cli.screw_hole_d),
-                                    '-rx', # '-ry', # '-rz',
-                                    "-i", self.cli.implementation
-                                    ], 
-                                    ).gen_full()
+        args = [    
+            "-x", str(self.cli.wall_thickness),
+            "-y", str(self.cli.main_cylinder_d),
+            "-z", str(self.plate_h),
+            "-r", str(self.cli.screw_hole_d),            
+            "-i", self.cli.implementation,
+        ]
+        if not self.cli.implementation == Implementation.BLENDER:
+            args += ["-rx"]
+        print(args)
+        plate = RoundedRectangle(args = args).gen_full()
 
         plate_zshift = self.plate_h/2 - self.cli.main_cylinder_d/2 * self.sina - \
                 self.cli.screw_hole_d - self.cli.wall_thickness        
