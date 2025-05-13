@@ -5,7 +5,7 @@ import bpy
 import bmesh
 import copy
 from math import ceil, pi
-from mathutils import Vector
+from mathutils import Vector, Quaternion, Matrix
 import os
 from pathlib import Path
 import sys
@@ -452,6 +452,7 @@ class BlenderShape(Shape):
             return self
         bpy.context.view_layer.objects.active = self.solid
         self.solid.select_set(True)
+        """
         bpy.ops.transform.rotate(
             value=radians(ang),  # Rotation angle in radians
             orient_axis="X",  # Rotation axis
@@ -459,6 +460,11 @@ class BlenderShape(Shape):
             orient_type="GLOBAL",  # Orientation type
             use_accurate=True,
         )
+        """
+        self.solid.rotation_mode = 'QUATERNION'
+        self.solid.rotation_quaternion = (1, 0, 0, 0)  # Reset first
+        self.solid.rotation_quaternion.rotate(Quaternion((1, 0, 0), radians(ang)))  # Rotate 45° on Z
+        bpy.ops.object.transform_apply(rotation=True)
         return self
 
     def rotate_y(self, ang: float) -> BlenderShape:
@@ -466,6 +472,8 @@ class BlenderShape(Shape):
             return self
         bpy.context.view_layer.objects.active = self.solid
         self.solid.select_set(True)
+
+        """
         bpy.ops.transform.rotate(
             value=radians(ang),  # Rotation angle in radians
             orient_axis="Y",  # Rotation axis
@@ -473,6 +481,22 @@ class BlenderShape(Shape):
             orient_type="GLOBAL",  # Orientation type
             use_accurate=True,
         )
+        """
+        
+        """
+        # Decompose the matrix
+        loc, rot, scale = self.solid.matrix_world.decompose()
+        # Modify the rotation
+        new_rot = rot @ Quaternion((0, 1, 0), radians(ang))
+        # Recompose the matrix
+        self.solid.matrix_world = Matrix.LocRotScale(loc, new_rot, scale)
+        """
+
+        self.solid.rotation_mode = 'QUATERNION'
+        self.solid.rotation_quaternion = (1, 0, 0, 0)  # Reset first
+        self.solid.rotation_quaternion.rotate(Quaternion((0, 1, 0), radians(ang)))  # Rotate 45° on Z
+        bpy.ops.object.transform_apply(rotation=True)
+
         return self
 
     def rotate_z(self, ang: float) -> BlenderShape:
@@ -480,6 +504,7 @@ class BlenderShape(Shape):
             return self
         bpy.context.view_layer.objects.active = self.solid
         self.solid.select_set(True)
+        """
         bpy.ops.transform.rotate(
             value=radians(ang),  # Rotation angle in radians
             orient_axis="Z",  # Rotation axis
@@ -487,6 +512,11 @@ class BlenderShape(Shape):
             orient_type="GLOBAL",  # Orientation type
             use_accurate=True,
         )
+        """
+        self.solid.rotation_mode = 'QUATERNION'
+        self.solid.rotation_quaternion = (1, 0, 0, 0)  # Reset first
+        self.solid.rotation_quaternion.rotate(Quaternion((0, 0, 1), radians(ang)))  # Rotate 45° on Z
+        bpy.ops.object.transform_apply(rotation=True)
         return self
 
     def scale(self, x: float, y: float, z: float) -> BlenderShape:
