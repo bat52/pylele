@@ -93,7 +93,6 @@ class JackHolder(Solid):
         ]
         if not self.cli.implementation == Implementation.BLENDER:
             args += ["-rx"]
-        print(args)
         plate = RoundedRectangle(args = args).gen_full()
 
         plate_zshift = self.plate_h/2 - self.cli.main_cylinder_d/2 * self.sina - \
