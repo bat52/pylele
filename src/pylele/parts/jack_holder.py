@@ -100,7 +100,7 @@ class JackHolder(Solid):
         self.plate_zshift = plate_zshift
 
         plate <<= (
-            self.cli.main_cylinder_d/2 * self.cosa + self.cli.wall_thickness/2,
+            -main_cylinder.front(),
             0,
             plate_zshift
         )    
