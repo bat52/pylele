@@ -367,6 +367,27 @@ class Shape(ABC):
             (bbox[BBoxEnum.MINY.value] + bbox[BBoxEnum.MAXY.value]) / 2,
             (bbox[BBoxEnum.MINZ.value] + bbox[BBoxEnum.MAXZ.value]) / 2,
         )
+    
+    def length(self) -> float:
+        """Get the length (X) of the bounding box."""
+        if self.solid is None:
+            return 0
+        bbox = self.bbox()
+        return bbox[BBoxEnum.MAXX.value] - bbox[BBoxEnum.MINX.value]
+
+    def width(self) -> float:
+        """Get the width (Y) of the bounding box."""
+        if self.solid is None:
+            return 0
+        bbox = self.bbox()
+        return bbox[BBoxEnum.MAXY.value] - bbox[BBoxEnum.MINY.value]
+
+    def height(self) -> float:
+        """Get the height (Z) of the bounding box."""
+        if self.solid is None:
+            return 0
+        bbox = self.bbox()
+        return bbox[BBoxEnum.MAXZ.value] - bbox[BBoxEnum.MINZ.value]
 
 class ShapeAPI(ABC):
     """ Prototype for Implementation API """
