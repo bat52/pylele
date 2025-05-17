@@ -12,7 +12,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
 from b13d.api.solid import Solid, test_loop, main_maker, Implementation, create_parser_from_class
 from b13d.api.utils import radians
-from b13d.api.core import Shape, BBoxEnum
+from b13d.api.core import Shape
 from b13d.parts.rounded_rectangle_extrusion import RoundedRectangle
 from pylele.parts.jack_hole_6p5mm import JackHole6p5
 from pylele.parts.jack_6p5mm import Jack6p5
@@ -24,8 +24,8 @@ class JackHolderConfig(object):
     # screw cylinder
     main_cylinder_d: float = 30
     main_cylinder_d_narrow: float = 21
-    main_cylinder_h: float = 60
-    main_cylinder_angle: float = 35
+    main_cylinder_h: float = 50
+    main_cylinder_angle: float = 40
     jack_hole_d: float = 9
     jack_hole_accurate = False
     wall_thickness: float = 1
