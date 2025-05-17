@@ -23,9 +23,10 @@ class JackHolderConfig(object):
 
     # screw cylinder
     main_cylinder_d: float = 30
+    main_cylinder_d_narrow: float = 21
     main_cylinder_h: float = 60
-    main_cylinder_angle: float = 30
-    jack_hole_d: float = 8.6
+    main_cylinder_angle: float = 35
+    jack_hole_d: float = 9
     jack_hole_accurate = False
     wall_thickness: float = 1
     screw_hole_d: float = 5
@@ -71,6 +72,7 @@ class JackHolder(Solid):
                                 domeRatio=0.2)
 
         main_cylinder <<= (0, 0, -main_cylinder.bottom() - self.cli.wall_thickness)
+        main_cylinder *= (1,self.cli.main_cylinder_d_narrow/self.cli.main_cylinder_d,1)
         main_cylinder = main_cylinder.rotate_y(self.cli.main_cylinder_angle)    
 
         return main_cylinder
@@ -87,7 +89,7 @@ class JackHolder(Solid):
 
         args = [    
             "-x", str(self.cli.wall_thickness),
-            "-y", str(self.cli.main_cylinder_d),
+            "-y", str(self.cli.main_cylinder_d_narrow),
             "-z", str(self.plate_h),
             "-r", str(self.cli.screw_hole_d),            
             "-i", self.cli.implementation,
@@ -100,7 +102,7 @@ class JackHolder(Solid):
         self.plate_zshift = plate_zshift
 
         plate <<= (
-            -main_cylinder.front(),
+            main_cylinder.right()-plate.right(),
             0,
             plate_zshift
         )    
@@ -144,6 +146,7 @@ class JackHolder(Solid):
                                 rad=self.cli.main_cylinder_d/2 - self.cli.wall_thickness,
                                 )
         inner_cylinder <<= (0, 0, self.cli.main_cylinder_h/2 - self.cli.wall_thickness)
+        inner_cylinder *= (1,self.cli.main_cylinder_d_narrow/self.cli.main_cylinder_d,1)
         inner_cylinder = inner_cylinder.rotate_y(self.cli.main_cylinder_angle)
         return inner_cylinder
 
