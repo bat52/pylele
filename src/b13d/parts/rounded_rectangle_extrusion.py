@@ -25,7 +25,7 @@ class RoundedRectangle(Solid):
         parser.add_argument("-rz", "--rz", help="Round along Z", action='store_true')
         return parser
 
-    def gen_cadquery(self) -> Shape:
+    def gen_fillet(self) -> Shape:
         """ cadquery implementation """
         # assert self.cli.implementation in [Implementation.CADQUERY]
 
@@ -48,12 +48,68 @@ class RoundedRectangle(Solid):
                 for z in zcoords:
                     box = box.fillet([(x,0,z)], self.cli.r)
 
-        # round edges along y
+        # round edges along z
         if self.cli.rz:
             for x in xcoords:
                 for y in ycoords:
                     box = box.fillet([(x,y,0)], self.cli.r)
 
+        return box
+
+    def gen_default(self) -> Shape:
+        """ default implementation """
+
+        # Compute core box dimensions
+        core_x = self.cli.x if self.cli.rx else self.cli.x - 2 * self.cli.r
+        core_y = self.cli.y if self.cli.ry else self.cli.y - 2 * self.cli.r
+        core_z = self.cli.z if self.cli.rz else self.cli.z - 2 * self.cli.r
+
+        box = self.api.box(core_x, core_y, core_z)
+        xcoords, ycoords, zcoords = self._coords()
+
+        # Add lateral faces along X
+        if not self.cli.rx:
+            for xpos in xcoords:
+                lbox = self.api.box(2 * self.cli.r, core_y, core_z)
+                lbox <<= (xpos, 0, 0)
+                box += lbox
+
+        # Add lateral faces along Y
+        if not self.cli.ry:
+            for ypos in ycoords:
+                lbox = self.api.box(core_x, 2 * self.cli.r, core_z)
+                lbox <<= (0, ypos, 0)
+                box += lbox
+
+        # Add lateral faces along Z
+        if not self.cli.rz:
+            for zpos in zcoords:
+                lbox = self.api.box(core_x, core_y, 2 * self.cli.r)
+                lbox <<= (0, 0, zpos)
+                box += lbox
+
+        # If rounding is enabled along an axis, add full-length cylinders
+        if self.cli.rx:
+            for ypos in ycoords:
+                for zpos in zcoords:
+                    edge = self.api.cylinder_x(self.cli.x, rad=self.cli.r)
+                    edge <<= (0, ypos, zpos)
+                    box += edge
+
+        if self.cli.ry:
+            for xpos in xcoords:
+                for zpos in zcoords:
+                    edge = self.api.cylinder_y(self.cli.y, rad=self.cli.r)
+                    edge <<= (xpos, 0, zpos)
+                    box += edge
+
+        if self.cli.rz:
+            for xpos in xcoords:
+                for ypos in ycoords:
+                    edge = self.api.cylinder_z(self.cli.z, rad=self.cli.r)
+                    edge <<= (xpos, ypos, 0)
+                    box += edge
+        
         return box
 
     def _coords(self):
@@ -108,8 +164,12 @@ class RoundedRectangle(Solid):
         
         if self.cli.implementation in [Implementation.CADQUERY, Implementation.BLENDER, Implementation.MOCK]:
             # apis that support fillet
-            return self.gen_cadquery()
-        elif self.cli.implementation in [ Implementation.SOLID2, Implementation.TRIMESH, Implementation.MANIFOLD ]:
+            # return self.gen_fillet()
+            return self.gen_default()
+        elif self.cli.implementation in [ Implementation.SOLID2, 
+                                         Implementation.TRIMESH, 
+                                         Implementation.MANIFOLD,
+                                         ]:
             # apis that support hull
             return self.gen_solidpython()
         
