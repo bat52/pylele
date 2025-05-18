@@ -9,6 +9,12 @@ from pathlib import Path
 import sys
 from typing import Union
 
+import numpy as np
+from scipy.spatial import ConvexHull
+from OCP.BRepBuilderAPI import BRepBuilderAPI_Sewing
+from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
+from OCP.gp import gp_Pnt
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.core import ShapeAPI, Shape, test_api
@@ -243,6 +249,45 @@ class CQShape(Shape):
                 bbox.ymax,
                 bbox.zmin,
                 bbox.zmax)
+
+    def hull(self):
+        # Step 1: Collect all vertices
+
+        points = []
+        shape = self.solid
+        solids = shape.vals() if isinstance(shape, cq.Workplane) else [shape]
+        for solid in solids:
+            points.extend([v.toTuple() for v in solid.vertices()])
+
+        points = np.array(points)
+        hull = ConvexHull(points)
+
+        # Step 2: Build faces from hull triangles
+        sewing = BRepBuilderAPI_Sewing()
+        for simplex in hull.simplices:
+            p1, p2, p3 = [gp_Pnt(*points[i]) for i in simplex]
+            wire = cq.Wire.makePolygon([p1, p2, p3, p1])
+            face = BRepBuilderAPI_MakeFace(wire.wrapped).Face()
+            sewing.Add(face)
+
+        # Step 3: Sew the faces into a shell
+        sewing.Perform()
+        shell = sewing.SewedShape()
+        if shell.IsNull():
+            raise RuntimeError("Failed to create a closed shell")
+
+        # Wrap shell into a CadQuery shape
+        cq_shell = cq.Shape(shell)
+
+        # Extract the first shell (assume one closed shell)
+        shells = cq_shell.shells()
+        if not shells:
+            raise RuntimeError("No shells found in sewed shape")
+
+        # Step 4: Make solid from shell
+        solid = cq.Solid.makeSolid(shells)
+        self.solid = cq.Workplane("XY").newObject([solid])
+        return self
 
 class CQBall(CQShape):
     def __init__(self, rad: float, api: CQShapeAPI):
