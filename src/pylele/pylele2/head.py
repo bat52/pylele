@@ -4,6 +4,7 @@
     Pylele Head
 """
 
+import argparse
 from math import tan, inf
 
 import os
@@ -13,44 +14,29 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.core import Shape, Direction
 from b13d.api.solid import main_maker, test_loop
-from b13d.api.utils import radians
-from pylele.pylele2.base import LeleBase
-
 from pylele.pylele2.strings import LeleStrings
+from pylele.pylele2.head_top import LeleHeadTop
 
-class LeleHead(LeleBase):
-    """Pylele Head Generator class"""
-    TOP_HEAD_RATIO = 1/6
-    HEAD_WTH_RATIO = 1.1  # to nutWth
+def pylele_head_parser(parser=None):
+    """
+    Pylele Head Parser
+    """
+    if parser is None:
+        parser = argparse.ArgumentParser(description="Pylele Head parser")
 
-    def configure_head(self):
-        """ Configure head """
-        
-        self.cfg.headWth = self.cfg.nutWth * self.HEAD_WTH_RATIO
-        headDX = 1
-        headDY = headDX * tan(radians(self.cfg.neckWideAng))
-        self.cfg.headOrig = (0, 0)
-        self.cfg.headPath = [
-            (0, self.cfg.nutWth/2),
-            [
-                (-headDX, self.cfg.nutWth/2 + headDY, headDY/headDX),
-                (-self.cfg.headLen/2, self.cfg.headWth/2, 0),
-                (-self.cfg.headLen, self.cfg.headWth/6, -inf),
-            ],
-            (-self.cfg.headLen, 0),
-        ]
+    parser.add_argument(
+        "-HT", "--separate_head_top", help="Split head top from neck.", action="store_true"
+    )
+    return parser
 
-    def configure(self):
-        LeleBase.configure(self)
-        self.configure_head()
+class LeleHead(LeleHeadTop):
+    """Pylele Head Generator class"""    
 
     def gen(self) -> Shape:
         """Generate Head"""
 
         hdWth = self.cfg.headWth
         hdLen = self.cfg.headLen
-        ntHt = self.cfg.NUT_HT
-        fbTck = self.cfg.FRETBD_TCK
         spHt = self.cfg.SPINE_HT
         fspTck = self.cfg.FRETBD_SPINE_TCK
         topRat = self.TOP_HEAD_RATIO
@@ -70,40 +56,44 @@ class LeleHead(LeleBase):
             hd += midR.mirror_and_join()
 
         if topRat > 0:
-            top = self.api.spline_revolve(orig, path, 180)
-            top *=  (1, 1, topRat)
-            top <<= (0, 0, -joinTol/2)
-            hd += top
-
-        topCut = self.api.cylinder_y(2*hdWth, hdLen)
-        topCut <<= (-ntHt, 0, .8*hdLen + fbTck + ntHt)
+            top = LeleHeadTop(cli=self.cli)
+            if self.cli.separate_head_top:
+                self.add_part(top)
+            else:
+                hd += top.gen_full()
         
         frontCut = self.api.cylinder_y(2*hdWth, .7*spHt)
         frontCut *=  (.5, 1, 1)
         frontCut <<= (-hdLen, 0, -fspTck - .65*spHt)
-        
+
         strings = LeleStrings(cli=self.cli,isCut=True).gen_full()
-    
-        hd = hd - frontCut - topCut - strings
+
+        hd = hd - frontCut - strings
 
         return hd
 
+    def gen_parser(self,parser=None):
+        """
+        Head Command Line Interface
+        """
+        parser=pylele_head_parser(parser=parser)
+        return super().gen_parser(parser=parser)
 
 def main(args=None):
     """Generate Head"""
     return main_maker(module_name=__name__, class_name="LeleHead", args=args)
 
-
 def test_head(self, apis=None):
     """Test Head"""
-    tests = {'default':['-refv','6773']}
+    tests = {
+        'default':['-refv','6773'],
+        'separate_head_top':['-HT'],
+        }
     test_loop(module=__name__, apis=apis,tests=tests)
-
 
 def test_head_mock(self):
     """Test Head"""
     test_head(self, apis=["mock"])
-
 
 if __name__ == "__main__":
     main()

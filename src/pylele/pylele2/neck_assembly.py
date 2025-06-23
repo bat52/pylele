@@ -4,6 +4,7 @@
     Pylele Neck Assembly
 """
 
+import argparse
 import os
 import sys
 
@@ -20,12 +21,22 @@ from pylele.pylele2.fretboard_assembly import (
     NutType,
 )
 from pylele.pylele2.fretboard_spines import LeleFretboardSpines
-from pylele.pylele2.head import LeleHead
+from pylele.pylele2.head import LeleHead, pylele_head_parser
 from pylele.pylele2.neck_joint import LeleNeckJoint
 from pylele.pylele2.neck import LeleNeck
 from pylele.pylele2.nut import LeleNut
 from pylele.pylele2.spines import LeleSpines
 
+
+def pylele_neck_assembly_parser(parser=None):
+    """
+    Pylele Neck Assembly Parser
+    """
+    if parser is None:
+        parser = argparse.ArgumentParser(description="Pylele Neck Assembly parser")
+    parser = pylele_fretboard_assembly_parser(parser=parser)
+    parser = pylele_head_parser(parser=parser)
+    return parser
 
 class LeleNeckAssembly(LeleBase):
     """Pylele Neck Assembly Generator class"""
@@ -44,7 +55,9 @@ class LeleNeckAssembly(LeleBase):
 
         if not self.isCut:
             ## Head
-            neck += LeleHead(cli=self.cli).mv(jcTol,0,0)
+            head = LeleHead(cli=self.cli).mv(jcTol,0,0)
+            neck += head
+            self.add_parts(head.get_parts())
 
             ## Fretboard, only part of neck assembly if separate fretboard or separate neck
             ## if only separate top, fretboard is joined to top!
@@ -79,7 +92,7 @@ class LeleNeckAssembly(LeleBase):
         pylele Command Line Interface
         """
         return super().gen_parser(
-            parser=pylele_fretboard_assembly_parser(parser=parser)
+            pylele_fretboard_assembly_parser(parser=parser)
         )
 
 

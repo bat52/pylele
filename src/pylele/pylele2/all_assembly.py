@@ -15,7 +15,8 @@ from pylele.pylele2.base import LeleBase
 from pylele.pylele2.texts import pylele_texts_parser
 from pylele.pylele2.top_assembly import LeleTopAssembly
 from pylele.pylele2.chamber import pylele_chamber_parser
-from pylele.pylele2.fretboard_assembly import pylele_fretboard_assembly_parser
+# from pylele.pylele2.fretboard_assembly import pylele_fretboard_assembly_parser
+from pylele.pylele2.neck_assembly import pylele_neck_assembly_parser
 # from pylele.pylele2.worm import pylele_worm_parser
 from pylele.pylele2.config import CONFIGURATIONS
 from pylele.pylele2.bottom_assembly import LeleBottomAssembly
@@ -65,7 +66,7 @@ class LeleAllAssembly(LeleBase):
         """
         pylele Command Line Interface
         """
-        parser = pylele_fretboard_assembly_parser(parser=parser)
+        parser = pylele_neck_assembly_parser(parser=parser)
         parser = pylele_chamber_parser(parser=parser)
         parser = pylele_texts_parser(parser=parser)
         parser = pylele_tuners_parser(parser=parser)
@@ -105,7 +106,7 @@ def test_all_assembly(self, apis=None):
         "separate_top": ["-T"],
         "separate_neck": ["-N"],
         "separate_fretboard": ["-F"],
-        "separate_all": ["-F", "-N", "-T", "-B", "-NU", "-FR", "-D", "-G"],
+        "separate_all": ["-F", "-N", "-T", "-B", "-NU", "-FR", "-D", "-G", "-HT"],
         "gotoh_tuners": ["-t", "gotoh"],
     }
 

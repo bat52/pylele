@@ -26,8 +26,7 @@ from pylele.pylele2.fretboard_spines import LeleFretboardSpines
 from pylele.pylele2.chamber import LeleChamber, pylele_chamber_parser
 from pylele.pylele2.tuners import LeleTuners, pylele_tuners_parser
 from pylele.pylele2.turnaround import LeleTurnaround
-from pylele.pylele2.fretboard_assembly import pylele_fretboard_assembly_parser
-from pylele.pylele2.neck_assembly import LeleNeckAssembly
+from pylele.pylele2.neck_assembly import LeleNeckAssembly, pylele_neck_assembly_parser
 # from pylele.pylele2.worm import pylele_worm_parser
 
 class LeleBottomAssembly(LeleBase):
@@ -103,7 +102,7 @@ class LeleBottomAssembly(LeleBase):
         """
         pylele Command Line Interface
         """
-        parser = pylele_fretboard_assembly_parser(parser=parser)
+        parser = pylele_neck_assembly_parser(parser=parser)
         parser = pylele_chamber_parser(parser=parser)
         parser = pylele_texts_parser(parser=parser)
         parser = pylele_tuners_parser(parser=parser)

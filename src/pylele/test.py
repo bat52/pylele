@@ -49,6 +49,7 @@ class PyleleTestMethods(unittest.TestCase):
     from pylele.pylele2.strings import test_strings, test_strings_mock
     from pylele.pylele2.nut import test_nut, test_nut_mock
     from pylele.pylele2.spines import test_spines, test_spines_mock
+    from pylele.pylele2.head_top import test_head_top, test_head_top_mock
     from pylele.pylele2.head import test_head, test_head_mock
     from pylele.pylele2.neck_joint import test_neck_joint, test_neck_joint_mock
     from pylele.pylele2.neck import test_neck, test_neck_mock
