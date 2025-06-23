@@ -54,12 +54,12 @@ CONFIGURATIONS = {
                             # '-s',LeleScaleEnum.CONCERT.name],
         'travelele'      : TRAVEL  + 
                             ['-t','turnaround',
-                            '-nsp', '1',
+                            #'-nsp', '1',
                             '-e','65',
                             '-cbr','1.5',
                             '-fbt','20',
                             '-fbsr','0.6',
-                            '-x','PyTravelele:8:Arial,Merlin-2025:8:Arial'] + WORM_SLIT + TUNEBRIDGE
+                            '-x','PyTravelele:8:Arial,Merlin-2025:8:Arial'] + WORM_SLIT # + TUNEBRIDGE
     }
 
 class AttrDict(dict):
