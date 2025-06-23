@@ -15,7 +15,7 @@ from pylele.pylele2.config import LeleBodyType
 from b13d.api.constants import FIT_TOL
 from b13d.api.core import Shape
 from pylele.pylele2.base import LeleBase
-from pylele.pylele2.neck_joint import LeleNeckJoint
+# from pylele.pylele2.neck_joint import LeleNeckJoint
 from pylele.pylele2.texts import LeleTexts, pylele_texts_parser
 from pylele.pylele2.tail import LeleTail
 from pylele.pylele2.rim import LeleRim
@@ -25,6 +25,7 @@ from pylele.pylele2.spines import LeleSpines
 from pylele.pylele2.fretboard_spines import LeleFretboardSpines
 from pylele.pylele2.chamber import LeleChamber, pylele_chamber_parser
 from pylele.pylele2.tuners import LeleTuners, pylele_tuners_parser
+from pylele.pylele2.turnaround import LeleTurnaround
 from pylele.pylele2.fretboard_assembly import pylele_fretboard_assembly_parser
 from pylele.pylele2.neck_assembly import LeleNeckAssembly
 # from pylele.pylele2.worm import pylele_worm_parser
@@ -74,7 +75,10 @@ class LeleBottomAssembly(LeleBase):
             body -= LeleFretboardSpines(cli=self.cli, isCut=True).mv(2*FIT_TOL, 0, 0)
 
         ## Tuners
-        body -= LeleTuners(cli=self.cli, isCut=True)
+        tnrs = LeleTuners(cli=self.cli, isCut=True)
+        body -= tnrs
+        if tnrs.is_turnaround():
+            self.add_part(LeleTurnaround(cli=self.cli))
 
         ## Tail, not ideal for non worm but possible
         if self.cli.separate_end:
