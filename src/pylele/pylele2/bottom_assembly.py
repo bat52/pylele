@@ -11,11 +11,13 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.solid import main_maker, test_loop, Implementation
-from pylele.pylele2.config import LeleBodyType
 from b13d.api.constants import FIT_TOL
 from b13d.api.core import Shape
+
+from pylele.parts.jack_holder import JackHolder, jack_holder_parser
+
+from pylele.pylele2.config import LeleBodyType
 from pylele.pylele2.base import LeleBase
-# from pylele.pylele2.neck_joint import LeleNeckJoint
 from pylele.pylele2.texts import LeleTexts, pylele_texts_parser
 from pylele.pylele2.tail import LeleTail
 from pylele.pylele2.rim import LeleRim
@@ -27,7 +29,18 @@ from pylele.pylele2.chamber import LeleChamber, pylele_chamber_parser
 from pylele.pylele2.tuners import LeleTuners, pylele_tuners_parser
 from pylele.pylele2.turnaround import LeleTurnaround
 from pylele.pylele2.neck_assembly import LeleNeckAssembly, pylele_neck_assembly_parser
-# from pylele.pylele2.worm import pylele_worm_parser
+
+
+def pylele_bottom_assembly_parser(parser=None):
+    """
+    Pylele Bottom Assembly Parser
+    """       
+    parser = pylele_neck_assembly_parser(parser=parser)
+    parser = pylele_chamber_parser(parser=parser)
+    parser = pylele_texts_parser(parser=parser)
+    parser = pylele_tuners_parser(parser=parser)
+    # parser = jack_holder_parser(parser=parser)
+    return parser
 
 class LeleBottomAssembly(LeleBase):
     """Pylele Body Bottom Assembly Generator class"""
@@ -96,16 +109,21 @@ class LeleBottomAssembly(LeleBase):
         if not self.cli.no_text:
             body -= LeleTexts(cli=self.cli, isCut=True)
 
+        if False:
+            jh = JackHolder(cli=self.cli)
+            jh = jh.rotate_y(-90).rotate_x(90)
+            jh = jh.mv(body.shape.right()-jh.shape.right(), 
+                       body.shape.back()-jh.shape.front(), 
+                       jh.shape.bottom())
+            body += jh
+
         return body.gen_full()
 
     def gen_parser(self,parser=None):
         """
         pylele Command Line Interface
         """
-        parser = pylele_neck_assembly_parser(parser=parser)
-        parser = pylele_chamber_parser(parser=parser)
-        parser = pylele_texts_parser(parser=parser)
-        parser = pylele_tuners_parser(parser=parser)
+        parser = pylele_bottom_assembly_parser(parser=parser)
         return super().gen_parser(parser=parser)
 
 

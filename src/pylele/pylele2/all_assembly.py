@@ -12,17 +12,12 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 from b13d.api.core import Shape
 from b13d.api.solid import main_maker, test_loop
 from pylele.pylele2.base import LeleBase
-from pylele.pylele2.texts import pylele_texts_parser
 from pylele.pylele2.top_assembly import LeleTopAssembly
-from pylele.pylele2.chamber import pylele_chamber_parser
-# from pylele.pylele2.fretboard_assembly import pylele_fretboard_assembly_parser
-from pylele.pylele2.neck_assembly import pylele_neck_assembly_parser
-# from pylele.pylele2.worm import pylele_worm_parser
 from pylele.pylele2.config import CONFIGURATIONS
-from pylele.pylele2.bottom_assembly import LeleBottomAssembly
+from pylele.pylele2.bottom_assembly import LeleBottomAssembly, pylele_bottom_assembly_parser
 from pylele.pylele2.bridge_assembly import pylele_bridge_assembly_parser
 from pylele.pylele2.strings import LeleStrings
-from pylele.pylele2.tuners import LeleTuners, pylele_tuners_parser
+from pylele.pylele2.tuners import LeleTuners
 
 class LeleAllAssembly(LeleBase):
     """Pylele All Assembly Generator class"""
@@ -66,10 +61,7 @@ class LeleAllAssembly(LeleBase):
         """
         pylele Command Line Interface
         """
-        parser = pylele_neck_assembly_parser(parser=parser)
-        parser = pylele_chamber_parser(parser=parser)
-        parser = pylele_texts_parser(parser=parser)
-        parser = pylele_tuners_parser(parser=parser)
+        parser = pylele_bottom_assembly_parser(parser=parser)
         parser = pylele_bridge_assembly_parser(parser=parser)
 
         parser.add_argument(
