@@ -92,7 +92,7 @@ class LeleNeckAssembly(LeleBase):
         pylele Command Line Interface
         """
         return super().gen_parser(
-            pylele_fretboard_assembly_parser(parser=parser)
+            pylele_neck_assembly_parser(parser=parser)
         )
 
 
