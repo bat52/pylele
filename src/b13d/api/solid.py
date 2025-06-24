@@ -10,6 +10,7 @@ import datetime
 import importlib
 import platform
 import time
+from numpy import angle
 import trimesh
 from json_tricks import dumps
 
@@ -686,6 +687,21 @@ class Solid(ABC):
         # assert self.has_shape(), f'# Cannot mv {self.fileNameBase} because main shape has not been generated yet!'
         self.gen_full()
         self.shape = self.shape.mv(x, y, z)
+        return self
+
+    def rotate_x(self, angle: float) -> Solid:
+        self.gen_full()
+        self.shape = self.shape.rotate_x(angle)
+        return self
+    
+    def rotate_y(self, angle: float) -> Solid:
+        self.gen_full()
+        self.shape = self.shape.rotate_y(angle)
+        return self
+    
+    def rotate_z(self, angle: float) -> Solid:
+        self.gen_full()
+        self.shape = self.shape.rotate_z(angle)
         return self
 
     def __add__(self, operand):
