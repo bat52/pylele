@@ -462,26 +462,24 @@ class Solid(ABC):
 
         if not part is None:
             if self.has_parts():
-                self.parts.append(part)
+                if any( type(item) is type(part) for item in self.parts):                    
+                    print(
+                        f"# Warning: Solid {part.fileNameBase} already in parts list of {self.fileNameBase}!"
+                    )
+                else:
+                    self.parts.append(part)
             else:
+                # if part has no parts, add it to the assembly
                 self.parts = [part]
-
-            if part.has_parts():
-                self.parts.append(part.parts)
 
     def add_parts(self, parts):
         """Add a list of solid parts to the parts list of this assembly"""
-        assert isinstance(parts, list) or isinstance(parts, Solid) or (parts is None), print(parts)
+        assert isinstance(parts, list) or (parts is None), print(parts)
 
         if not parts is None:
-            if isinstance(parts, Solid):
-                if parts.has_parts():
-                    parts = parts.parts
-                else:
-                    print("# Warning: Solid has no parts!")
-
             if self.has_parts():
-                self.parts += parts
+                for part in parts:
+                    self.add_part(part)
             else:
                 self.parts = parts
 
