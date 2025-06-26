@@ -125,7 +125,10 @@ def main(args=None):
     return main_maker(module_name=__name__, class_name="LeleWormKey", args=args)
 
 
-def test_worm_key(self, apis=None):
+def test_worm_key(self, apis=[Implementation.CADQUERY, 
+                              Implementation.TRIMESH,
+                              Implementation.MANIFOLD,
+                              Implementation.SOLID2]):
     """Test Worm Key"""
     tests = {
         "cut": ["-t", TunerType.WORM.name, "-C"],
