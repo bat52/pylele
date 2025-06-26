@@ -56,6 +56,15 @@ jobs:
     #      name: pylele_glb_out_${{ matrix.python-version }}_${{ matrix.os }}
     #      path: build/LeleAllAssembly/LeleAllAssembly.glb
     #      # compression-level: 0 # no compression
+    - name: run travelele.sh
+      run: |
+        source ./src/travelele.sh -odoff
+    - name: upload travelele output
+      uses: actions/upload-artifact@v4
+      with:
+          # path depends on the tag and the module name
+          name: travelele_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
+          path: build/LeleAllAssembly/*
     - name: test_b1scad
       run: |
         python3 ./src/b1scad/test.py
