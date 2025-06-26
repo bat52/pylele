@@ -4,5 +4,5 @@
 SCRIPT_DIR=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
 # LOG=pylele.log
 python3 $SCRIPT_DIR/pylele/pylele2/all_assembly.py \
--odoff -cfg travelele -N -FB -T -F -B -NU -FR -D -ft wire -E -bpiezo -HT $@ # > $LOG
+-cfg travelele -N -FB -T -F -B -NU -FR -D -ft wire -E -bpiezo -HT $@ # > $LOG
 # head $LOG
