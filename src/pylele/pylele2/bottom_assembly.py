@@ -58,7 +58,7 @@ class LeleBottomAssembly(LeleBase):
             body -= LeleChamber(cli=self.cli, isCut=True)
 
         ## Rim
-        if self.cli.separate_top and not self.cli.body_type.is_solid():
+        if self.cli.separate_top: # and not self.cli.body_type.is_solid():
             body -= LeleRim(cli=self.cli, isCut=True)
 
         ## Spines
