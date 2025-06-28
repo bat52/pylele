@@ -161,15 +161,11 @@ class LeleBody(LeleBase):
 
         elif self.cli.body_type.is_solid():
 
-            bot_below = self.gen_flat_body_bottom()
-
             # Flat body
             bot = self.gourd_flat_extrusion(thickness=-self.cli.flat_body_thickness)
-            bot += bot_below
+            bot += self.gen_flat_body_bottom()
 
         elif self.cli.body_type == LeleBodyType.HOLLOW:
-
-            bot_below = self.gen_flat_body_bottom()
 
             # Flat body
             # outer wall
@@ -178,7 +174,7 @@ class LeleBody(LeleBase):
             midR2 = midR.dup().mv(0,-self.cli.wall_thickness,0)
             midR -= midR2
             bot = midR.mirror_and_join()
-            bot += bot_below
+            bot += self.gen_flat_body_bottom()
 
         else:
             assert (
@@ -194,11 +190,9 @@ class LeleBody(LeleBase):
         parser = pylele_body_parser(parser=parser)
         return super().gen_parser(parser=parser)
 
-
 def main(args=None):
     """Generate body"""
     return main_maker(module_name=__name__, class_name="LeleBody", args=args)
-
 
 def test_body(self, apis=None):
     """Test body"""
@@ -222,11 +216,9 @@ def test_body(self, apis=None):
 
     test_loop(module=__name__, apis=apis, tests=tests)
 
-
 def test_body_mock(self):
     """Test body"""
     test_body(self, apis=["mock"])
-
 
 if __name__ == "__main__":
     main()
