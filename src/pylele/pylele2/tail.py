@@ -7,7 +7,6 @@
 import os
 import sys
 
-
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.core import Shape
@@ -90,11 +89,9 @@ class LeleTail(LeleBase):
         parser = pylele_chamber_parser(parser=parser)
         return super().gen_parser(parser=pylele_worm_parser(parser=parser))
 
-
 def main(args=None):
     """Generate tail"""
     return main_maker(module_name=__name__, class_name="LeleTail", args=args)
-
 
 def test_tail(self, apis=None):
     """Test Tail"""
@@ -110,7 +107,6 @@ def test_tail(self, apis=None):
         test_body[body] = WORM + ["-E","-bt", body]
 
     test_loop(module=__name__, tests=tests | test_body, apis=apis)
-
 
 def test_tail_mock(self):
     """Test Tail"""
