@@ -8,8 +8,7 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
-from pylele.config_common import TunerType, WormConfig
-from b13d.api.core import Shape, Implementation
+from b13d.api.core import Shape
 from b13d.api.constants import FIT_TOL
 from b13d.api.solid import main_maker, test_loop
 from b13d.parts.torus import Torus
@@ -17,6 +16,10 @@ from b13d.parts.tube import Tube
 from pylele.pylele2.worm import LeleWorm
 
 TURNAROUND_ARG = ["-t","turnaround"]
+
+def pylele_turnaround_parser(parser=None):
+    """Pylele Turnaround Parser"""
+    return create_parser_from_class(LeleTurnaroundConfig, parser=parser)
 
 class LeleTurnaround(LeleWorm):
     """Pylele turnaround Generator class"""
@@ -33,12 +36,15 @@ class LeleTurnaround(LeleWorm):
         axlY = 0 # -0.5
         axlZ = 0
 
-        axl = self.api.cylinder_y(c.axlLen, c.axlRad).mv(axlX, axlY, axlZ)
-        if self.isCut:
-            axl += self.api.box(100, c.axlLen, 2 * c.axlRad).mv(
-                50 + axlX, axlY, axlZ
-            )
-        turnaround = axl
+        if self.cli.turnaround_axle_cylinder_en:
+            axl = self.api.cylinder_y(c.axlLen, c.axlRad).mv(axlX, axlY, axlZ)
+            if self.isCut:
+                axl += self.api.box(100, c.axlLen, 2 * c.axlRad).mv(
+                    50 + axlX, axlY, axlZ
+                )
+            turnaround = axl
+        else:
+            turnaround = None
 
         ## Disk
         dskX = axlX
@@ -54,7 +60,7 @@ class LeleTurnaround(LeleWorm):
             )
         else:
             dsk = self.api.cylinder_rounded_y(c.dskTck, c.dskRad, 1/8).mv(dskX, dskY, dskZ)
-        turnaround += dsk
+        turnaround = dsk + turnaround
 
         ## String holder torus
         if not self.isCut:

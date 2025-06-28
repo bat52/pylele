@@ -176,8 +176,13 @@ def pylele_worm_parser(parser=None):
         help="Create Hole for worm key.",
         action="store_true",
     )
+    parser.add_argument(
+            "-tace",
+            "--turnaround_axle_cylinder_en",
+            help="Not having a cylinder for the axle in turnaround, simplifies printing.",
+            action="store_true",
+        )
     return parser
-
 
 class LeleWorm(LeleBase):
     """Pylele Worm Generator class"""
