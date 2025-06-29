@@ -10,11 +10,13 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
-from b13d.api.solid import Solid, test_loop, main_maker, Implementation
+from b13d.api.solid import Solid, test_loop, main_maker
 from b13d.api.core import Shape
+from b13d.api.constants import FIT_TOL
 
 from b13d.parts.rounded_box import RoundedBox
 from pylele.parts.tunable_saddle import TunableSaddle
+from pylele.parts.bridge import bridge_parser
 
 DEFAULT_Z = 8
 class TunableBridge(Solid):
@@ -22,25 +24,26 @@ class TunableBridge(Solid):
 
     def gen_parser(self, parser=None):
         parser = super().gen_parser(parser=parser)
-        parser.add_argument("-x", "--x", help="X [mm]", type=float, default=10)
-        parser.add_argument("-y", "--y", help="Y [mm]", type=float, default=55)
-        parser.add_argument("-z", "--z", help="Z [mm]", type=float, default=DEFAULT_Z)
-        parser.add_argument("-ns", "--nstrings", help="number of strings", type=int, default=4)
-        parser.add_argument("-ss", "--string_spacing", help="strings spacing [mm]", type=float, default=10)
+        parser = bridge_parser(parser=parser)
         parser.add_argument("-a", "--all", help="generate all together for debug", action="store_true")
-        parser.add_argument("-t", "--t", help="Fit Tolerance [mm]", type=float, default=0.3)
+        # parser.add_argument("-t", "--t", help="Fit Tolerance [mm]", type=float, default=0.3)
         return parser
 
     def gen(self) -> Shape:
         """ generate tunable bridge  """
 
+        x = self.cli.bridge_length
+        y = self.cli.bridge_width
+        z = self.cli.bridge_height
+        t = FIT_TOL # if self.isCut else 0
+
         if self.isCut:
-            return self.api.box(self.cli.x,self.cli.y,self.cli.z)
+            return self.api.box(x,y,z)
 
         # base
-        bridge = RoundedBox(args=['-x', f'{self.cli.x - self.cli.t}',
-                                  '-y', f'{self.cli.y - self.cli.t}',
-                                  '-z', f'{self.cli.z}',
+        bridge = RoundedBox(args=['-x', f'{x - t}',
+                                  '-y', f'{y - t}',
+                                  '-z', f'{z}',
                                   '-i', self.cli.implementation]
                         ).gen_full()
 
@@ -49,7 +52,7 @@ class TunableBridge(Solid):
         else:
             starty = -floor(self.cli.nstrings/2)
 
-        zcomp = (self.cli.z - DEFAULT_Z)/2
+        zcomp = (z - DEFAULT_Z)/2
         saddle = None
         for idx in range(self.cli.nstrings):
             shifty = (0,(starty+idx)*self.cli.string_spacing,zcomp)
@@ -58,7 +61,7 @@ class TunableBridge(Solid):
             bridge -= saddle_hole
 
             saddle = TunableSaddle(args=['-i', self.cli.implementation,
-                                         '-t', f'{self.cli.t}'])
+                                         '-t', f'{t}'])
             saddle <<= shifty
             
             if self.cli.all:

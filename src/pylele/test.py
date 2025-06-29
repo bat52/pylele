@@ -20,6 +20,7 @@ class PyleleTestMethods(unittest.TestCase):
     """Pylele Test Class"""
 
     ## Solid Parts
+    from pylele.parts.bridge import test_bridge, test_bridge_mock
     from pylele.parts.tunable_saddle import test_tunable_saddle, test_tunable_saddle_mock
     from pylele.parts.tunable_bridge import test_tunable_bridge, test_tunable_bridge_mock
     from pylele.parts.worm_gear import test_worm_gear, test_worm_gear_mock
@@ -53,7 +54,6 @@ class PyleleTestMethods(unittest.TestCase):
     from pylele.pylele2.head import test_head, test_head_mock
     from pylele.pylele2.neck_joint import test_neck_joint, test_neck_joint_mock
     from pylele.pylele2.neck import test_neck, test_neck_mock
-    from pylele.pylele2.bridge import test_bridge, test_bridge_mock
     from pylele.pylele2.guide import test_guide, test_guide_mock
     from pylele.pylele2.chamber import test_chamber, test_chamber_mock
     from pylele.pylele2.peg import test_peg, test_peg_mock
