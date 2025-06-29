@@ -56,7 +56,7 @@ jobs:
     #      name: pylele_glb_out_${{ matrix.python-version }}_${{ matrix.os }}
     #      path: build/LeleAllAssembly/LeleAllAssembly.glb
     #      # compression-level: 0 # no compression
-    - name: run travelele.sh
+    - name: run pytravelele.sh
       run: |
         source ./src/travelele.sh -odoff
     - name: upload travelele output
