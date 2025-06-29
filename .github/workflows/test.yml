@@ -58,7 +58,7 @@ jobs:
     #      # compression-level: 0 # no compression
     - name: run pytravelele.sh
       run: |
-        source ./src/travelele.sh -odoff
+        source ./src/pytravelele.sh -odoff
     - name: upload travelele output
       uses: actions/upload-artifact@v4
       with:
