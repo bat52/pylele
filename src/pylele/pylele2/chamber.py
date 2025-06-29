@@ -48,6 +48,12 @@ def pylele_chamber_parser(parser=None) -> argparse.ArgumentParser:
         default=15,
     )
 
+    parser.add_argument(
+        "-RIM", "--separate_rim",
+          help="Split Rim for easy printing.", 
+          action="store_true"
+    )
+
     return parser
 
 def gen_extruded_oval(api, x1, x2, y_width, z_thick):

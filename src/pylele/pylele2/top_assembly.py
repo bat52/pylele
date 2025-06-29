@@ -10,7 +10,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.core import Shape
-from b13d.api.solid import main_maker, test_loop
+from b13d.api.solid import main_maker, test_loop, create_parser_from_class
 from pylele.pylele2.config import LeleBodyType
 from pylele.config_common import LeleScaleEnum
 from pylele.pylele2.base import LeleBase
@@ -71,8 +71,13 @@ class LeleTopAssembly(LeleBase):
             else:
                 top +=guide
 
-        if self.cli.separate_top: # and self.cli.body_type in [LeleBodyType.GOURD]:
-            top += LeleRim(cli=self.cli, isCut=False)
+        if self.cli.separate_top and self.cli.body_type in [LeleBodyType.GOURD, LeleBodyType.TRAVEL]:
+            rim = LeleRim(cli=self.cli, isCut=self.isCut)
+            if self.cli.separate_rim and not self.isCut:
+                top -= LeleRim(cli=self.cli, isCut=True)
+                self.add_part(rim)
+            else:
+                top += rim
 
         if self.cli.separate_top and not self.cli.separate_fretboard and not self.cli.separate_neck:
             fretbd = LeleFretboardAssembly(cli=self.cli)

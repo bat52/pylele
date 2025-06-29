@@ -12,11 +12,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 from b13d.api.core import Shape
 from b13d.api.constants import FIT_TOL
 from b13d.api.solid import main_maker, test_loop
-from pylele.pylele2.base import LeleBase
 from pylele.pylele2.config import LeleBodyType
-from pylele.pylele2.chamber import gen_extruded_oval
+from pylele.pylele2.chamber import LeleChamber, gen_extruded_oval
 
-class LeleRim(LeleBase):
+class LeleRim(LeleChamber):
     """Pylele Rim Generator class"""
     RIM_TCK = 1
 
@@ -48,8 +47,14 @@ class LeleRim(LeleBase):
         rim_front = -self.cfg.chmFront + rad - self.cfg.rimWth
         rim_back  = rim_front + self.cfg.chmFront - 2 * rad - self.cfg.brdgLen + 2*self.cfg.rimWth
 
-        return gen_extruded_oval(self.api, rim_front, rim_back, 2 * rad - self.cli.travel_body_width, tck)\
+        rim = gen_extruded_oval(self.api, rim_front, rim_back, 2 * rad - self.cli.travel_body_width, tck)\
             .mv(float(self.cli.scale_length), 0, 0)
+
+        if self.cli.separate_rim and not self.isCut:
+            # cut chamber
+            rim -= LeleChamber(cli=self.cli, isCut=True).gen_full()
+
+        return rim
 
     def gen(self) -> Shape:
         """Generate Rim"""
