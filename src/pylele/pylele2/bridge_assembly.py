@@ -50,8 +50,9 @@ class LeleBridgeAssembly(LeleBase):
             '--string_spacing', f'{self.cfg.brdgStrGap}',
             ]
  
-        if self.cli.bridge_type == BridgeType.DEFAULT:
-            # return LeleBridge(cli=self.cli).gen_full()
+        if self.cli.bridge_type == BridgeType.DEFAULT or self.isCut:
+            if self.cli.bridge_piezo:
+                common_args += ['--bridge_piezo']
             bridge = Bridge(args=common_args,
                             isCut=self.isCut)
 
@@ -74,8 +75,8 @@ class LeleBridgeAssembly(LeleBase):
                     0,
                     self.cfg.brdgZ)
         
-        return bridge.shape
-
+        return bridge.gen_full()
+    
     def gen_parser(self, parser=None):
         """generate bridge parser"""
         parser = pylele_bridge_assembly_parser(parser=parser)
