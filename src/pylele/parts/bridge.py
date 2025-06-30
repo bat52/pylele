@@ -77,6 +77,13 @@ def bridge_parser(parser=None):
 class Bridge(Solid):
     """Bridge Generator class"""
 
+    def string_start_y(self) -> float:
+        """Calculate the starting y position for strings"""
+        if self.cli.nstrings % 2 == 0:
+            return -(self.cli.nstrings / 2 - 0.5) 
+        else:
+            return -floor(self.cli.nstrings / 2)
+
     def gen_strings_cut(self) -> Shape:
         """Generate strings cut"""
         brdgWth = self.cli.bridge_width
@@ -86,11 +93,7 @@ class Bridge(Solid):
             brdgWth, self.cli.bridge_string_radius
         ).mv(0, 0, brdgHt + self.cli.bridge_string_radius)
 
-        if self.cli.nstrings % 2 == 0:
-            starty = -(self.cli.nstrings/2 - 0.5)
-        else:
-            starty = -floor(self.cli.nstrings/2)
-
+        starty = self.string_start_y()
         strings_cut = None
         for idx in range(self.cli.nstrings):
             shifty = (starty+idx)*self.cli.string_spacing
@@ -113,6 +116,10 @@ class Bridge(Solid):
         )
 
         if not self.isCut:
+            # round top
+            brdg += self.api.cylinder_y(brdgWth, strRad).mv(0, 0, brdgHt)
+
+            # cut edges
             cutRad = brdgLen / 2 - strRad
             cutHt = brdgHt - 2
             cutScaleZ = cutHt / cutRad
@@ -129,8 +136,18 @@ class Bridge(Solid):
                 .mv( cutRad + strRad, 0, brdgHt)
             )
 
-            brdg += self.api.cylinder_y(brdgWth, strRad).mv(0, 0, brdgHt)
-            brdg = brdg - frontCut - backCut
+            starty = -self.string_start_y()*self.cli.string_spacing
+            yside = max(starty + cutRad + 4*strRad, brdgWth / 2)
+
+            sideCut = (
+                self.api.cylinder_x(2 * brdgLen, cutRad)
+                .scale(1, 1, cutScaleZ)
+                .mv( 0, 0, brdgHt)
+            )
+            sideCutL = sideCut.dup().mv(0,   yside, 0)
+            sideCutR = sideCut.dup().mv(0,  -yside, 0)
+
+            brdg = brdg - frontCut - backCut - sideCutL - sideCutR
 
         return brdg
     
@@ -142,7 +159,7 @@ class Bridge(Solid):
         mic_cut = self.api.box(
             self.cli.bridge_piezo_width, brdgWth, self.cli.bridge_piezo_heigth
         )
-        mic_cut = mic_cut.mv(0, 0, self.cli.bridge_piezo_heigth / 2)
+        mic_cut = mic_cut.mv(0, 0, -self.cli.bridge_piezo_heigth / 2)
         return mic_cut
     
     def gen_piezo_wire(self) -> Shape:
@@ -168,10 +185,9 @@ class Bridge(Solid):
         
         # piezo stuff
         if self.cli.bridge_piezo:
-            if not self.isCut:
-                brdg -= self.gen_piezo_mic()
-            else:
-                brdg -= self.gen_piezo_wire()
+            if self.isCut:
+                brdg += self.gen_piezo_mic()
+                brdg += self.gen_piezo_wire()
 
         return brdg
 
