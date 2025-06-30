@@ -81,9 +81,9 @@ class LeleFretboardAssembly(LeleBase):
             fretbd += frets
 
         ## nut
-        nut = LeleNut(cli=self.cli,isCut=self.cli.separate_nut)
+        nut = LeleNut(cli=self.cli)
         if self.cli.separate_nut:
-            fretbd -= nut
+            fretbd -= LeleNut(cli=self.cli, isCut=True)
             if self.cli.all:
                 nut <<= (0, 0, self.cli.all_distance)
                 fretbd += nut
