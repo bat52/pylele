@@ -14,7 +14,8 @@ from b13d.api.solid import main_maker, test_loop, Implementation
 from b13d.api.constants import FIT_TOL
 from b13d.api.core import Shape
 
-from pylele.parts.jack_holder import JackHolder, jack_holder_parser
+# from pylele.parts.jack_holder import JackHolder, jack_holder_parser
+from pylele.parts.jack_hole_6p5mm import JackHole6p5
 
 from pylele.pylele2.config import LeleBodyType
 from pylele.pylele2.base import LeleBase
@@ -40,6 +41,8 @@ def pylele_bottom_assembly_parser(parser=None):
     parser = pylele_texts_parser(parser=parser)
     parser = pylele_tuners_parser(parser=parser)
     # parser = jack_holder_parser(parser=parser)
+    parser.add_argument("-jhe", "--jack_hole_en", help="Add Jack hole",
+                        action="store_true", default=False)
     return parser
 
 class LeleBottomAssembly(LeleBase):
@@ -92,10 +95,22 @@ class LeleBottomAssembly(LeleBase):
         if tnrs.is_turnaround():
             self.add_part(LeleTurnaround(cli=self.cli))
 
+        ## Jack Hole
+        if self.cli.jack_hole_en:
+            jh = JackHole6p5(cli=self.cli, isCut=True).rotate_y(-90).rotate_z(90) # .gen_full()
+            jh <<= (
+                    float(self.cli.scale_length),
+                     self.cfg.bodyWth/2 - 2.5,
+                     -9 # -jh.top()/2
+                    )
+            body -= jh
+
         ## Tail, not ideal for non worm but possible
         if self.cli.separate_end:
             body -= LeleTail(cli=self.cli, isCut=True).mv(0, 0, jcTol)
             tail = LeleTail(cli=self.cli)
+            if self.cli.jack_hole_en:
+                tail -= jh
             if self.cli.all:
                 tail <<= (5*self.cli.all_distance, 0, self.cli.all_distance/2)
                 body += tail
