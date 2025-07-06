@@ -16,6 +16,7 @@ from b13d.api.core import Shape
 
 # from pylele.parts.jack_holder import JackHolder, jack_holder_parser
 from pylele.parts.jack_hole_6p5mm import JackHole6p5
+from pylele.parts.jack_6p5mm_female import Jack6p5Female
 
 from pylele.pylele2.config import LeleBodyType
 from pylele.pylele2.base import LeleBase
@@ -97,10 +98,20 @@ class LeleBottomAssembly(LeleBase):
 
         ## Jack Hole
         if self.cli.jack_hole_en:
+            """
             jh = JackHole6p5(cli=self.cli, isCut=True).rotate_y(-90).rotate_z(90) # .gen_full()
             jh <<= (
                     float(self.cli.scale_length),
                      self.cfg.bodyWth/2 - 2.5,
+                     -9 # -jh.top()/2
+                    )
+            body -= jh
+            """
+            jh = Jack6p5Female(cli=self.cli, isCut=True)
+            jh = jh.rotate_y(-90).rotate_z(90)
+            jh <<= (
+                    float(self.cli.scale_length),
+                     self.cfg.bodyWth/2, # - 2.5,
                      -9 # -jh.top()/2
                     )
             body -= jh

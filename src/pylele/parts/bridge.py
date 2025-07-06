@@ -168,8 +168,9 @@ class Bridge(Solid):
         brdgWth = self.cli.bridge_width + cut_tol
 
         wire_rad = 2
+        y_pos = -(brdgWth / 2 - wire_rad)
         wire = self.api.cylinder_z(15, wire_rad).mv(
-            0, brdgWth / 2 - wire_rad, 0
+            0, y_pos, 0
         )
         return wire
 
