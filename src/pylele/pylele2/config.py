@@ -59,7 +59,8 @@ CONFIGURATIONS = {
                             '-cbr','1.5',
                             '-fbt','20',
                             '-fbsr','0.6',
-                            '-x','PyTravelele:8:Arial,Merlin-2025:8:Arial'] + WORM_SLIT # + TUNEBRIDGE
+                            # '-x','PyTravelele:8:Arial,Merlin-2025:8:Arial'] + WORM_SLIT # + TUNEBRIDGE
+                            '-x','PyTravelele:8:Arial'] + WORM_SLIT # + TUNEBRIDGE
     }
 
 class AttrDict(dict):

@@ -35,6 +35,10 @@ def pylele_texts_parser(parser=None):
     )
 
     parser.add_argument(
+        "-txtr", "--text_rotation", help="Text Rotation [degrees]", type=float, default=0
+    )
+
+    parser.add_argument(
         "-x",
         "--texts_size_font",
         help="Comma-separated text[:size[:font]] tuples, "
@@ -82,7 +86,7 @@ class LeleTexts(LeleBase):
                 # but Blender text mirroring can lead to weird output
                 l = (
                     self.api.text(txt, sz, txtTck, fnt)
-                    .rotate_z(90)
+                    .rotate_z(90 + self.cli.text_rotation)
                     .rotate_x(180)
                     .mv(tx + sz / 2, 0, txtZ + txtTck)
                 )

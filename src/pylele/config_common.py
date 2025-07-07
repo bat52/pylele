@@ -203,7 +203,7 @@ class TurnaroundConfig(WormConfig):
         slitLen: float = 10,
         slitWth: float = 3,
         diskTck: float = 5,
-        diskRad: float = 7.7,
+        diskRad: float = 11, # 7.7,
         axleRad: float = 3,
         axleLen: float = 8,
         driveRad: float = 0,
