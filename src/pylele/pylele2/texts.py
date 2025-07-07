@@ -39,6 +39,18 @@ def pylele_texts_parser(parser=None):
     )
 
     parser.add_argument(
+        "-txtl", "--text_logo", help="Text Logo filename", type=str, default=""
+    )
+
+    parser.add_argument(
+        "-txtls", "--text_logo_scale", help="Text Logo scale", type=float, default=1
+    )
+
+    parser.add_argument(
+        "-txtly", "--text_logo_y", help="Text Logo Y position", type=float, default=0
+    )
+
+    parser.add_argument(
         "-x",
         "--texts_size_font",
         help="Comma-separated text[:size[:font]] tuples, "
@@ -92,6 +104,14 @@ class LeleTexts(LeleBase):
                 )
                 ls = l + ls
             tx += sz
+
+        if self.cli.text_logo and os.path.isfile(self.cli.text_logo):
+            # add logo text
+            logo = self.api.genImport(self.cli.text_logo, extrude=txtTck).rotate_z(-90)
+            logo = logo.scale(self.cli.text_logo_scale, self.cli.text_logo_scale, 1)
+            logo <<= (self.cfg.neckLen, self.cli.text_logo_y, txtZ - txtTck/2)
+            ls += logo
+        
         botCut = LeleBody(cli=self.cli, isCut=True).mv(0, 0, cutTol)
 
         txtCut = ls.cut(botCut.shape).mv(0, 0, dep)
