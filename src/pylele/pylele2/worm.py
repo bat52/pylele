@@ -182,6 +182,12 @@ def pylele_worm_parser(parser=None):
             help="Not having a cylinder for the axle in turnaround, simplifies printing.",
             action="store_true",
         )
+    parser.add_argument(
+        "-trre",
+        "--turnaround_roller_rounding_en",
+        help="Rounded roller edges look nicer, but harder to print.",
+        action="store_true",
+    )
     return parser
 
 class LeleWorm(LeleBase):

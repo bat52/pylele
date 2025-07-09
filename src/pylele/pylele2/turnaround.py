@@ -17,10 +17,6 @@ from pylele.pylele2.worm import LeleWorm
 
 TURNAROUND_ARG = ["-t","turnaround"]
 
-def pylele_turnaround_parser(parser=None):
-    """Pylele Turnaround Parser"""
-    return create_parser_from_class(LeleTurnaroundConfig, parser=parser)
-
 class LeleTurnaround(LeleWorm):
     """Pylele turnaround Generator class"""
 
@@ -59,28 +55,21 @@ class LeleTurnaround(LeleWorm):
                 50 + dskX, dskY, dskZ
             )
         else:
-            dsk = self.api.cylinder_rounded_y(c.dskTck, c.dskRad, 1/8).mv(dskX, dskY, dskZ)
+            if self.cli.turnaround_roller_rounding_en:
+                dsk = self.api.cylinder_rounded_y(c.dskTck, c.dskRad, 1/8).mv(dskX, dskY, dskZ)
+            else:
+                dsk = self.api.cylinder_y(c.dskTck, c.dskRad).mv(dskX, dskY, dskZ)
         turnaround = dsk + turnaround
 
         ## String holder torus
         if not self.isCut:
             str_rad = 0.75
-            if False:
-                torus = Tube(
-                    args = [
-                    "-H", f"{2*str_rad}",
-                    "-in", f"{2*c.dskRad-2*str_rad}",
-                    "-out", f"{2*c.dskRad+str_rad}",
-                    "-i", self.cli.implementation
-                    ]
-                ).gen_full().rotate_z(90)
-            else:
-                torus = Torus( args = [
-                    "-r1", f"{str_rad}",
-                    "-r2", f"{c.dskRad}",
-                    "-i", self.cli.implementation
-                    ]
-                ).gen_full()
+            torus = Torus( args = [
+                "-r1", f"{str_rad}",
+                "-r2", f"{c.dskRad}",
+                "-i", self.cli.implementation
+                ]
+            ).gen_full()
             turnaround -= torus
 
         ## Axle hole
