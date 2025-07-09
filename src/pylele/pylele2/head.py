@@ -57,9 +57,11 @@ class LeleHead(LeleHeadTop):
 
         if topRat > 0:
             top = LeleHeadTop(cli=self.cli)
-            if self.cli.separate_head_top:
+            if self.cli.separate_head_top and not self.cli.all:
                 self.add_part(top)
             else:
+                if self.cli.all:
+                    top <<= (-2 * self.cli.all_distance, 0, self.cli.all_distance)
                 hd += top.gen_full()
         
         frontCut = self.api.cylinder_y(2*hdWth, .7*spHt)
