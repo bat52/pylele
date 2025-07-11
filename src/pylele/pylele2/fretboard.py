@@ -91,10 +91,12 @@ class LeleFretboard(LeleBase):
                     nutWth=self.cfg.nutWth,
                     fretbdWth=self.cfg.fretbdWth,
                     isCut=self.isCut)
-        fretbd = self.api.polygon_extrusion(path, fbHt)
 
         if self.isCut:
+            fretbd = self.api.polygon_extrusion(path, fbHt + 10)
             return fretbd.mv(0, 0, -self.api.tolerance())
+        else:
+            fretbd = self.api.polygon_extrusion(path, fbHt)
 
         topCut = (
             self.api.box(fretbdLen * 2, fretbdWth, fbHt)

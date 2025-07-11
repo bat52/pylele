@@ -10,7 +10,7 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
-from b13d.api.core import Shape, Implementation
+from b13d.api.core import Shape
 from b13d.api.constants import FILLET_RAD
 from b13d.api.solid import main_maker, test_loop
 from pylele.pylele2.base import LeleBase
@@ -18,10 +18,8 @@ from pylele.pylele2.frets import LeleFrets, pylele_frets_parser, FretType
 from pylele.pylele2.nut import LeleNut, pylele_nut_parser, NutType
 from pylele.pylele2.fretboard_dots import LeleFretboardDots, pylele_dots_parser
 from pylele.pylele2.fretboard import LeleFretboard
-from pylele.pylele2.top import LeleTop
 from pylele.pylele2.fretboard_spines import LeleFretboardSpines
 from pylele.pylele2.fretboard_joint import LeleFretboardJoint
-from pylele.pylele2.body import LeleBody
 
 def pylele_fretboard_assembly_parser(parser=None):
     """
@@ -55,7 +53,7 @@ class LeleFretboardAssembly(LeleBase):
 
         jcTol = self.api.tolerance()
 
-        fretbd = LeleFretboard( cli=self.cli )
+        fretbd = LeleFretboard( cli=self.cli, isCut=self.isCut)
 
         ## dots
         if self.cli.separate_dots:

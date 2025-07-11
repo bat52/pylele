@@ -95,7 +95,7 @@ class LeleTopAssembly(LeleBase):
         if self.cli.separate_fretboard or self.cli.separate_neck:
             top -= LeleFretboardJoint(cli=self.cli, isCut=True)\
                 .mv(-self.api.tolerance(), 0, -self.api.tolerance())
-            top -= LeleFretboard(cli=self.cli, isCut=True)
+        top -= LeleFretboard(cli=self.cli, isCut=True)
 
         # gen bridge
         brdg = LeleBridgeAssembly(cli=self.cli)

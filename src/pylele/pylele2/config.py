@@ -106,6 +106,8 @@ def pylele_config_parser(parser = None):
                         type=float, default=1/2)
     parser.add_argument("-fbsr", "--fretboard_ratio", help="Fretboad/Scale length ratio",
                         type=float, default=0.635)
+    parser.add_argument("-fbra", "--fretboard_rise_angle", help="Fretboad rise angle",
+                        type=float, default=0.5)
     parser.add_argument("-nsr", "--neck_ratio", help="Neck/Scale length ratio",
                         type=float, default=0.55)
 
@@ -295,7 +297,7 @@ class LeleConfig:
 
         # Length based configs
         self.fretbdLen = scaleLen * self.cli.fretboard_ratio
-        self.fretbdRiseAng = 1 # + numStrs/10
+        self.fretbdRiseAng = self.cli.fretboard_rise_angle # 1 # + numStrs/10
         self.chmFront = scaleLen - self.fretbdLen - wallTck
         self.chmBack = self.cli.chamber_back_ratio * self.chmFront
         (tnrFront, tnrBack, _, _, _, _) = tnrType.dims()
