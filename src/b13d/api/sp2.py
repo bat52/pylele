@@ -218,6 +218,8 @@ class Sp2Shape(Shape):
                 assert f"# WARNING: {num} is not numeric"
 
     def cut(self, cutter: Sp2Shape) -> Sp2Shape:
+        if cutter is None:
+            return self
         self.solid = self.solid - cutter.solid
         if self._check_backup_solid() and cutter._check_backup_solid():
             self.backup_solid = self.backup_solid - cutter.backup_solid
@@ -227,6 +229,8 @@ class Sp2Shape(Shape):
         return copy.copy(self)
 
     def join(self, joiner: Sp2Shape) -> Sp2Shape:
+        if joiner is None:
+            return self
         self.solid = self.solid + joiner.solid
         if self._check_backup_solid() and joiner._check_backup_solid():
             self.backup_solid = self.backup_solid + joiner.backup_solid

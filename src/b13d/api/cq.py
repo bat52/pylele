@@ -153,6 +153,8 @@ class CQShape(Shape):
         self.solid: cq.Workplane = None
 
     def cut(self, cutter: CQShape) -> CQShape:
+        if cutter is None:
+            return self
         self.solid = self.solid.cut(cutter.solid)
         return self
 
@@ -177,6 +179,8 @@ class CQShape(Shape):
         return self
 
     def join(self, joiner: CQShape) -> CQShape:
+        if joiner is None:
+            return self
         self.solid = self.solid.union(joiner.solid)
         return self
 
