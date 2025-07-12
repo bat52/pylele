@@ -64,8 +64,9 @@ class LeleTail(LeleBase):
 
         if self.cli.body_type.is_flat():
             # flat bodies do not have rounded bottom
-            if self.cli.body_type in [LeleBodyType.TRAVEL]:
-                tail = tail.mv(5,0,0) # for whatever reason...
+            # if self.cli.body_type in [LeleBodyType.TRAVEL]:
+                # tail = tail.mv(5,0,0) # for whatever reason...
+            pass
         else:
             # rounded bottom
             extBot = self.api.cylinder_x(10 if self.isCut else rimWth, endWth/2)\
