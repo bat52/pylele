@@ -196,6 +196,17 @@ class WormConfig(TunerConfig):
         (front, back, _, _, _, _) = self.dims()
         return (front + back) / 2
 
+CHEAP_FRICTION_CFG = PegConfig(
+    majRad=8,
+    minRad=2.3,
+    botLen=15,
+    btnRad=2.3,
+    midTck=15,
+    holeHt=10,
+    tailAdj=-2,
+    topCutTck = 20,
+    code = 'C',
+)
 class TurnaroundConfig(WormConfig):
     def __init__(
         self,
@@ -212,7 +223,7 @@ class TurnaroundConfig(WormConfig):
         gapAdj: float = 1,
         tailAdj: float = 0,
         code: str = 'T',
-        peg_config = PegConfig(topCutTck=25)
+        peg_config = CHEAP_FRICTION_CFG # PegConfig(topCutTck=25, minRad=2.3, majRad=4)
     ):
         super().__init__(code = code)
         self.slitHt = slitHt
@@ -289,6 +300,7 @@ TURNAROUND90_CFG = TurnaroundConfig(peg_config=PEG_90_CFG)
 class TunerType(Enum):
     """ Tuner Type Enumerator """
     FRICTION = FRICTION_PEG_CFG
+    CHEAP = CHEAP_FRICTION_CFG
     GOTOH = GOTOH_PEG_CFG
     WORM = WORM_TUNER_CFG
     BIGWORM = BIGWORM_TUNER_CFG
