@@ -199,7 +199,7 @@ class WormConfig(TunerConfig):
 CHEAP_FRICTION_CFG = PegConfig(
     majRad=8,
     minRad=2.3,
-    botLen=15,
+    botLen=16,
     btnRad=2.3,
     midTck=15,
     holeHt=10,
