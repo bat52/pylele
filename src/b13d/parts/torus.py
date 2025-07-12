@@ -24,6 +24,8 @@ class Torus(Solid):
         parser.add_argument("-as", "--angles_step", help="Angles step [deg]", type=float, default=10)
         parser.add_argument("-r1", "--r1", help="R1 [mm]", type=float, default=2)
         parser.add_argument("-r2", "--r2", help="R2 [mm]", type=float, default=20)
+        parser.add_argument("-fen", "--fill_en", help="Fill Torus", action="store_true")
+        parser.add_argument("-dir", "--direction", help="Direction", default="y", choices=['x','y','z'])
         return parser
 
     def gen_sweep(self) -> Shape:
@@ -74,9 +76,19 @@ class Torus(Solid):
     def gen(self) -> Shape:
         """ generate torus """
         if False:
-            return self.gen_sweep()
+            torus = self.gen_sweep()
         else:
-            return self.gen_revolve()
+            torus = self.gen_revolve()
+
+        if self.cli.fill_en:
+            torus += self.api.cylinder_y(rad=self.cli.r2,l=2*self.cli.r1)
+
+        if self.cli.direction=='x':
+            torus = torus.rotate_z(-90)
+        elif self.cli.direction=='z':
+            torus = torus.rotate_x(90)
+
+        return torus
 
         
 def main(args=None):
@@ -89,7 +101,10 @@ def test_torus(self,apis=None):
     """ Test Torus """
     tests={
          "default":["-refv","1660"],
-         "rev270" :["-ar", "270","-refv","1239"]
+         "rev270" :["-ar", "270","-refv","1239"],
+         "filled" :["-fen"],
+         "x"      :["-dir",'x'],
+         "z"      :["-dir",'z'],
          }
     test_loop(module=__name__,tests=tests,apis=apis)
 
