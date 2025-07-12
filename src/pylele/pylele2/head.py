@@ -60,7 +60,7 @@ class LeleHead(LeleHeadTop):
             if self.cli.separate_head_top and not self.cli.all:
                 self.add_part(top)
             else:
-                if self.cli.all:
+                if self.cli.separate_head_top and self.cli.all:
                     top <<= (-2 * self.cli.all_distance, 0, self.cli.all_distance)
                 hd += top.gen_full()
         

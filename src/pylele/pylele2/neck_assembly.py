@@ -61,9 +61,10 @@ class LeleNeckAssembly(LeleBase):
 
             ## Fretboard, only part of neck assembly if separate fretboard or separate neck
             ## if only separate top, fretboard is joined to top!
-            if (self.cli.separate_fretboard or self.cli.separate_neck or not self.cli.separate_top):
+            if (self.cli.separate_neck or not self.cli.separate_top):
                 fretbd = LeleFretboardAssembly(cli=self.cli)
                 fretbd.gen_full()
+
                 if self.cli.separate_fretboard:
                     if self.cli.all:
                         fretbd <<= (-self.cli.all_distance, 0, self.cli.all_distance)
@@ -95,11 +96,9 @@ class LeleNeckAssembly(LeleBase):
             pylele_neck_assembly_parser(parser=parser)
         )
 
-
 def main(args=None):
     """Generate Neck Assembly"""
     return main_maker(module_name=__name__, class_name="LeleNeckAssembly", args=args)
-
 
 def test_neck_assembly(self, apis=None):
     """Test Neck Assembly"""
