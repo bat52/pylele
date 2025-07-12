@@ -189,6 +189,8 @@ def solid_operand(joiner)->ShapeAPI:
         joiner.gen_full()
         return joiner.shape
     if isinstance(joiner, ShapeAPI):
+        if joiner.solid is None:
+            return None
         return joiner
 
 from typing import Any, Dict, Tuple, List
