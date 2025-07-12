@@ -73,7 +73,7 @@ class LeleFrets(LeleBase):
         fHt = self.cfg.FRET_HT
         maxFrets = self.cfg.MAX_FRETS
         wideAng = self.cfg.neckWideAng
-        riseAng = self.cfg.fretbdRiseAng
+        riseAng = self.cli.fretboard_rise_angle
 
         # Not generating frets, if they are cut ?
         fx = 0

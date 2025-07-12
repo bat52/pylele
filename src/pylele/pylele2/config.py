@@ -107,7 +107,7 @@ def pylele_config_parser(parser = None):
     parser.add_argument("-fbsr", "--fretboard_ratio", help="Fretboad/Scale length ratio",
                         type=float, default=0.635)
     parser.add_argument("-fbra", "--fretboard_rise_angle", help="Fretboad rise angle",
-                        type=float, default=0.5)
+                        type=float, default=1)
     parser.add_argument("-nsr", "--neck_ratio", help="Neck/Scale length ratio",
                         type=float, default=0.55)
 
@@ -297,7 +297,6 @@ class LeleConfig:
 
         # Length based configs
         self.fretbdLen = scaleLen * self.cli.fretboard_ratio
-        self.fretbdRiseAng = self.cli.fretboard_rise_angle # 1 # + numStrs/10
         self.chmFront = scaleLen - self.fretbdLen - wallTck
         self.chmBack = self.cli.chamber_back_ratio * self.chmFront
         (tnrFront, tnrBack, _, _, _, _) = tnrType.dims()
@@ -336,7 +335,7 @@ class LeleConfig:
         self.fretbdWth = self.nutWth + \
             2 * tan(radians(self.neckWideAng)) * self.fretbdLen
         self.fretbdHt = self.FRETBD_TCK + \
-            tan(radians(self.fretbdRiseAng)) * self.fretbdLen
+            tan(radians(self.cli.fretboard_rise_angle)) * self.fretbdLen
 
         # Chamber Configs
         self.chmWth = self.brdgWth * self.cli.chamber_bridge_ratio
@@ -352,7 +351,7 @@ class LeleConfig:
         # Bridge configs
         f12Len = scaleLen/2
         f12Ht = self.FRETBD_TCK \
-            + tan(radians(self.fretbdRiseAng)) * f12Len \
+            + tan(radians(self.cli.fretboard_rise_angle)) * f12Len \
             + self.FRET_HT
         self.brdgZ = self.bodyWth/2 * self.TOP_RATIO + self.extMidTopTck - 1.5
         self.brdgHt = 2*(f12Ht + action - self.NUT_HT - self.STR_RAD/2) \

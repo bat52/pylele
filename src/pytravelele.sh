@@ -6,5 +6,6 @@ SCRIPT_DIR=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
 python3 $SCRIPT_DIR/pylele/pylele2/all_assembly.py \
 -cfg travelele -N -FB -T -F -B -bpiezo -NU -FR -D -ft wire -E -HT -RIM -jhe -txtr 90 \
 -txtl ./src/m1.svg -txtls 0.01 -txtly 10 \
+--fretboard_rise_angle 0.5 \
 $@ # > $LOG 
 # head $LOG

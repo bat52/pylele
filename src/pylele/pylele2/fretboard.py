@@ -100,7 +100,7 @@ class LeleFretboard(LeleBase):
 
         topCut = (
             self.api.box(fretbdLen * 2, fretbdWth, fbHt)
-            .rotate_y(-self.cfg.fretbdRiseAng)
+            .rotate_y(-self.cli.fretboard_rise_angle)
             .mv(0, 0, fbTck + fbHt / 2)
         )
         fretbd -= topCut
@@ -132,7 +132,7 @@ class LeleFretboard(LeleBase):
             face_edges = fretboard_path_3d(
                         frad=frad,
                         fretbdLen=fretbdLen,
-                        fretbdRiseAng=self.cfg.fretbdRiseAng,
+                        fretbdRiseAng=self.cli.fretboard_rise_angle,
                         nutWth = self.cfg.nutWth,
                         fretbdWth=fretbdWth,
                         fbHt=fbHt,

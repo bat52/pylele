@@ -57,7 +57,7 @@ class LeleFretboardDots(LeleBase):
         maxFrets = self.cfg.MAX_FRETS
         dep = self.cfg.EMBOSS_DEP + cutAdj
         wideAng = self.cfg.neckWideAng
-        riseAng = self.cfg.fretbdRiseAng
+        riseAng = self.cli.fretboard_rise_angle
         nutSGap = self.cli.nut_string_gap
         dotRad = self.cli.dots_radius + cutAdj
         fret2Dots = self.cli.dot_frets
