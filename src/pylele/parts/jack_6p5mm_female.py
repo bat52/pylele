@@ -28,12 +28,12 @@ class Jack6p5Female(Solid):
                                      rad=rad)
         
         if self.isCut:
+            screw_width = 14 + 2*FIT_TOL
             # box cut
-            box = self.api.box(2*rad, 2*rad, cyl_h-10)
+            box = self.api.box(2*rad, screw_width, cyl_h-10)
             box <<= (rad, 0, -box.top()+cylinder.top())
             cylinder += box
             # screw holder
-            screw_width = 14 + FIT_TOL
             pencil = Pencil(self.api, 
                             args=[
                                 '-s' ,f'{screw_width}',
