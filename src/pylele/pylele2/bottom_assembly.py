@@ -162,7 +162,12 @@ class LeleBottomAssembly(LeleBase):
             bottom = bottom - chamber - rim - tnrs - text
             if self.cli.separate_end:
                 bottom -= tail_cut
-            self.add_part(bottom)
+            
+            if self.cli.all:
+                bottom <<= (0, 0, -self.cli.all_distance)
+                body += bottom
+            else:
+                self.add_part(bottom)
 
         return body.gen_full()
 
