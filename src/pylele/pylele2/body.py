@@ -17,6 +17,7 @@ from b13d.api.utils import radians
 from pylele.config_common import TunerType
 from pylele.pylele2.config import LeleBodyType
 from pylele.pylele2.base import LeleBase
+# from pylele.pylele2.chamber import pylele_chamber_parser
 
 def genBodyPath(
                  scaleLen: float,
@@ -163,7 +164,8 @@ class LeleBody(LeleBase):
 
             # Flat body
             bot = self.gourd_flat_extrusion(thickness=-self.cli.flat_body_thickness)
-            bot += self.gen_flat_body_bottom()
+            if not self.cli.separate_bottom:
+                bot += self.gen_flat_body_bottom()
 
         elif self.cli.body_type == LeleBodyType.HOLLOW:
 
@@ -174,7 +176,8 @@ class LeleBody(LeleBase):
             midR2 = midR.dup().mv(0,-self.cli.wall_thickness,0)
             midR -= midR2
             bot = midR.mirror_and_join()
-            bot += self.gen_flat_body_bottom()
+            if not self.cli.separate_bottom:
+                bot += self.gen_flat_body_bottom()
 
         else:
             assert (
@@ -188,6 +191,7 @@ class LeleBody(LeleBase):
         pylele Command Line Interface
         """
         parser = pylele_body_parser(parser=parser)
+        # parser = pylele_chamber_parser(parser=parser)
         return super().gen_parser(parser=parser)
 
 def main(args=None):
@@ -212,6 +216,7 @@ def test_body(self, apis=None):
             "-refv", "794710"
         ],
         "hollow": ["-bt", str(LeleBodyType.HOLLOW),"-refv","194714"],
+        "separate_bottom" : ["-BT"]
     }
 
     test_loop(module=__name__, apis=apis, tests=tests)

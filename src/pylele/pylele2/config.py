@@ -139,6 +139,9 @@ def pylele_config_parser(parser = None):
     parser.add_argument("-T", "--separate_top",
                         help="Split body top from body back.",
                         action='store_true')
+    parser.add_argument("-BT", "--separate_bottom",
+                        help="Split body bottom from body.",
+                        action='store_true')
     parser.add_argument("-N", "--separate_neck",
                         help="Split neck from body.",
                         action='store_true')

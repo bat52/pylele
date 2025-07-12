@@ -47,6 +47,7 @@ class PyleleTestMethods(unittest.TestCase):
         test_fretboard_joint_mock,
     )
     from pylele.pylele2.top import test_top, test_top_mock
+    from pylele.pylele2.bottom import test_bottom, test_bottom_mock
     from pylele.pylele2.strings import test_strings, test_strings_mock
     from pylele.pylele2.nut import test_nut, test_nut_mock
     from pylele.pylele2.spines import test_spines, test_spines_mock

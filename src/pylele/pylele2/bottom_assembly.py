@@ -31,7 +31,7 @@ from pylele.pylele2.chamber import LeleChamber, pylele_chamber_parser
 from pylele.pylele2.tuners import LeleTuners, pylele_tuners_parser
 from pylele.pylele2.turnaround import LeleTurnaround
 from pylele.pylele2.neck_assembly import LeleNeckAssembly, pylele_neck_assembly_parser
-
+from pylele.pylele2.bottom import LeleBottom
 
 def pylele_bottom_assembly_parser(parser=None):
     """
@@ -59,7 +59,10 @@ class LeleBottomAssembly(LeleBase):
 
         ## Chamber
         if not self.cli.body_type in [LeleBodyType.FLAT, LeleBodyType.HOLLOW]:
-            body -= LeleChamber(cli=self.cli, isCut=True)
+            chamber = LeleChamber(cli=self.cli, isCut=True)
+            body -= chamber
+        else:
+            chamber = None
 
         ## Rim
         if self.cli.separate_top: # and not self.cli.body_type.is_solid():
@@ -118,7 +121,8 @@ class LeleBottomAssembly(LeleBase):
 
         ## Tail, not ideal for non worm but possible
         if self.cli.separate_end:
-            body -= LeleTail(cli=self.cli, isCut=True).mv(0, 0, jcTol)
+            tail_cut = LeleTail(cli=self.cli, isCut=True).mv(0, 0, jcTol)
+            body -= tail_cut
             tail = LeleTail(cli=self.cli)
             if self.cli.jack_hole_en:
                 tail -= jh
@@ -130,10 +134,15 @@ class LeleBottomAssembly(LeleBase):
         elif self.cli.body_type in [LeleBodyType.HOLLOW]:
             # join tail to body if flat hollow and not separate end
             body += LeleTail(cli=self.cli)
+            tail_cut = None
 
         ## Text (buggy for blender)
         if not self.cli.no_text:
-            body -= LeleTexts(cli=self.cli, isCut=True)
+            text = LeleTexts(cli=self.cli, isCut=True)
+        else:
+            text = None
+        if not self.cli.separate_bottom:
+            body -= text
 
         if False:
             jh = JackHolder(cli=self.cli)
@@ -142,6 +151,18 @@ class LeleBottomAssembly(LeleBase):
                        body.shape.back()-jh.shape.front(), 
                        jh.shape.bottom())
             body += jh
+
+        ## bottom
+        if self.cli.separate_bottom:
+            rim = LeleRim(cli=self.cli, isCut=True) # .gen_full()
+            rim <<= (0,0,-self.cli.flat_body_thickness + rim.RIM_TCK/2)
+            body -= rim
+
+            bottom = LeleBottom(cli=self.cli)
+            bottom = bottom - chamber - rim - tnrs - text
+            if self.cli.separate_end:
+                bottom -= tail_cut
+            self.add_part(bottom)
 
         return body.gen_full()
 

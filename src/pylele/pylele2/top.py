@@ -38,18 +38,14 @@ def main(args=None):
     """Generate Top"""
     return main_maker(module_name=__name__, class_name="LeleTop", args=args)
 
-tests = {"cut": ["-C"]}
-
-
-def test_top(self):
+def test_top(self, apis = None):
     """Test Top"""
-    test_loop(module=__name__, tests=tests)
-
+    tests = {"cut": ["-C"]}
+    test_loop(module=__name__, tests=tests, apis = apis)
 
 def test_top_mock(self):
     """Test Top"""
-    test_loop(module=__name__, tests=tests, apis=["mock"])
-
+    test_top(self, apis=["mock"])
 
 if __name__ == "__main__":
     main()
