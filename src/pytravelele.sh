@@ -10,8 +10,8 @@ python3 $SCRIPT_DIR/pylele/pylele2/all_assembly.py \
 --separate_frets --separate_dots --separate_nut \
 --separate_top --separate_bottom --separate_bridge \
 --separate_end --separate_rim \
--bpiezo -ft wire --jack_hole_en -txtr 90 \
--txtl ./src/m1.svg -txtls 0.01 -txtly 10 \
+-bpiezo -ft wire --jack_hole_en \
+--text_rotation 270 --text_logo ./src/m1.svg --text_logo_scale 0.01 --text_logo_y 10 \
 --fretboard_rise_angle 0.5 \
 $@ # > $LOG 
 # head $LOG
