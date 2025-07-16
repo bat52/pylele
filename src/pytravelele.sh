@@ -15,3 +15,17 @@ python3 $SCRIPT_DIR/pylele/pylele2/all_assembly.py \
 --fretboard_rise_angle 0.5 \
 $@ # > $LOG 
 # head $LOG
+
+# tuners: drive
+TEETH=11
+COMMON_TUNERS_ARGS="-mirror --teeth $TEETH"
+python3 $SCRIPT_DIR/pylele/parts/worm_drive.py ${COMMON_TUNERS_ARGS} $@
+
+# tuners: gear
+python3 $SCRIPT_DIR/pylele/parts/worm_gear.py ${COMMON_TUNERS_ARGS} \
+--carved_gear --friction_shaft_enable \
+$@
+
+# tuners: holder
+python3 $SCRIPT_DIR/pylele/parts/worm_gear_holder.py ${COMMON_TUNERS_ARGS} \
+$@
