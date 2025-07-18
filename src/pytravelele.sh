@@ -23,7 +23,7 @@ python3 $SCRIPT_DIR/pylele/parts/worm_drive.py -mirror ${COMMON_TUNERS_ARGS} $@
 
 # tuners: gear
 python3 $SCRIPT_DIR/pylele/parts/worm_gear.py -mirror ${COMMON_TUNERS_ARGS} \
---carved_gear --friction_shaft_enable \
+--carved_gear --friction_shaft_enable --minkowski_en \
 $@
 
 # tuners: holder straight
