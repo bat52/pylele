@@ -68,36 +68,34 @@ class WormGearHolder(WormGear):
                                         -self.holder_width/2 + holder_rad, 0)
         return screw_holder_l + screw_holder_r
     
-    def gen_gears_cut(self, cut_en = True) -> Shape:
-        """ Generate the gears cut """
-
-        tol = self.cut_tolerance if cut_en else 0
-        cut_arg = ['-C'] if cut_en else []
-
-        gear_cut = self.api.cylinder_z(
-            self.holder_thickness - 2 * (self.wall_thickness + tol),
-            rad = self.gear_out_rad + tol
-            ).mv(0,0,-self.wall_thickness)
+    def worm_gear_args(self):
+        """ Prepare worm gear arguments """
 
         # prepare common worm gear arguments
         worm_gear_args = [
             '-i', self.cli.implementation,
             '-t', f'{self.cli.teeth}',
-            '-d',
+            '-d', # enable drive gear
             ]
         if self.cli.minkowski_en:
             worm_gear_args += ['-me']
         if self.cli.carved_gear:
             worm_gear_args += ['-cg']
 
+        return worm_gear_args
+
+    def gen_gears_cut(self, cut_en = True) -> Shape:
+        """ Generate the gears cut """
+
+        cut_arg = ['-C'] if cut_en else []
+
         # carve tuner hole
         gears_cut = WormGear( args =
-            worm_gear_args + cut_arg
+            self.worm_gear_args() + cut_arg,
+            isCut=cut_en
         ).gen_full()
     
-        self.worm_gear_args = worm_gear_args
-
-        return gear_cut + gears_cut
+        return gears_cut
 
     def gen_holder_solid(self) -> Shape:
         
@@ -128,8 +126,8 @@ class WormGearHolder(WormGear):
             holder = holder.hull()
 
         return holder
-    
-    def gen_holder_gears_cut(self, extrude_en = True, cut_en = True) -> Shape:
+
+    def gen_holder_and_gears_cut(self, extrude_en = True, cut_en = True) -> Shape:
         holder = self.gen_holder_solid()
 
         # remove gear cuts
@@ -144,14 +142,14 @@ class WormGearHolder(WormGear):
         return holder
     
     def gen_holder(self) -> Shape:
-        holder = self.gen_holder_gears_cut(extrude_en=True)
+        holder = self.gen_holder_and_gears_cut(extrude_en=True)
 
         # remove screw holders cuts
         holder -= self.gen_screw_holders(cutter=True)
 
         if self.cli.gears_enable:
             holder += WormGear( args =
-                self.worm_gear_args
+                self.worm_gear_args()
             ).gen_full()
 
         if self.cli.mirror_enable:

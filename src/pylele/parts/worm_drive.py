@@ -62,8 +62,10 @@ class WormDrive(Solid):
         # inferred parameters
         if self.cli.teeth > 12:
             self.gear_diam = 14.6
+            self.disk_h_ext = 2
         else:
             self.gear_diam = 11
+            self.disk_h_ext = 5.5
         self.worm_drive_teeth = 1.43
         self.gear_teeth = 3
         
@@ -75,7 +77,7 @@ class WormDrive(Solid):
         self.drive_teeth_l = 2*0.98
 
         # drive cylindrical extension
-        self.disk_h = (self.gear_diam - self.drive_h + 2)/2
+        self.disk_h = (self.gear_diam - self.drive_h + self.disk_h_ext)/2
 
         # distance between worm and gear
         if self.cli.implementation == Implementation.SOLID2:

@@ -19,6 +19,7 @@ $@ # > $LOG
 # tuners: drive
 TEETH=11
 COMMON_TUNERS_ARGS="--teeth $TEETH"
+COMMON_HOLDER_ARGS="$COMMON_TUNERS_ARGS --head_heigth 3"
 python3 $SCRIPT_DIR/pylele/parts/worm_drive.py -mirror ${COMMON_TUNERS_ARGS} $@
 
 # tuners: gear
@@ -27,9 +28,9 @@ python3 $SCRIPT_DIR/pylele/parts/worm_gear.py -mirror ${COMMON_TUNERS_ARGS} \
 $@
 
 # tuners: holder straight
-python3 $SCRIPT_DIR/pylele/parts/worm_gear_holder.py ${COMMON_TUNERS_ARGS} \
+python3 $SCRIPT_DIR/pylele/parts/worm_gear_holder.py ${COMMON_HOLDER_ARGS} \
 $@
 
 # tuners: holder mirror
-python3 $SCRIPT_DIR/pylele/parts/worm_gear_holder.py -mirror ${COMMON_TUNERS_ARGS} \
+python3 $SCRIPT_DIR/pylele/parts/worm_gear_holder.py -mirror ${COMMON_HOLDER_ARGS} \
 --outdir ./build/WormGearHolderMirror $@
