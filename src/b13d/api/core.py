@@ -122,8 +122,8 @@ def supported_apis() -> list:
 
     apis = [Implementation.TRIMESH, Implementation.CADQUERY, Implementation.SOLID2, Implementation.MANIFOLD]
 
-    if ver[1] < 12:
-        # blender bpy package currently not supported with python 3.12
+    if ver[1] == 11:
+        # blender bpy package currently only supported with python 3.11
         apis.append(Implementation.BLENDER)
 
     return apis
