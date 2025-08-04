@@ -25,8 +25,8 @@ class WormGearHolderCover(WormGearHolder):
         return parser
 
     def gen(self) -> Shape:
-        cover  = self.gen_holder_gears_cut(extrude_en = False).half([False,False,True])
-        cover -= self.gen_holder_gears_cut(extrude_en = True, cut_en=True)        
+        cover  = self.gen_holder_and_gears_cut(extrude_en = False).half([False,False,True])
+        cover -= self.gen_holder_and_gears_cut(extrude_en = True, cut_en=True)        
     
         if self.cli.holder_enable:
             cover += self.gen_holder()
