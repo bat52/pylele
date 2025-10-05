@@ -34,8 +34,13 @@ def scad2stl_parser(parser=None):
 
 def openscad_version(command=OPENSCAD):
     """ Returns openscad version """
-    tmplog='log.txt'
-    cmdstr = f'{command} -v 2>&1 | cat > {tmplog}'
+    tmplog = 'log.txt'
+    if os.name == 'nt':
+        # Windows
+        cmdstr = f'{command} -v > {tmplog} 2>&1'
+    else:
+        # Unix/Linux/Mac
+        cmdstr = f'{command} -v 2>&1 | cat > {tmplog}'
     os.system(cmdstr)
 
     assert os.path.isfile(tmplog), f'ERROR: file {tmplog} does not exist!'
@@ -104,7 +109,13 @@ def scad2stl(infile, command=OPENSCAD, implicit = False) -> str:
         command = IMPLICITCAD
 
     manifold = openscad_manifold_opt(command=command)
-    cmdstr = f'{command} {manifold} -o {fout} {infile} 2>&1 | cat > {log}'
+    
+    if os.name == 'nt':
+        # Windows
+        cmdstr = f'{command} {manifold} -o {fout} {infile} > {log} 2>&1'
+    else:
+        # Unix/Linux/Mac
+        cmdstr = f'{command} {manifold} -o {fout} {infile} 2>&1 | cat > {log}'
     os.system(cmdstr)
 
     # make sure logfile exist
