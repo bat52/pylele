@@ -1,4 +1,4 @@
-name: TestUbuntu
+name: TestWindows
 
 on: [push]
 
@@ -9,7 +9,7 @@ jobs:
       matrix:
         # https://github.com/actions/setup-python/issues/853
         python-version: ["3.10", "3.11", "3.12"]
-        os: [ubuntu-latest, ubuntu-24.04, ubuntu-22.04] # latest and LTS
+        os: [windows-latest] # latest and LTS
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
@@ -22,10 +22,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    - name: install dependencies
-      run: |
-        chmod +x ./install_dependencies.sh
-        sudo ./install_dependencies.sh
+    #- name: install dependencies
+    #  run: |
+    #    chmod +x ./install_dependencies.sh
+    #    sudo ./install_dependencies.sh
     - name: pip configuration report
       run: |
         mkdir test
@@ -33,13 +33,14 @@ jobs:
     - name: Generate timestamp
       id: timestamp
       run: echo "timestamp=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_ENV
-    - name: test pylele.sh
-      run: |
-        source ./src/pylele.sh
+    #- name: test pylele.sh
+    #  run: |
+    #    source ./src/pylele.sh
     - name: test pylele2.sh
       run: |
-        source ./src/pylele2.sh -odoff
-    - name: upload demo stl
+        # source ./src/pylele2.sh -odoff
+        python3 ./src/pylele/pylele2/all_assembly.py -odoff
+    #- name: upload demo stl
       uses: actions/upload-artifact@v4
       with:
           # path depends on the tag and the module name
@@ -56,16 +57,16 @@ jobs:
     #      name: pylele_glb_out_${{ matrix.python-version }}_${{ matrix.os }}
     #      path: build/LeleAllAssembly/LeleAllAssembly.glb
     #      # compression-level: 0 # no compression
-    - name: run pytravelele.sh
-      run: |
-        source ./src/clean.sh
-        source ./src/pytravelele.sh -odoff
-    - name: upload travelele output
-      uses: actions/upload-artifact@v4
-      with:
-          # path depends on the tag and the module name
-          name: travelele_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
-          path: build/*
+    #- name: run pytravelele.sh
+    #  run: |
+    #    source ./src/clean.sh
+    #    source ./src/pytravelele.sh -odoff
+    #- name: upload travelele output
+    #  uses: actions/upload-artifact@v4
+    #  with:
+    #      # path depends on the tag and the module name
+    #      name: travelele_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
+    #      path: build/*
     - name: test_b1scad
       run: |
         python3 ./src/b1scad/test.py
@@ -76,7 +77,7 @@ jobs:
       continue-on-error: true
     - name: test_pylele
       run: |
-        source ./src/test.sh
+        python3 ./pylele/test.py
       continue-on-error: true
     - name: upload test output
       uses: actions/upload-artifact@v4
