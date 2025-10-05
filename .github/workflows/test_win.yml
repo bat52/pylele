@@ -79,7 +79,7 @@ jobs:
       continue-on-error: true
     - name: test_pylele
       run: |
-        python3 ./pylele/test.py
+        python3 ./src/pylele/test.py
       continue-on-error: true
     - name: upload test output
       uses: actions/upload-artifact@v4
