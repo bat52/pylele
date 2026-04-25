@@ -42,6 +42,10 @@ jobs:
     - name: test pylele2.sh
       run: |
         python ./src/pylele/pylele2/all_assembly.py -odoff -i cq
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "Script failed with exit code: $LASTEXITCODE"
+          exit $LASTEXITCODE
+        }
     - name: upload demo stl
       uses: actions/upload-artifact@v4
       with:
