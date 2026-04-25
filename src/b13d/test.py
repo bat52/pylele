@@ -17,7 +17,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
-from b13d.api.core import test_api, DEFAULT_TEST_DIR, Implementation
+from b13d.api.core import test_api, DEFAULT_TEST_DIR, Implementation, supported_apis
 from b13d.api.utils import make_or_exist_path
 
 TEST_NAME_DEFAULT = "default"
@@ -210,6 +210,20 @@ class B13DTestMethods(unittest.TestCase):
     def test_blender_api(self):
         """Test Blender API"""
         test_api(api=Implementation.BLENDER)
+
+    def test_polyhedron_api(self):
+        """Test Polyhedron support across implementation APIs"""
+        points = [(0, 0, 0), (10, 0, 0), (0, 10, 0), (0, 0, 10)]
+        faces = [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]]
+
+        for api in supported_apis() + [Implementation.MOCK]:
+            with self.subTest(api=api):
+                sapi = api.get_api()
+                poly = sapi.polyhedron(points=points, faces=faces, convexity=1)
+                self.assertIsNotNone(poly)
+                self.assertTrue(hasattr(poly, "solid"))
+                if api != Implementation.MOCK:
+                    self.assertIsNotNone(poly.solid)
 
     def test_trimesh_api(self):
         """Test Trimesh API"""

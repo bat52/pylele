@@ -19,6 +19,15 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 from b13d.api.core import ShapeAPI, Shape, test_api, Direction, Implementation
 from b13d.api.utils import dimXY, file_ensure_extension, lineSplineXY, textToGlyphsPaths
 
+def _triangulate_faces(faces: list[list[int]]) -> np.ndarray:
+    triangles = []
+    for face in faces:
+        if len(face) < 3:
+            continue
+        for i in range(1, len(face) - 1):
+            triangles.append([face[0], face[i], face[i + 1]])
+    return np.array(triangles, dtype=np.int64)
+
 
 """
     Encapsulate Manifold3d implementation specific calls
@@ -169,6 +178,14 @@ class MFShapeAPI(ShapeAPI):
     def text(self, txt: str, fontSize: float, tck: float, font: str) -> MFShape:
         return MFTextZ(txt, fontSize, tck, font, self)
 
+    def polyhedron(
+        self,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+        convexity: int = 1,
+    ) -> MFShape:
+        return MFPolyhedron(points, faces, convexity, self)
+
     def tolerance(self) -> float:
         return self.implementation.tolerance()
     
@@ -316,6 +333,20 @@ class MFRodZ(MFShape):
         self.solid = Manifold.cylinder(l, rad, circular_segments=segs).translate(
             (0, 0, -l / 2)
         )
+
+class MFPolyhedron(MFShape):
+    def __init__(
+        self,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+        convexity: int,
+        api: MFShapeAPI,
+    ):
+        super().__init__(api)
+        # Note: Manifold.hull_points creates a convex hull from vertices.
+        # This works correctly for most polyhedra but may differ from OpenSCAD's
+        # behavior for non-convex or degenerate polyhedra.
+        self.solid = Manifold.hull_points(points)
 
 
 # draw mix of straight lines from pt to pt, or draw spline with [(x,y,dx,dy), ...], then extrude on Z-axis

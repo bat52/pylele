@@ -593,6 +593,14 @@ class ShapeAPI(ABC):
         font: str,
     ): ...
 
+    @abstractmethod
+    def polyhedron(
+        self,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+        convexity: int = 1,
+    ) -> Shape: ...
+
     def sphere_quadrant(self, rad: float, pickTop: bool, pickFront: bool):
         maxDim = Shape.MAX_DIM
         ball = self.sphere(rad)
@@ -676,6 +684,13 @@ class ShapeAPI(ABC):
 
         zPolyExt = self.polygon_extrusion([(0, 0), (10, 0), (0, 10)], 5)
         self.export_stl(zPolyExt, expDir / f"{implCode}-zpolyext")
+
+        zPolyhedron = self.polyhedron(
+            points=[(0, 0, 0), (10, 0, 0), (0, 10, 0), (0, 0, 10)],
+            faces=[[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]],
+            convexity=1,
+        )
+        self.export_stl(zPolyhedron, expDir / f"{implCode}-zpolyhedron")
 
         zTxt = self.text("ABC", 30, 10, "Courier New")
         self.export_stl(zTxt, expDir / f"{implCode}-ztxt")

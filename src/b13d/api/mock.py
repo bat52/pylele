@@ -88,6 +88,14 @@ class MockShapeAPI(ShapeAPI):
     def text(self, txt: str, fontSize: float, tck: float, font: str) -> MockShape:
         return MockShape(self)
     
+    def polyhedron(
+        self,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+        convexity: int = 1,
+    ) -> MockShape:
+        return MockShape(self)
+    
     def genImport(self, infile: str, extrude: float = None) -> MockShape:
         assert os.path.exists(infile)
         assert isinstance(extrude, (int, float))

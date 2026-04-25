@@ -9,7 +9,7 @@ import sys
 from typing import Union
 
 try:
-    from solid2 import cube, sphere, polygon, text, cylinder, import_, scad_render, render
+    from solid2 import cube, sphere, polygon, text, cylinder, polyhedron, import_, scad_render, render
     from solid2.extensions.bosl2 import circle
 except:
     # only a subset allowed when using implicitcad
@@ -149,6 +149,14 @@ class Sp2ShapeAPI(ShapeAPI):
 
     def text(self, txt: str, fontSize: float, tck: float, font: str) -> Sp2Shape:
         return Sp2TextZ(txt, fontSize, tck, font, api=self)
+
+    def polyhedron(
+        self,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+        convexity: int = 1,
+    ) -> Sp2Shape:
+        return Sp2Polyhedron(points, faces, convexity, api=self)
 
     def genImport(self, infile: str, extrude: float = None) -> Sp2Shape:
         return Sp2Import(infile, extrude=extrude)
@@ -474,6 +482,18 @@ class Sp2TextZ(Sp2Shape):
             txt, fontSize / sqrt(2), font=font, halign="center", valign="center"
         ).linear_extrude(tck)
         self.backup_solid = self.api.backup_api.text(txt, fontSize, tck, font)
+
+class Sp2Polyhedron(Sp2Shape):
+    def __init__(
+        self,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+        convexity: int,
+        api: Sp2ShapeAPI,
+    ):
+        super().__init__(api)
+        self.solid = polyhedron(points=points, faces=faces, convexity=convexity)
+        self.backup_solid = self.api.backup_api.polyhedron(points, faces, convexity)
 
 class Sp2CirclePolySweep(Sp2Shape):
     def __init__(

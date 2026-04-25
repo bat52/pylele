@@ -27,10 +27,11 @@ class B1scadTestMethods(unittest.TestCase):
     """Pylele Test Class"""
     def test_all_scad(self):
         scaddir = os.path.join(os.path.abspath(os.path.dirname(__file__)),"scad")
-        for idx in range(17):
-            fname = f"model{idx:02}"
-            scadfname = f"{fname}.scad"
-            fullscadfile = os.path.join(scaddir,scadfname)
+        scad_files = sorted(
+            [f for f in os.listdir(scaddir) if f.endswith('.scad')]
+        )
+        for scadfname in scad_files:
+            fullscadfile = os.path.join(scaddir, scadfname)
             print(fullscadfile)
 
             # generate reference .stl file

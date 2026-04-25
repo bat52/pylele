@@ -143,6 +143,14 @@ class CQShapeAPI(ShapeAPI):
     def text(self, txt: str, fontSize: float, tck: float, font: str) -> CQShape:
         return CQTextZ(txt, fontSize, tck, font, self)
 
+    def polyhedron(
+        self,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+        convexity: int = 1,
+    ) -> CQShape:
+        return CQPolyhedron(points, faces, convexity, self)
+
     def genImport(self, infile: str, extrude: float = None) -> CQShape:
         return CQImport(infile, extrude=extrude)
 
@@ -445,6 +453,27 @@ class CQTextZ(CQShape):
         self.tck = tck
         self.font = font
         self.solid = cq.Workplane("XY").text(txt, fontSize, tck, font=font)
+
+class CQPolyhedron(CQShape):
+    def __init__(
+        self,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+        convexity: int,
+        api: CQShapeAPI,
+    ):
+        super().__init__(api)
+        self.points = [tuple(map(float, p)) for p in points]
+        self.faces = faces
+        self.convexity = convexity
+
+        face_objects = []
+        for face in faces:
+            wire = cq.Wire.makePolygon([self.points[idx] for idx in face], close=True)
+            face_objects.append(cq.Face.makeFromWires(wire))
+
+        shell = cq.Shell.makeShell(face_objects)
+        self.solid = cq.Solid.makeSolid(shell)
 
 class CQImport(CQShape):
     def __init__(

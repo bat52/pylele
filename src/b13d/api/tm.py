@@ -142,6 +142,14 @@ class TMShapeAPI(ShapeAPI):
     def text(self, txt: str, fontSize: float, tck: float, font: str) -> TMShape:
         return TMTextZ(txt, fontSize, tck, font, self)
 
+    def polyhedron(
+        self,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+        convexity: int = 1,
+    ) -> TMShape:
+        return TMPolyhedron(points, faces, convexity, self)
+
     def genImport(self, infile: str, extrude: float = None) -> TMShape:
         return TMImport(infile, extrude=extrude)
 
@@ -333,6 +341,23 @@ class TMBall(TMShape):
         self.solid = tm.creation.uv_sphere(
             radius=rad, count=(segs, segs), validate=True
         )
+
+
+class TMPolyhedron(TMShape):
+    def __init__(
+        self,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+        convexity: int,
+        api: TMShapeAPI,
+    ):
+        super().__init__(api)
+        self.points = np.array(points, dtype=float)
+        self.faces = np.array(faces, dtype=int)
+        self.convexity = convexity
+        self.solid = tm.Trimesh(vertices=self.points, faces=self.faces, process=True)
+        if not self.solid.is_volume:
+            self.solid = self.solid.convex_hull
 
 
 class TMBox(TMShape):

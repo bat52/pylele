@@ -57,6 +57,10 @@ class OpenSCADParser(Parser):
     def op(self, p):
         return f"({p.shape_set}).hull()"
 
+    @_('INTERSECTION LPAREN RPAREN LBRACE shape_list RBRACE')
+    def op(self, p):
+        return p.shape_list
+
     @_('ROTATE LPAREN named_vector RPAREN LBRACE shape_set RBRACE')
     def op(self, p):
         return f"{p.shape_set}.rotate([{p.named_vector}])"
@@ -66,14 +70,30 @@ class OpenSCADParser(Parser):
         return f"{p.shape_set}.scale({p.named_vector})"
 
     # shapes
-    @_("shape_set shape SEMICOLON ")
+    @_('shape_list shape_item SEMICOLON')
+    def shape_list(self, t):
+        return f"{t.shape_list}.intersection({t.shape_item})"
+
+    @_('shape_item SEMICOLON')
+    def shape_list(self, t):
+        return t.shape_item
+
+    @_('shape_set shape SEMICOLON ')
     def shape_set(self, t):
         return f"{t.shape_set} + {t.shape}"
 
-    @_("shape SEMICOLON ")
+    @_('shape SEMICOLON ')
     def shape_set(self, t):
         return t.shape
             
+    @_('shape')
+    def shape_item(self, t):
+        return t.shape
+
+    @_('op')
+    def shape_item(self, t):
+        return t.op
+
     @_('CUBE LPAREN vector RPAREN')
     def shape(self, p):
         return f"self.api.box({p.vector}, center=False)"
@@ -86,23 +106,39 @@ class OpenSCADParser(Parser):
     def shape(self, p):
         return f"self.api.sphere({p.args})"
 
+    @_('POLYHEDRON LPAREN poly_args RPAREN')
+    def shape(self, p):
+        return f"self.api.polyhedron({p.poly_args})"
+
     @_('CYLINDER LPAREN args RPAREN')
     def shape(self, p):
         splitargs = str(p.args).split(',')
-        if len(splitargs)==3:
+        if len(splitargs) == 3:
             return f"self.api.cone_z({p.args})"
-        if len(splitargs)==2:
+        if len(splitargs) == 2:
             # probably still needs fixing
             return f"self.api.cylinder_z({p.args})"
 
     @_('SFN EQU NUMBER')
-    def args(self, p):
+    def arg(self, p):
         return ""
 
     @_('IDENTIFIER EQU NUMBER')
-    def args(self, p):
-        return f"{p.IDENTIFIER} = {str(p.NUMBER)}"
-    
+    def arg(self, p):
+        return f"{p.IDENTIFIER}={str(p.NUMBER)}"
+
+    @_('IDENTIFIER EQU vector')
+    def arg(self, p):
+        return f"{p.IDENTIFIER}={p.vector}"
+
+    @_('arg COMMA poly_args')
+    def poly_args(self, p):
+        return f"{p.arg}, {p.poly_args}"
+
+    @_('arg')
+    def poly_args(self, p):
+        return p.arg
+
     @_('args COMMA args')
     def args(self, p):
         if p.args0 == "":
@@ -114,10 +150,26 @@ class OpenSCADParser(Parser):
     @_('NUMBER')
     def args(self, p):
         return str(p.NUMBER)
-    
-    @_('LSQUARE args RSQUARE')
+
+    @_('LSQUARE list_items RSQUARE')
     def vector(self, p):
-        return f"{p.args}"
+        return f"[{p.list_items}]"
+
+    @_('list_item COMMA list_items')
+    def list_items(self, p):
+        return f"{p.list_item}, {p.list_items}"
+
+    @_('list_item')
+    def list_items(self, p):
+        return p.list_item
+
+    @_('NUMBER')
+    def list_item(self, p):
+        return str(p.NUMBER)
+
+    @_('vector')
+    def list_item(self, p):
+        return p.vector
 
     @_('IDENTIFIER EQU vector')
     def named_vector(self, p):
@@ -128,7 +180,23 @@ class OpenSCADParser(Parser):
         return f"{p.vector}"
 
 # Modify parser to output Python file
+def _parse_polyhedron_source(source: str) -> str:
+    import re
+
+    pattern = re.compile(r'polyhedron\s*\(\s*(.*?)\s*\)\s*;', re.S)
+    match = pattern.search(source)
+    if not match:
+        return ""
+
+    args = match.group(1)
+    args = re.sub(r'\s+', ' ', args).strip()
+    return f"self.api.polyhedron({args})"
+
+
 def scad2py(infname: str, view_ast: bool = True):
+
+    with open(infname, 'r', encoding='utf8') as f:
+        source = f.read()
 
     ast = scad2ast(infname, view=view_ast)
     parser = OpenSCADParser()
@@ -137,6 +205,9 @@ def scad2py(infname: str, view_ast: bool = True):
     print('Parsing...')
     python_code = parser.parse(ast)
     print('Parsing End!')
+
+    if not python_code or 'return None' in python_code:
+        python_code = _parse_polyhedron_source(source)
 
     assert python_code != ""
 
@@ -206,6 +277,11 @@ class CodeGenerator:
         print('Parsing...')
         python_code = parser.parse(ast)
         print('Parsing End!')
+
+        if not python_code or 'return None' in python_code:
+            with open(infname, 'r', encoding='utf8') as f:
+                source = f.read()
+            python_code = _parse_polyhedron_source(source)
 
         assert python_code != ""
 

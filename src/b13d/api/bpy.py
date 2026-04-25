@@ -199,6 +199,14 @@ class BlenderShapeAPI(ShapeAPI):
     ) -> BlenderShape:
         return BlenderTextZ(txt, fontSize, tck, font, self)
 
+    def polyhedron(
+        self,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+        convexity: int = 1,
+    ) -> BlenderShape:
+        return BlenderPolyhedron(points, faces, convexity, self)
+
     def genImport(self, infile: str, extrude: float = None) -> BlenderShape:
         return BlenderImport(infile, extrude=extrude)
 
@@ -956,6 +964,25 @@ class BlenderTextZ(BlenderShape):
         self.mv(-(minX + maxX) / 2, -(minY + maxY) / 2, tck)
         bpy.context.scene.cursor.location = (0, 0, 0)
         bpy.ops.object.origin_set(type="ORIGIN_CURSOR")
+
+class BlenderPolyhedron(BlenderShape):
+    def __init__(
+        self,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+        convexity: int,
+        api: BlenderShapeAPI,
+    ):
+        super().__init__(api)
+        # Create a new mesh
+        mesh = bpy.data.meshes.new("Polyhedron")
+        # Create the object
+        obj = bpy.data.objects.new("Polyhedron", mesh)
+        bpy.context.collection.objects.link(obj)
+        # Set the mesh data
+        mesh.from_pydata(points, [], faces)
+        mesh.update()
+        self.solid = obj
 
 class BlenderImport(BlenderShape):
     def __init__(

@@ -12,8 +12,8 @@ from b13d.api.utils import gen_scad_foo
 
 class OpenSCADLexer(Lexer):
     tokens = (
-        CUBE, SPHERE, CYLINDER, 
-        TRANSLATE, ROTATE, SCALE, UNION, DIFFERENCE, HULL,
+        CUBE, SPHERE, CYLINDER, POLYHEDRON,
+        TRANSLATE, ROTATE, SCALE, UNION, DIFFERENCE, INTERSECTION, HULL,
         LBRACE, RBRACE, LPAREN, RPAREN, LSQUARE, RSQUARE, COMMA, SEMICOLON,
         NUMBER,
         IDENTIFIER, SFN, EQU,
@@ -24,8 +24,10 @@ class OpenSCADLexer(Lexer):
     CUBE = r'cube'
     SPHERE = r'sphere'
     CYLINDER = r'cylinder'
+    POLYHEDRON = r'polyhedron'
     UNION = r'union'
     DIFFERENCE = r'difference'
+    INTERSECTION = r'intersection'
     TRANSLATE = r'translate'
     ROTATE = r'rotate'
     SCALE = r'scale'
