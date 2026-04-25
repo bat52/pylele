@@ -34,15 +34,83 @@ MAX_SECTION = 1000
 SECTION_LIMITS = [-MAX_SECTION, MAX_SECTION]
 
 def main_maker(module_name, class_name, args=None):
-    """Generate a main function for a Solid instance"""
-    module = importlib.import_module(module_name)
-    class_ = getattr(module, class_name)
-    solid = class_(args=args)
-    solid.export_args()  # includes export_configuration for LeleBase
-    out_fname = solid.export_stl()
-    if not solid.cli.export is None:
-        solid.export(fmt=solid.cli.export)
-    return solid, out_fname
+    """Generate a main function for a Solid instance
+    
+    Args:
+        module_name: Name of the module containing the Solid class
+        class_name: Name of the Solid class to instantiate
+        args: Optional command-line arguments
+        
+    Returns:
+        Tuple of (solid, out_fname) on success
+        
+    Raises:
+        ImportError: If module cannot be imported
+        AttributeError: If class_name not found in module
+        ValueError: If solid generation or export fails
+    """
+    solid = None
+    out_fname = None
+    
+    try:
+        # Import module and get class
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError as e:
+            raise ImportError(f"Failed to import module '{module_name}': {e}")
+        
+        try:
+            class_ = getattr(module, class_name)
+        except AttributeError as e:
+            raise AttributeError(f"Class '{class_name}' not found in module '{module_name}': {e}")
+        
+        # Instantiate the solid
+        try:
+            solid = class_(args=args)
+        except Exception as e:
+            raise ValueError(f"Failed to instantiate {class_name}: {e}")
+        
+        # Export arguments
+        try:
+            solid.export_args()  # includes export_configuration for LeleBase
+        except Exception as e:
+            raise ValueError(f"Failed to export arguments for {class_name}: {e}")
+        
+        # Export STL file
+        try:
+            out_fname = solid.export_stl()
+        except Exception as e:
+            raise ValueError(f"Failed to export STL for {class_name}: {e}")
+        
+        # Export additional format if specified
+        if solid.cli.export is not None:
+            try:
+                solid.export(fmt=solid.cli.export)
+            except Exception as e:
+                print(f"WARNING: Failed to export {solid.cli.export} format: {e}")
+                # Don't raise here - STL export succeeded, format export is secondary
+        
+        return solid, out_fname
+        
+    except Exception as e:
+        # Log the error
+        error_msg = f"Error in main_maker(module='{module_name}', class='{class_name}'): {str(e)}"
+        print(f"ERROR: {error_msg}", file=sys.stderr)
+        raise
+        
+    finally:
+        # Cleanup resources if needed
+        if solid is not None:
+            try:
+                # Clean up API resources if they support cleanup
+                if hasattr(solid, 'api') and solid.api is not None:
+                    if hasattr(solid.api, 'cleanup'):
+                        try:
+                            solid.api.cleanup()
+                        except Exception as cleanup_err:
+                            print(f"WARNING: Error during API cleanup: {cleanup_err}", file=sys.stderr)
+            except Exception as cleanup_err:
+                print(f"WARNING: Error during cleanup: {cleanup_err}", file=sys.stderr)
 
 def test_iteration(module, component, test, api, args=None):
     """Helper to generate a testcase launching the main function in a module"""
