@@ -90,7 +90,8 @@ class LeleBase(Solid):
             cfgargs = CONFIGURATIONS[cli.configuration]
             cfgargs += sys.argv[1:]
             if isinstance(args, list):
-                cfgargs += +args
+                cfgargs += args
+
             cli = parser.parse_args(args=cfgargs)
 
         return cli

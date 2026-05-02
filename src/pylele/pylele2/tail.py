@@ -14,7 +14,8 @@ from b13d.api.constants import FIT_TOL
 from b13d.api.solid import main_maker, test_loop
 from pylele.pylele2.base import LeleBase
 from pylele.pylele2.chamber import pylele_chamber_parser
-from pylele.pylele2.tuners import pylele_worm_parser
+from pylele.pylele2.tuners import pylele_worm_parser, pylele_tuners_parser
+
 from pylele.pylele2.config import WORM, BIGWORM, LeleBodyType
 from pylele.pylele2.tuners import LeleTuners
 from pylele.pylele2.spines import LeleSpines
@@ -88,7 +89,9 @@ class LeleTail(LeleBase):
     def gen_parser(self, parser=None):
         """Tail Parser"""
         parser = pylele_chamber_parser(parser=parser)
-        return super().gen_parser(parser=pylele_worm_parser(parser=parser))
+        parser = pylele_tuners_parser(parser=parser)
+        return super().gen_parser(parser=parser)
+
 
 def main(args=None):
     """Generate tail"""

@@ -308,6 +308,7 @@ class LeleConfig:
             self.bodyBackLen += wallTck
 
         self.tailX = scaleLen + self.bodyBackLen
+
         self.nutWth = max(2,numStrs) * nutStrGap
         tnrSetback = tnrType.tailAllow()
         if tnrType.is_peg():
@@ -450,6 +451,7 @@ class LeleConfig:
     def __repr__(self):
         class_vars_str = '\n'.join(f"{key}={value!r}" for key, value in self.__class__.__dict__.items() \
                 if not callable(value) and not key.startswith("__"))
+
         instance_vars_str = '\n'.join(f"{key}={value!r}" for key, value in vars(self).items())
         return f"{self.__class__.__name__}\n{class_vars_str}\n{instance_vars_str}"
 
