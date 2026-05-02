@@ -1,8 +1,26 @@
 {
-  "name": "Python 3",
-  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "name": "Pylele Development",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
   "features": {
     "ghcr.io/devcontainers/features/desktop-lite:1": {}
   },
-  "postCreateCommand": "pip3 install --user -r requirements.txt"
+  "runArgs": [
+    "--mount", "type=volume,source=pylele-pip-cache,target=/home/vscode/.cache/pip"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-toolsai.jupyter",
+        "github.copilot"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.terminal.activateEnvironment": true
+      }
+    }
+  },
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y libgl1 openscad ttf-mscorefonts-installer && sudo fc-cache -f && pip3 install --user -r requirements.txt",
+  "remoteUser": "vscode"
 }
