@@ -39,7 +39,7 @@ class OpenSCADParser(Parser):
     # operators
     @_('TRANSLATE LPAREN named_vector RPAREN LBRACE shape_set RBRACE')
     def op(self, p):
-        return f"{p.shape_set}.mv({p.named_vector})"
+        return f"{p.shape_set}.mv(*{p.named_vector})"
 
     @_('UNION LPAREN RPAREN LBRACE shape_set RBRACE')
     def op(self, p):
@@ -63,20 +63,28 @@ class OpenSCADParser(Parser):
 
     @_('ROTATE LPAREN named_vector RPAREN LBRACE shape_set RBRACE')
     def op(self, p):
-        return f"{p.shape_set}.rotate([{p.named_vector}])"
+        return f"{p.shape_set}.rotate({p.named_vector})"
 
     @_('SCALE LPAREN named_vector RPAREN LBRACE shape_set RBRACE')
     def op(self, p):
-        return f"{p.shape_set}.scale({p.named_vector})"
+        return f"{p.shape_set}.scale(*{p.named_vector})"
 
     # shapes
-    @_('shape_list shape_item SEMICOLON')
+    @_('shape_list shape SEMICOLON')
     def shape_list(self, t):
-        return f"{t.shape_list}.intersection({t.shape_item})"
+        return f"{t.shape_list}.intersection({t.shape})"
 
-    @_('shape_item SEMICOLON')
+    @_('shape_list op')
     def shape_list(self, t):
-        return t.shape_item
+        return f"{t.shape_list}.intersection({t.op})"
+
+    @_('shape SEMICOLON')
+    def shape_list(self, t):
+        return t.shape
+
+    @_('op')
+    def shape_list(self, t):
+        return t.op
 
     @_('shape_set shape SEMICOLON ')
     def shape_set(self, t):
@@ -86,17 +94,9 @@ class OpenSCADParser(Parser):
     def shape_set(self, t):
         return t.shape
             
-    @_('shape')
-    def shape_item(self, t):
-        return t.shape
-
-    @_('op')
-    def shape_item(self, t):
-        return t.op
-
     @_('CUBE LPAREN vector RPAREN')
     def shape(self, p):
-        return f"self.api.box({p.vector}, center=False)"
+        return f"self.api.box(*{p.vector}, center=False)"
 
     @_('CUBE LPAREN NUMBER RPAREN')
     def shape(self, p):
@@ -146,6 +146,10 @@ class OpenSCADParser(Parser):
         if p.args1 == "":
             return f"{p.args0}"
         return f"{p.args0}, {p.args1}"
+
+    @_('arg')
+    def args(self, p):
+        return p.arg
 
     @_('NUMBER')
     def args(self, p):

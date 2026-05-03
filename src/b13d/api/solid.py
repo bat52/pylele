@@ -205,7 +205,9 @@ def volume_match_reference(
     if reference is None:
         return True
 
-    if abs(volume - reference) <= abs(reference * tolerance):
+    # Use absolute values for comparison to handle sign differences
+    # (e.g., OpenSCAD may produce negative volume due to face winding)
+    if abs(abs(volume) - abs(reference)) <= abs(reference * tolerance):
         return True
 
     return False
