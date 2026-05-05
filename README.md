@@ -141,6 +141,11 @@ CI is currently testing with python 3.10, 3.11, 3.12 .
       > brew install openscad
       > pip install solidpython2
       ```
+## Made With pylele
+* [pytravelele](https://www.thingiverse.com/thing:7163446)
+* [pegless worm gear tuners for travelele](https://www.thingiverse.com/thing:6664561)
+* [Tunable Bridge for Travelele](https://www.thingiverse.com/thing:6843509)
+* [Small tuner knob for travelele](https://www.thingiverse.com/thing:6943423)
 
 ## Similar Projects
 * [ukulele.scad](https://github.com/roadyyy/ukulele.scad)
