@@ -26,7 +26,7 @@ tmux rename-window -t $SESSION "main"
 tmux split-window -v -t $SESSION
 
 # Launch tools
-tmux send-keys -t $SESSION:0.0 "cline --tui" C-m   # agent
+tmux send-keys -t $SESSION:0.0 "cline --tui --auto-condense" C-m   # agent
 tmux send-keys -t $SESSION:0.1 "bash" C-m          # shell
 
 # Focus on cline by default
