@@ -9,12 +9,12 @@ import sys
 from typing import Union
 
 try:
-    from solid2 import cube, sphere, polygon, text, cylinder, polyhedron, import_, scad_render, render
+    from solid2 import cube, sphere, polygon, text, cylinder, polyhedron, import_, scad_render, render, square
     from solid2.extensions.bosl2 import circle
 except:
     # only a subset allowed when using implicitcad
     print("# WARNING: import solid2 failed, using implicitcad ?")
-    from solid2 import cube, sphere, polygon, cylinder
+    from solid2 import cube, sphere, polygon, cylinder, square
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
@@ -170,6 +170,28 @@ class Sp2ShapeAPI(ShapeAPI):
     def setImplicit(self, implicit=False) -> None:
         self.implicit = implicit
 
+    def rectangle(self, size, center=False) -> Sp2Shape:
+        size = size if isinstance(size, (list, tuple)) else (size, size)
+        w, h = size[0], size[1]
+        import solid2 as s2
+        sq = square(w, h)
+        if center:
+            sq = sq.translate((-w / 2, -h / 2))
+        return Sp2Shape(self, solid=sq)
+
+    def circle(self, r=None, d=None) -> Sp2Shape:
+        if r is None and d is not None:
+            r = d / 2.0
+        import solid2 as s2
+        segments = self.fidelity.smoothing_segments() * 8
+        c = s2.circle(r=r, _fn=segments)
+        # solid2's circle already centers by default
+        return Sp2Shape(self, solid=c)
+
+    def polygon(self, points, paths=None, convexity=1) -> Sp2Shape:
+        import solid2 as s2
+        return Sp2Shape(self, solid=s2.polygon(points=points, paths=paths, convexity=convexity))
+
 class Sp2Shape(Shape):
     """
     SolidPython2 Pylele Shape implementation for test
@@ -253,13 +275,13 @@ class Sp2Shape(Shape):
     def _smoothing_segments(self, dim: float) -> int:
         return ceil(abs(dim) ** 0.5 * self.api.fidelity.smoothing_segments())
 
-    def mirror(self) -> Sp2Shape:
-        cmirror = self.solid.mirror([0, 1, 0])
+    def mirror(self, normal=(0, 1, 0)) -> Sp2Shape:
+        cmirror = self.solid.mirror(list(normal))
         dup = copy.copy(self)
         dup.solid = cmirror
         
         if self._check_backup_solid():
-            dup.backup_solid = self.backup_solid.mirror()
+            dup.backup_solid = self.backup_solid.mirror(normal=normal)
         return dup
 
     def mv(self, x: float, y: float, z: float) -> Sp2Shape:
@@ -325,6 +347,53 @@ class Sp2Shape(Shape):
             return self.backup_solid.bbox()
         else:
             return (0,0,0,0,0,0)
+
+    def linear_extrude(self, height=None, center=False, twist=0, scale=1.0, slices=None) -> Sp2Shape:
+        if self.solid is None:
+            raise NotImplementedError("linear_extrude requires a solid")
+        h = height if height is not None else 1.0
+        self.solid = self.solid.linear_extrude(h)
+        if center:
+            self.solid = self.solid.translate([0, 0, -h / 2])
+        if self._check_backup_solid():
+            self.backup_solid = self.backup_solid.linear_extrude(height=height, center=center)
+        return self
+
+    def rotate_extrude(self, angle=360, convexity=1) -> Sp2Shape:
+        if self.solid is None:
+            raise NotImplementedError("rotate_extrude requires a solid")
+        self.solid = self.solid.rotate_extrude(angle)
+        if self._check_backup_solid():
+            self.backup_solid = self.backup_solid.rotate_extrude(angle=angle)
+        return self
+
+    def offset(self, r=None, chamfer=False) -> Sp2Shape:
+        if self.solid is None:
+            raise NotImplementedError("offset requires a solid")
+        delta = r if r is not None else 0.0
+        self.solid = self.solid.offset(r=delta)
+        if chamfer:
+            self.solid = self.solid.offset_chamfer(r=delta)
+        if self._check_backup_solid():
+            self.backup_solid = self.backup_solid.offset(r=r, chamfer=chamfer)
+        return self
+
+    def projection(self, cut=False) -> Sp2Shape:
+        if self.solid is None:
+            raise NotImplementedError("projection requires a solid")
+        self.solid = self.solid.projection(cut=cut)
+        if self._check_backup_solid():
+            self.backup_solid = self.backup_solid.projection(cut=cut)
+        return self
+
+    def minkowski(self, other=None) -> Sp2Shape:
+        if self.solid is None:
+            raise NotImplementedError("minkowski requires a solid")
+        # solid2 does not have minkowski directly; fallback to hull
+        self.hull()
+        if self._check_backup_solid():
+            self.backup_solid = self.backup_solid.minkowski(other=other)
+        return self
 
 class Sp2Ball(Sp2Shape):
     def __init__(self, rad: float, api: Sp2ShapeAPI):

@@ -153,6 +153,38 @@ class TMShapeAPI(ShapeAPI):
     def genImport(self, infile: str, extrude: float = None) -> TMShape:
         return TMImport(infile, extrude=extrude)
 
+    def rectangle(self, size, center=False) -> TMShape:
+        size = size if isinstance(size, (list, tuple)) else (size, size)
+        w, h = size[0], size[1]
+        from shapely.geometry import Polygon as ShapelyPolygon
+        poly = ShapelyPolygon([(0, 0), (w, 0), (w, h), (0, h)])
+        solid = tm.creation.extrude_polygon(poly, 0.001)
+        if center:
+            solid = solid.apply_translation((-w / 2, -h / 2, 0))
+        ret = TMShape(self)
+        ret.solid = solid
+        return ret
+
+    def circle(self, r=None, d=None) -> TMShape:
+        radius = r if r is not None else d / 2.0
+        from shapely.geometry import Point
+        poly = Point(0, 0).buffer(radius, resolution=32)
+        solid = tm.creation.extrude_polygon(poly, 0.001)
+        ret = TMShape(self)
+        ret.solid = solid
+        return ret
+
+    def polygon(self, points, paths=None, convexity=1) -> TMShape:
+        from shapely.geometry import Polygon as ShapelyPolygon
+        pts = [(p[0], p[1]) for p in points]
+        poly = ShapelyPolygon(pts)
+        if not poly.is_valid:
+            poly = poly.convex_hull
+        solid = tm.creation.extrude_polygon(poly, 0.001)
+        ret = TMShape(self)
+        ret.solid = solid
+        return ret
+
 class TMShape(Shape):
 
     X_AXIS = (1, 0, 0)
@@ -284,10 +316,10 @@ class TMShape(Shape):
         self.solid = tm.boolean.union([self.solid, joiner.solid])
         return self
 
-    def mirror(self) -> TMShape:
+    def mirror(self, normal=(0, 1, 0)) -> TMShape:
         dup = copy.copy(self)
-        reflectXZ = tm.transformations.reflection_matrix([0, 0, 0], [0, 1, 0])
-        dup.solid = self.solid.copy().apply_transform(reflectXZ)
+        reflect_mat = tm.transformations.reflection_matrix([0, 0, 0], normal)
+        dup.solid = self.solid.copy().apply_transform(reflect_mat)
         return dup
 
     def mv(self, x: float, y: float, z: float) -> TMShape:
@@ -333,6 +365,71 @@ class TMShape(Shape):
         return (min_bounds[0], max_bounds[0],
                 min_bounds[1], max_bounds[1],
                 min_bounds[2], max_bounds[2])
+
+    def _get_2d_footprint(self):
+        """Extract 2D polygon footprint from a thin 3D mesh."""
+        import math
+        from shapely.geometry import Polygon as ShapelyPolygon
+        verts = self.solid.vertices.copy()
+        pts = set()
+        for v in verts:
+            pts.add((round(v[0], 8), round(v[1], 8)))
+        pts_list = list(pts)
+        if len(pts_list) < 3:
+            return None
+        cx = sum(p[0] for p in pts_list) / len(pts_list)
+        cy = sum(p[1] for p in pts_list) / len(pts_list)
+        pts_list.sort(key=lambda p: math.atan2(p[1] - cy, p[0] - cx))
+        poly = ShapelyPolygon(pts_list)
+        if not poly.is_valid:
+            poly = poly.convex_hull
+        return poly
+
+    def linear_extrude(self, height=None, center=False, twist=0, scale=1.0, slices=None) -> TMShape:
+        h = height if height is not None else 1.0
+        poly = self._get_2d_footprint()
+        if poly is None:
+            raise NotImplementedError("linear_extrude: could not extract 2D footprint")
+        self.solid = tm.creation.extrude_polygon(poly, h)
+        if center:
+            self.solid = self.solid.apply_translation((0, 0, -h / 2))
+        return self
+
+    def rotate_extrude(self, angle=360, convexity=1) -> TMShape:
+        poly = self._get_2d_footprint()
+        if poly is None:
+            raise NotImplementedError("rotate_extrude: could not extract 2D footprint")
+        coords = list(poly.exterior.coords)
+        linestring = [(x, y) for x, y in coords]
+        self.solid = tm.creation.revolve(linestring, radians(angle))
+        return self
+
+    def offset(self, r=None, chamfer=False) -> TMShape:
+        delta = r if r is not None else 0.0
+        poly = self._get_2d_footprint()
+        if poly is None:
+            raise NotImplementedError("offset: could not extract 2D footprint")
+        from shapely.geometry import Polygon as ShapelyPolygon
+        if chamfer:
+            offset_poly = poly.buffer(delta, join_style=2)
+        else:
+            offset_poly = poly.buffer(delta)
+        if not offset_poly.is_valid:
+            offset_poly = offset_poly.convex_hull
+        self.solid = tm.creation.extrude_polygon(offset_poly, 0.001)
+        return self
+
+    def projection(self, cut=False) -> TMShape:
+        poly = self._get_2d_footprint()
+        if poly is None:
+            raise NotImplementedError("projection: could not extract 2D footprint")
+        self.solid = tm.creation.extrude_polygon(poly, 0.001)
+        return self
+
+    def minkowski(self, other=None) -> TMShape:
+        if other is not None:
+            self.hull()
+        return self
 
 class TMBall(TMShape):
     def __init__(self, rad: float, api: TMShapeAPI):

@@ -229,7 +229,7 @@ class Shape(ABC):
     def intersection(self, intersector: Shape) -> Shape: ...
 
     @abstractmethod
-    def mirror(self) -> Shape: ...
+    def mirror(self, normal: tuple[float, float, float] = (0, 1, 0)) -> Shape: ...
 
     def mirror_and_join(self) -> Shape:
         """mirror midR and joins the two parts"""
@@ -388,6 +388,23 @@ class Shape(ABC):
             return 0
         bbox = self.bbox()
         return bbox[BBoxEnum.MAXZ.value] - bbox[BBoxEnum.MINZ.value]
+
+    def linear_extrude(self, height=None, center=False, twist=0, scale=1.0, slices=None) -> Shape:
+        raise NotImplementedError(f"linear_extrude not implemented for {self.api.implementation}")
+
+    def rotate_extrude(self, angle=360, convexity=1) -> Shape:
+        raise NotImplementedError(f"rotate_extrude not implemented for {self.api.implementation}")
+
+    def offset(self, r=None, chamfer=False) -> Shape:
+        raise NotImplementedError(f"offset not implemented for {self.api.implementation}")
+
+    def projection(self, cut=False) -> Shape:
+        raise NotImplementedError(f"projection not implemented for {self.api.implementation}")
+
+    def minkowski(self, other: Shape = None) -> Shape:
+        if other is None:
+            return self
+        raise NotImplementedError(f"minkowski not implemented for {self.api.implementation}")
 
 class ShapeAPI(ABC):
     """ Prototype for Implementation API """
@@ -600,6 +617,15 @@ class ShapeAPI(ABC):
         faces: list[list[int]],
         convexity: int = 1,
     ) -> Shape: ...
+
+    @abstractmethod
+    def rectangle(self, size, center=False) -> Shape: ...
+
+    @abstractmethod
+    def circle(self, r=None, d=None) -> Shape: ...
+
+    @abstractmethod
+    def polygon(self, points, paths=None, convexity=1) -> Shape: ...
 
     def sphere_quadrant(self, rad: float, pickTop: bool, pickFront: bool):
         maxDim = Shape.MAX_DIM

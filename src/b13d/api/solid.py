@@ -745,11 +745,11 @@ class Solid(ABC):
         )
         return self
 
-    def mirror(self) -> Solid:
+    def mirror(self, normal: tuple[float, float, float] = (0, 1, 0)) -> Solid:
         """Mirror solid along XZ axis"""
         # assert self.has_shape(), f'# Cannot mirror {self.fileNameBase} because main shape has not been generated yet!'
         self.gen_full()
-        mirror = self.shape.mirror()
+        mirror = self.shape.mirror(normal=normal)
         return mirror
 
     def mv(self, x: float, y: float, z: float) -> Solid:

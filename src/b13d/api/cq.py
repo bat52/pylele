@@ -154,6 +154,31 @@ class CQShapeAPI(ShapeAPI):
     def genImport(self, infile: str, extrude: float = None) -> CQShape:
         return CQImport(infile, extrude=extrude)
 
+    def rectangle(self, size, center=False) -> CQShape:
+        size = size if isinstance(size, (list, tuple)) else (size, size)
+        w, h = size[0], size[1]
+        pts = [(0, 0), (w, 0), (w, h), (0, h)]
+        solid = cq.Workplane("XY").polyline(pts).close().extrude(0.001)  # thin 3D
+        if center:
+            solid = solid.translate((-w / 2, -h / 2, 0))
+        ret = CQShape(self)
+        ret.solid = solid
+        return ret
+
+    def circle(self, r=None, d=None) -> CQShape:
+        radius = r if r is not None else d / 2.0
+        solid = cq.Workplane("XY").circle(radius).extrude(0.001)
+        ret = CQShape(self)
+        ret.solid = solid
+        return ret
+
+    def polygon(self, points, paths=None, convexity=1) -> CQShape:
+        pts = [(p[0], p[1]) for p in points] + [(points[0][0], points[0][1])]  # close
+        solid = cq.Workplane("XY").polyline(pts).close().extrude(0.001)
+        ret = CQShape(self)
+        ret.solid = solid
+        return ret
+
 class CQShape(Shape):
 
     def __init__(self, api: CQShapeAPI):
@@ -200,8 +225,17 @@ class CQShape(Shape):
         # Since CadQuery isusing Spline to connect pts for curves so use less segments
         return math.ceil(abs(dim) ** 0.25 * self.api.fidelity.smoothing_segments())
 
-    def mirror(self) -> CQShape:
-        mirror = self.solid.mirror("XZ")
+    def mirror(self, normal=(0, 1, 0)) -> CQShape:
+        # Map normal vector to CadQuery mirror plane string
+        if abs(normal[0]) > 0.5:
+            plane = "YZ"
+        elif abs(normal[1]) > 0.5:
+            plane = "XZ"
+        elif abs(normal[2]) > 0.5:
+            plane = "XY"
+        else:
+            plane = "XZ"  # default
+        mirror = self.solid.mirror(plane)
         dup = copy.copy(self)
         dup.solid = mirror
         return dup
@@ -299,6 +333,44 @@ class CQShape(Shape):
         # Step 4: Make solid from shell
         solid = cq.Solid.makeSolid(shells)
         self.solid = cq.Workplane("XY").newObject([solid])
+        return self
+
+    def linear_extrude(self, height=None, center=False, twist=0, scale=1.0, slices=None) -> CQShape:
+        if self.solid is None:
+            raise NotImplementedError("linear_extrude requires a solid")
+        h = height if height is not None else 1.0
+        # CadQuery: re-extrude from the existing workplane
+        self.solid = self.solid.extrude(h)
+        if center:
+            self.solid = self.solid.translate((0, 0, -h / 2))
+        return self
+
+    def rotate_extrude(self, angle=360, convexity=1) -> CQShape:
+        if self.solid is None:
+            raise NotImplementedError("rotate_extrude requires a solid")
+        self.solid = self.solid.revolve(angle, (0, 0, 0), (0, 0, 1))
+        return self
+
+    def offset(self, r=None, chamfer=False) -> CQShape:
+        if self.solid is None:
+            raise NotImplementedError("offset requires a solid")
+        delta = r if r is not None else 0.0
+        # CQ offset via 2D sketch offset
+        self.solid = self.solid.offset2D(delta)
+        return self
+
+    def projection(self, cut=False) -> CQShape:
+        if self.solid is None:
+            raise NotImplementedError("projection requires a solid")
+        # Simple projection: get the XY face projection
+        self.solid = self.solid.projectToSolid()
+        return self
+
+    def minkowski(self, other=None) -> CQShape:
+        if self.solid is None:
+            raise NotImplementedError("minkowski requires a solid")
+        # CQ doesn't have native minkowski; hull as fallback
+        self.hull()
         return self
 
 class CQBall(CQShape):

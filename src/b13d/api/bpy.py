@@ -210,6 +210,26 @@ class BlenderShapeAPI(ShapeAPI):
     def genImport(self, infile: str, extrude: float = None) -> BlenderShape:
         return BlenderImport(infile, extrude=extrude)
 
+    def rectangle(self, size, center=False) -> BlenderShape:
+        size = size if isinstance(size, (list, tuple)) else (size, size)
+        w, h = size[0], size[1]
+        path = [(0, 0), (w, 0), (w, h), (0, h)]
+        return BlenderPolyExtrusionZ(path, 0.001, self, checkWinding=False)
+
+    def circle(self, r=None, d=None) -> BlenderShape:
+        radius = r if r is not None else d / 2.0
+        import math
+        segs = max(16, self.fidelity.smoothing_segments() * 4)
+        path = []
+        for i in range(segs):
+            a = 2 * math.pi * i / segs
+            path.append((radius * math.cos(a), radius * math.sin(a)))
+        return BlenderPolyExtrusionZ(path, 0.001, self, checkWinding=False)
+
+    def polygon(self, points, paths=None, convexity=1) -> BlenderShape:
+        pts = [(p[0], p[1]) for p in points]
+        return BlenderPolyExtrusionZ(pts, 0.001, self, checkWinding=False)
+
 class BlenderShape(Shape):
 
     # MAX_DIM = 10000 # for max and min dimensions
@@ -362,7 +382,8 @@ class BlenderShape(Shape):
         # intersector._remove()
         return self.repairMesh()
 
-    def mirror(self, plane: tuple[bool, bool, bool] = (False, True, False)) -> BlenderShape:
+    def mirror(self, normal: tuple[float, float, float] = (0, 1, 0)) -> BlenderShape:
+        plane = (abs(normal[0]) > 0.5, abs(normal[1]) > 0.5, abs(normal[2]) > 0.5)
 
         cp = copy.copy(self)
         cp.solid.select_set(True)
@@ -570,6 +591,86 @@ class BlenderShape(Shape):
         maxz = max(v.z for v in world_bbox_corners)
 
         return (minx, maxx, miny, maxy, minz, maxz)
+
+    def linear_extrude(self, height=None, center=False, twist=0, scale=1.0, slices=None) -> BlenderShape:
+        h = height if height is not None else 1.0
+        bbox = self.bbox()
+        cur_h = bbox[5] - bbox[4]  # maxz - minz
+        if cur_h > 0:
+            self.scale(1, 1, h / cur_h)
+        if center:
+            self.mv(0, 0, -h / 2)
+        return self
+
+    def rotate_extrude(self, angle=360, convexity=1) -> BlenderShape:
+        """Revolve the 2D shape around the Y axis."""
+        bpy.ops.object.select_all(action="DESELECT")
+        self.solid.select_set(True)
+        bpy.context.view_layer.objects.active = self.solid
+        bpy.ops.object.convert(target="MESH")
+        bpy.ops.object.mode_set(mode="EDIT")
+        # Select all, then delete top-cap faces (at max Z) leaving a flat 2D profile
+        bm = bmesh.from_edit_mesh(self.solid.data)
+        bm.faces.ensure_lookup_table()
+        z_max = max(v.co.z for v in bm.verts)
+        faces_to_del = [f for f in bm.faces if all(v.co.z == z_max for v in f.verts)]
+        bmesh.ops.delete(bm, geom=faces_to_del, context='FACES_ONLY')
+        bmesh.update_edit_mesh(self.solid.data)
+        bpy.ops.mesh.select_all(action="SELECT")
+        segs = self._smoothing_segments(2 * pi * abs(angle) / 360)
+        bpy.ops.mesh.spin(axis=(0, 1, 0), angle=radians(angle), steps=max(segs, 4))
+        bpy.ops.object.mode_set(mode="OBJECT")
+        return self.repairMesh()
+
+    def offset(self, r=None, chamfer=False) -> BlenderShape:
+        """Offset the 2D shape outward (positive r) or inward (negative r)."""
+        delta = r if r is not None else 0.0
+        if delta == 0:
+            return self
+        bpy.ops.object.select_all(action="DESELECT")
+        self.solid.select_set(True)
+        bpy.context.view_layer.objects.active = self.solid
+        bpy.ops.object.convert(target="MESH")
+        # Use solidify with negative/thickness to simulate offset
+        mod = self.solid.modifiers.new(name="OffsetSolidify", type="SOLIDIFY")
+        mod.thickness = delta
+        mod.offset = 0.0
+        mod.use_even_offset = True
+        if chamfer:
+            mod.solidify_mode = 'NON_MANIFOLD'
+            mod.nonmanifold_thickness_mode = 'EVEN'
+        else:
+            mod.solidify_mode = 'EXTRUDE'
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+        bpy.context.view_layer.update()
+        # Scale back to thin extrusion if offset was applied to a thin shape
+        return self.repairMesh()
+
+    def projection(self, cut=False) -> BlenderShape:
+        """Project the 3D shape to XY plane."""
+        bbox = self.bbox()
+        cur_h = bbox[5] - bbox[4]  # maxz - minz
+        if cur_h > 0:
+            self.scale(1, 1, 0.001 / cur_h)
+        bbox2 = self.bbox()
+        self.mv(0, 0, -bbox2[4])  # move min z to 0
+        return self
+
+    def minkowski(self, other=None) -> BlenderShape:
+        """Fallback to hull for Blender."""
+        return self.hull()
+
+    def hull(self) -> BlenderShape:
+        """Compute convex hull of the mesh."""
+        bpy.ops.object.select_all(action="DESELECT")
+        self.solid.select_set(True)
+        bpy.context.view_layer.objects.active = self.solid
+        bpy.ops.object.convert(target="MESH")
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.mesh.convex_hull()
+        bpy.ops.object.mode_set(mode="OBJECT")
+        return self.repairMesh()
 
 class BlenderBall(BlenderShape):
     def __init__(

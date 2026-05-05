@@ -328,3 +328,287 @@ class ChildrenRef(ASTNode):
     def __init__(self, index: ASTNode = None, line: int = 0):
         super().__init__(line)
         self.index = index
+
+
+# --- New AST node types for full SCAD language support ---
+
+@dataclass
+class StringLiteral(ASTNode):
+    """String literal."""
+    value: str
+    
+    def __init__(self, value: str, line: int = 0):
+        super().__init__(line)
+        self.value = value
+
+
+@dataclass
+class BooleanLiteral(ASTNode):
+    """Boolean literal (true/false)."""
+    value: bool
+    
+    def __init__(self, value: bool, line: int = 0):
+        super().__init__(line)
+        self.value = value
+
+
+@dataclass
+class UndefLiteral(ASTNode):
+    """undef literal."""
+    def __init__(self, line: int = 0):
+        super().__init__(line)
+
+
+@dataclass
+class RangeLiteral(ASTNode):
+    """Range literal [start:end] or [start:step:end]."""
+    start: ASTNode
+    end: ASTNode
+    step: Optional[ASTNode] = None
+    
+    def __init__(self, start: ASTNode, end: ASTNode, step: ASTNode = None, line: int = 0):
+        super().__init__(line)
+        self.start = start
+        self.end = end
+        self.step = step
+
+
+@dataclass
+class IntersectionFor(ASTNode):
+    """intersection_for(...) { ... }"""
+    variable: str
+    values: ASTNode
+    body: ASTNode
+    
+    def __init__(self, variable: str, values: ASTNode, body: ASTNode, line: int = 0):
+        super().__init__(line)
+        self.variable = variable
+        self.values = values
+        self.body = body
+
+
+@dataclass
+class IncludeDirective(ASTNode):
+    """include <path>"""
+    path: str
+    resolved_ast: Optional[ASTNode] = None
+    
+    def __init__(self, path: str, resolved_ast: ASTNode = None, line: int = 0):
+        super().__init__(line)
+        self.path = path
+        self.resolved_ast = resolved_ast
+
+
+@dataclass
+class UseDirective(ASTNode):
+    """use <path>"""
+    path: str
+    resolved_ast: Optional[ASTNode] = None
+    
+    def __init__(self, path: str, resolved_ast: ASTNode = None, line: int = 0):
+        super().__init__(line)
+        self.path = path
+        self.resolved_ast = resolved_ast
+
+
+@dataclass
+class FunctionCallExpr(ASTNode):
+    """Function call in expression context."""
+    callee: ASTNode
+    arguments: List[ASTNode]
+    named_arguments: dict
+    
+    def __init__(self, callee: ASTNode, arguments: List[ASTNode] = None,
+                 named_arguments: dict = None, line: int = 0):
+        super().__init__(line)
+        self.callee = callee
+        self.arguments = arguments or []
+        self.named_arguments = named_arguments or {}
+
+
+@dataclass
+class ArrayAccess(ASTNode):
+    """expr[index]"""
+    target: ASTNode
+    index: ASTNode
+    
+    def __init__(self, target: ASTNode, index: ASTNode, line: int = 0):
+        super().__init__(line)
+        self.target = target
+        self.index = index
+
+
+@dataclass
+class MemberAccess(ASTNode):
+    """expr.member"""
+    target: ASTNode
+    member: str
+    
+    def __init__(self, target: ASTNode, member: str, line: int = 0):
+        super().__init__(line)
+        self.target = target
+        self.member = member
+
+
+@dataclass
+class SpecialVar(ASTNode):
+    """Special variable ($fn, $fa, $fs)."""
+    name: str
+    
+    def __init__(self, name: str, line: int = 0):
+        super().__init__(line)
+        self.name = name
+
+
+# 2D Primitives
+@dataclass
+class Square2D(ASTNode):
+    """square(size) or square([w,h])"""
+    size: ASTNode
+    center: bool = False
+    
+    def __init__(self, size: ASTNode, center: bool = False, line: int = 0):
+        super().__init__(line)
+        self.size = size
+        self.center = center
+
+
+@dataclass
+class Circle2D(ASTNode):
+    """circle(r) or circle(d)"""
+    radius: Optional[ASTNode] = None
+    diameter: Optional[ASTNode] = None
+    
+    def __init__(self, radius: ASTNode = None, diameter: ASTNode = None, line: int = 0):
+        super().__init__(line)
+        self.radius = radius
+        self.diameter = diameter
+
+
+@dataclass
+class Polygon2D(ASTNode):
+    """polygon(points, paths, convexity)"""
+    points: ASTNode
+    paths: Optional[ASTNode] = None
+    convexity: int = 1
+    
+    def __init__(self, points: ASTNode, paths: ASTNode = None, convexity: int = 1, line: int = 0):
+        super().__init__(line)
+        self.points = points
+        self.paths = paths
+        self.convexity = convexity
+
+
+@dataclass
+class Text2D(ASTNode):
+    """text(text, size, font, etc.)"""
+    text: str
+    size: Optional[ASTNode] = None
+    font: Optional[str] = None
+    halign: Optional[str] = None
+    valign: Optional[str] = None
+    spacing: Optional[ASTNode] = None
+    direction: Optional[str] = None
+    language: Optional[str] = None
+    script: Optional[str] = None
+    
+    def __init__(self, text: str, size: ASTNode = None, font: str = None,
+                 halign: str = None, valign: str = None, spacing: ASTNode = None,
+                 direction: str = None, language: str = None, script: str = None,
+                 line: int = 0):
+        super().__init__(line)
+        self.text = text
+        self.size = size
+        self.font = font
+        self.halign = halign
+        self.valign = valign
+        self.spacing = spacing
+        self.direction = direction
+        self.language = language
+        self.script = script
+
+
+@dataclass
+class Projection(ASTNode):
+    """projection(cut) { ... }"""
+    cut: bool = False
+    body: Optional[ASTNode] = None
+    
+    def __init__(self, cut: bool = False, body: ASTNode = None, line: int = 0):
+        super().__init__(line)
+        self.cut = cut
+        self.body = body
+
+
+@dataclass
+class Mirror(ASTNode):
+    """mirror([x, y, z]) { ... }"""
+    normal: ASTNode
+    body: Optional[ASTNode] = None
+    
+    def __init__(self, normal: ASTNode, body: ASTNode = None, line: int = 0):
+        super().__init__(line)
+        self.normal = normal
+        self.body = body
+
+
+@dataclass
+class MultMatrix(ASTNode):
+    """multmatrix(m) { ... }"""
+    matrix: ASTNode
+    body: Optional[ASTNode] = None
+    
+    def __init__(self, matrix: ASTNode, body: ASTNode = None, line: int = 0):
+        super().__init__(line)
+        self.matrix = matrix
+        self.body = body
+
+
+@dataclass
+class Resize(ASTNode):
+    """resize([x, y, z]) { ... }"""
+    newsize: ASTNode
+    auto: Optional[ASTNode] = None
+    body: Optional[ASTNode] = None
+    
+    def __init__(self, newsize: ASTNode, auto: ASTNode = None, body: ASTNode = None, line: int = 0):
+        super().__init__(line)
+        self.newsize = newsize
+        self.auto = auto
+        self.body = body
+
+
+@dataclass
+class Color(ASTNode):
+    """color(c) { ... }"""
+    color: ASTNode
+    alpha: Optional[ASTNode] = None
+    body: Optional[ASTNode] = None
+    
+    def __init__(self, color: ASTNode, alpha: ASTNode = None, body: ASTNode = None, line: int = 0):
+        super().__init__(line)
+        self.color = color
+        self.alpha = alpha
+        self.body = body
+
+
+@dataclass
+class Echo(ASTNode):
+    """echo(...) statement."""
+    args: List[ASTNode]
+    
+    def __init__(self, args: List[ASTNode], line: int = 0):
+        super().__init__(line)
+        self.args = args
+
+
+@dataclass
+class Assert(ASTNode):
+    """assert(...) statement."""
+    condition: ASTNode
+    message: Optional[ASTNode] = None
+    
+    def __init__(self, condition: ASTNode, message: ASTNode = None, line: int = 0):
+        super().__init__(line)
+        self.condition = condition
+        self.message = message

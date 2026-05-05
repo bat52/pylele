@@ -105,6 +105,15 @@ class MockShapeAPI(ShapeAPI):
         """ Currently just mimics SolidPython2 implementation """
         return MockShape(self)
 
+    def rectangle(self, size, center=False) -> MockShape:
+        return MockShape(self)
+
+    def circle(self, r=None, d=None) -> MockShape:
+        return MockShape(self)
+
+    def polygon(self, points, paths=None, convexity=1) -> MockShape:
+        return MockShape(self)
+
 class MockShape(Shape):
     """
     Mock Pylele Shape implementation for test
@@ -123,7 +132,7 @@ class MockShape(Shape):
     def intersection(self, intersector: MockShape) -> MockShape:
         return self
 
-    def mirror(self) -> MockShape:
+    def mirror(self, normal=(0, 1, 0)) -> MockShape:
         return self
 
     def mv(self, x: float, y: float, z: float) -> MockShape:
@@ -146,6 +155,21 @@ class MockShape(Shape):
     
     def bbox(self) -> MockShape:
         return (0,1,2,3,4,5)
+
+    def linear_extrude(self, height=None, center=False, twist=0, scale=1.0, slices=None) -> MockShape:
+        return self
+
+    def rotate_extrude(self, angle=360, convexity=1) -> MockShape:
+        return self
+
+    def offset(self, r=None, chamfer=False) -> MockShape:
+        return self
+
+    def projection(self, cut=False) -> MockShape:
+        return self
+
+    def minkowski(self, other=None) -> MockShape:
+        return self
 
 if __name__ == "__main__":
     test_api("mock")

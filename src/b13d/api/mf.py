@@ -3,7 +3,7 @@
 from __future__ import annotations
 import copy
 from math import pi, ceil
-from manifold3d import Manifold, CrossSection, FillRule, Mesh
+from manifold3d import Manifold, CrossSection, FillRule, Mesh, JoinType
 import numpy as np
 import os
 from pathlib import Path
@@ -192,7 +192,38 @@ class MFShapeAPI(ShapeAPI):
     def genImport(self, infile: str, extrude: float = None) -> MFShape:
         return MFImport(infile, extrude=extrude)
 
+    def rectangle(self, size, center=False) -> MFShape:
+        size = size if isinstance(size, (list, tuple)) else (size, size)
+        w, h = size[0], size[1]
+        pts = [(0, 0), (w, 0), (w, h), (0, h)]
+        cs = CrossSection([pts], FillRule.EvenOdd)
+        if center:
+            cs = cs.translate((-w/2, -h/2))
+        return MFShape(self, cross_section=cs)
+
+    def circle(self, r=None, d=None) -> MFShape:
+        if r is None and d is not None:
+            r = d / 2.0
+        segs = 64
+        from math import cos, sin, pi
+        pts = []
+        for i in range(segs):
+            a = 2 * pi * i / segs
+            pts.append((r * cos(a), r * sin(a)))
+        cs = CrossSection([pts], FillRule.EvenOdd)
+        return MFShape(self, cross_section=cs)
+
+    def polygon(self, points, paths=None, convexity=1) -> MFShape:
+        cs = CrossSection([list(points)], FillRule.EvenOdd)
+        return MFShape(self, cross_section=cs)
+
 class MFShape(Shape):
+
+    def __init__(self, api: MFShapeAPI, solid: Manifold = None,
+                 color: tuple[int, int, int] = None,
+                 cross_section: CrossSection = None):
+        super().__init__(api, solid=solid, color=color)
+        self.cross_section: CrossSection = cross_section
 
     def getAPI(self) -> MFShapeAPI:
         return self.api
@@ -203,74 +234,130 @@ class MFShape(Shape):
     def _smoothing_segments(self, dim: float) -> int:
         return ceil(abs(dim) ** 0.5 * self.api.fidelity.smoothing_segments())
 
+    def _ensure3d(self) -> MFShape:
+        """If cross_section is set but solid is None, convert to 3D via dummy extrude."""
+        if self.cross_section is not None and self.solid is None:
+            self.solid = Manifold.extrude(self.cross_section, 0)
+            self.cross_section = None
+        return self
+
     def cut(self, cutter: MFShape) -> MFShape:
-        if cutter is None or cutter.solid is None:
+        if self.cross_section is not None and cutter.cross_section is not None:
+            self.cross_section = self.cross_section - cutter.cross_section
+            return self
+        self._ensure3d()
+        if cutter is None:
+            return self
+        cutter._ensure3d()
+        if cutter.solid is None:
             return self
         self.solid = self.solid - cutter.solid
         return self
 
     def dup(self) -> MFShape:
         duplicate = copy.copy(self)
-        duplicate.solid = Manifold.compose(
-            self.solid.decompose()
-        )  # TODO find better impl
+        if duplicate.cross_section is not None:
+            duplicate.cross_section = CrossSection(
+                duplicate.cross_section.decompose(), FillRule.EvenOdd
+            )
+        elif duplicate.solid is not None:
+            duplicate.solid = Manifold.compose(
+                self.solid.decompose()
+            )
         return duplicate
 
     def join(self, joiner: MFShape) -> MFShape:
+        if self.cross_section is not None and joiner is not None and joiner.cross_section is not None:
+            self.cross_section = self.cross_section + joiner.cross_section
+            return self
+        self._ensure3d()
         if joiner is None or joiner.solid is None:
             return self
         self.solid = self.solid + joiner.solid
         return self
 
     def intersection(self, intersector: MFShape) -> MFShape:
+        if self.cross_section is not None and intersector is not None and intersector.cross_section is not None:
+            self.cross_section &= intersector.cross_section
+            return self
+        self._ensure3d()
         if intersector is None or intersector.solid is None:
             return self
         self.solid ^= intersector.solid
         return self
 
-    def mirror(self) -> MFShape:
+    def mirror(self, normal=(0, 1, 0)) -> MFShape:
         dup = copy.copy(self)
-        dup.solid = self.solid.mirror((0, 1, 0))
+        if self.cross_section is not None:
+            dup.cross_section = self.cross_section.mirror((1, 0))
+        elif self.solid is not None:
+            dup.solid = self.solid.mirror(normal)
         return dup
 
     def mv(self, x: float, y: float, z: float) -> MFShape:
         if x == 0 and y == 0 and z == 0:
             return self
-        self.solid = self.solid.translate((x, y, z))
+        if self.cross_section is not None:
+            self.cross_section = self.cross_section.translate((x, y))
+        elif self.solid is not None:
+            self.solid = self.solid.translate((x, y, z))
         return self
 
     def rotate_x(self, ang: float) -> MFShape:
-        self.solid = self.solid.rotate((ang, 0, 0))
+        if self.cross_section is not None:
+            self._ensure3d()
+        if self.solid is not None:
+            self.solid = self.solid.rotate((ang, 0, 0))
         return self
 
     def rotate_y(self, ang: float) -> MFShape:
-        self.solid = self.solid.rotate((0, ang, 0))
+        if self.cross_section is not None:
+            self._ensure3d()
+        if self.solid is not None:
+            self.solid = self.solid.rotate((0, ang, 0))
         return self
 
     def rotate_z(self, ang: float) -> MFShape:
-        self.solid = self.solid.rotate((0, 0, ang))
+        if self.cross_section is not None:
+            self.cross_section = self.cross_section.rotate(ang)
+        elif self.solid is not None:
+            self.solid = self.solid.rotate((0, 0, ang))
         return self
     
     def rotate(self, ang: float | int | tuple[float,float,float], direction: Direction = Direction.Z) -> MFShape:
         if isinstance(ang,float) or isinstance(ang,int):
             return Shape.rotate(self, ang, direction)
-        self.solid = self.solid.rotate((ang[0], ang[1], ang[2]))
+        if self.cross_section is not None:
+            self._ensure3d()
+        if self.solid is not None:
+            self.solid = self.solid.rotate((ang[0], ang[1], ang[2]))
         return self
 
     def scale(self, x: float, y: float, z: float) -> MFShape:
         if x == 1 and y == 1 and z == 1:
             return self
-        self.solid = self.solid.scale((x, y, z))
+        if self.cross_section is not None:
+            self.cross_section = self.cross_section.scale((x, y))
+        elif self.solid is not None:
+            self.solid = self.solid.scale((x, y, z))
         return self
     
     def hull(self) -> MFShape:
-        self.solid = self.solid.hull()
+        if self.cross_section is not None:
+            self.cross_section = self.cross_section.hull()
+        elif self.solid is not None:
+            self.solid = self.solid.hull()
         return self
 
     def bbox(self) -> tuple[float, float, float, float, float, float]:
-
+        if self.cross_section is not None:
+            bb_rect = self.cross_section.bounding_box()
+            return (bb_rect[0], bb_rect[1],
+                    bb_rect[2], bb_rect[3],
+                    0.0, 0.0)
+        if self.solid is None:
+            return (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
         mf_bb = self.solid.bounding_box()
-
         return (mf_bb[MFBBoxEnum.MINX.value],
                 mf_bb[MFBBoxEnum.MAXX.value],
                 mf_bb[MFBBoxEnum.MINY.value],
@@ -278,7 +365,61 @@ class MFShape(Shape):
                 mf_bb[MFBBoxEnum.MINZ.value],
                 mf_bb[MFBBoxEnum.MAXZ.value],
                 )
-    
+
+    def linear_extrude(self, height=None, center=False, twist=0, scale=1.0, slices=None) -> MFShape:
+        if self.cross_section is None:
+            raise NotImplementedError("linear_extrude requires a 2D shape")
+        h = height if height is not None else 1.0
+        self.solid = Manifold.extrude(self.cross_section, h)
+        self.cross_section = None
+        if center:
+            self.solid = self.solid.translate((0, 0, -h / 2))
+        return self
+
+    def rotate_extrude(self, angle=360, convexity=1) -> MFShape:
+        if self.cross_section is None:
+            raise NotImplementedError("rotate_extrude requires a 2D shape")
+        self.solid = Manifold.revolve(self.cross_section, revolve_degrees=angle)
+        self.cross_section = None
+        return self
+
+    def offset(self, r=None, chamfer=False) -> MFShape:
+        if self.cross_section is None:
+            raise NotImplementedError("offset requires a 2D shape")
+        delta = r if r is not None else 0.0
+        jt = JoinType.Round if not chamfer else JoinType.Tangential
+        self.cross_section = self.cross_section.offset(delta, join_type=jt)
+        return self
+
+    def projection(self, cut=False) -> MFShape:
+        if self.solid is None:
+            raise NotImplementedError("projection requires a 3D shape")
+        # Project to XY plane: get all vertices and flatten Z
+        mesh = self.solid.to_mesh()
+        verts = mesh.vert_properties
+        # Get unique 2D vertices projected onto XY plane
+        pts_2d = list(set((v[0], v[1]) for v in verts))
+        # Sort by angle around centroid for a valid polygon
+        cx = sum(p[0] for p in pts_2d) / len(pts_2d)
+        cy = sum(p[1] for p in pts_2d) / len(pts_2d)
+        pts_2d.sort(key=lambda p: (p[0] - cx) ** 2 + (p[1] - cy) ** 2,
+                    reverse=True)
+        import math
+        pts_2d.sort(key=lambda p: math.atan2(p[1] - cy, p[0] - cx))
+        self.cross_section = CrossSection([pts_2d], FillRule.EvenOdd)
+        self.solid = None
+        return self
+
+    def minkowski(self, other=None) -> MFShape:
+        if self.cross_section is not None:
+            self._ensure3d()
+        if other is not None:
+            if other.cross_section is not None:
+                other = other.dup()
+                other._ensure3d()
+            self.solid = self.solid.minkowski_sum(other.solid)
+        return self
+
 class MFBBoxEnum(Enum):
     MINX = 0
     MINY = 1
