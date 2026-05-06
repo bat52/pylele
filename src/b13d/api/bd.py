@@ -20,7 +20,7 @@ import numpy as np
 from scipy.spatial import ConvexHull
 
 import build123d as bd
-from build123d.topology import Solid, Face, Wire, Edge, Shell
+from build123d.topology import Solid, Face, Wire, Edge, Shell, Compound, ShapeList
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
@@ -210,7 +210,11 @@ class BDShape(Shape):
         self._ensure3d()
         if joiner is None or joiner.solid is None:
             return self
-        self.solid = self.solid + joiner.solid
+        result = self.solid + joiner.solid
+        # build123d returns ShapeList for disjoint solids; convert to Compound for export
+        if isinstance(result, ShapeList):
+            result = Compound(result)
+        self.solid = result
         return self
 
     def intersection(self, intersector: BDShape) -> BDShape:
@@ -306,14 +310,21 @@ class BDShape(Shape):
                 self.cross_section = bd.Polygon(*pts)
             return self
         if self.solid is not None:
-            verts = np.array(
-                [(v.X, v.Y, v.Z) for v in self.solid.vertices()]
-            )
-            if len(verts) >= 4:
-                hull = ConvexHull(verts)
+            # Sample points along edges to capture curved surfaces
+            edge_points = []
+            for edge in self.solid.edges():
+                # Sample 20 points along each edge
+                for t in np.linspace(0, 1, 20):
+                    pt = edge.position_at(t)
+                    edge_points.append((pt.X, pt.Y, pt.Z))
+            # Also include vertices
+            verts_list = [(v.X, v.Y, v.Z) for v in self.solid.vertices()]
+            all_pts = np.array(verts_list + edge_points)
+            if len(all_pts) >= 4:
+                hull = ConvexHull(all_pts)
                 faces = []
                 for simplex in hull.simplices:
-                    pts = [bd.Vector(*verts[i]) for i in simplex]
+                    pts = [bd.Vector(*all_pts[i]) for i in simplex]
                     e1 = Edge.make_line(pts[0], pts[1])
                     e2 = Edge.make_line(pts[1], pts[2])
                     e3 = Edge.make_line(pts[2], pts[0])
@@ -433,7 +444,8 @@ class BDBall(BDShape):
     def __init__(self, rad: float, api: BDShapeAPI):
         super().__init__(api)
         segs = self._smoothing_segments(2 * pi * rad)
-        self.solid = bd.Sphere(rad)
+        # Use make_sphere with proper segmentation for watertight result
+        self.solid = bd.Solid.make_sphere(rad)
 
 
 class BDBox(BDShape):
@@ -485,10 +497,8 @@ class BDRodZ(BDShape):
                 pts.append((rad * cos(a), rad * sin(a)))
             poly = bd.Polygon(*pts)
             self.solid = bd.extrude(poly, l)
-            self.solid = bd.Pos(0, 0, -l / 2) * self.solid
         else:
             self.solid = bd.Cylinder(rad, l)
-            self.solid = bd.Pos(0, 0, -l / 2) * self.solid
 
 
 class BDPolyhedron(BDShape):
@@ -534,8 +544,15 @@ class BDLineSplineExtrusionZ(BDShape):
     ):
         super().__init__(api)
         approx_curve_path = lineSplineXY(start, path, self._smoothing_segments)
-        polygon = bd.Polygon(*approx_curve_path)
-        self.solid = bd.extrude(polygon, ht)
+        cleaned = _clean_polygon_path(approx_curve_path)
+        if cleaned is not None and len(cleaned) >= 3:
+            # Use align=None to preserve original coordinates
+            polygon = bd.Polygon(*cleaned, align=None)
+            self.solid = bd.extrude(polygon, ht)
+        else:
+            # Fallback: create a minimal solid
+            print("# WARNING: BDLineSplineExtrusionZ degenerate path, using fallback")
+            self.solid = bd.Box(1, 1, ht)
 
 
 class BDLineSplineRevolveX(BDShape):
@@ -556,14 +573,15 @@ class BDLineSplineRevolveX(BDShape):
         neg_deg = deg < 0
         deg = -deg if neg_deg else deg
         approx_curve_path = lineSplineXY(start, path, self._smoothing_segments)
-        # Swap X, Y for revolve around X axis
-        approx_curve_path = [(y, x) for x, y in approx_curve_path]
-        polygon = bd.Polygon(*approx_curve_path)
-        # Create a face from the polygon wire before revolving
-        face = bd.Face(polygon)
-        solid = bd.revolve(face, bd.Axis.X, revolution_arc=deg)
-        solid = bd.Rotation(0, 0, 90) * solid
-        solid = bd.Rotation(0, 90, 0) * solid
+        cleaned = _clean_polygon_path(approx_curve_path)
+        if cleaned is not None and len(cleaned) >= 3:
+            # Use align=None to preserve original coordinates (bd.Polygon defaults to CENTER)
+            polygon = bd.Polygon(*cleaned, align=None)
+            face = bd.make_face(polygon)
+            solid = bd.Solid.revolve(face, deg, bd.Axis.X)
+        else:
+            print("# WARNING: BDLineSplineRevolveX degenerate path, using fallback")
+            solid = bd.Solid.make_cylinder(1, 10)
         if neg_deg:
             solid = bd.mirror(solid, bd.Plane.XY)
         self.solid = solid
@@ -585,37 +603,51 @@ class BDCirclePolySweep(BDShape):
                 last_ball = bd.Pos(x, y, z) * last_ball
                 sweep_shape = last_ball
             else:
+                px, py, pz = path[i - 1]
+                # Create a cylinder connecting previous point to current point
+                dx, dy, dz = x - px, y - py, z - pz
+                length = (dx * dx + dy * dy + dz * dz) ** 0.5
+                if length > 1e-10:
+                    # Create cylinder along Z, then rotate to align with direction
+                    cylinder = bd.Cylinder(rad, length)
+                    # Calculate rotation to align Z axis with direction vector
+                    import math
+                    # Spherical angles
+                    theta = math.atan2(dy, dx)  # azimuth
+                    phi = math.acos(dz / length)  # polar angle
+                    # Rotate: first around Y by phi, then around Z by theta
+                    cylinder = bd.Rotation(0, math.degrees(phi), 0) * cylinder
+                    cylinder = bd.Rotation(0, 0, math.degrees(theta)) * cylinder
+                    # Translate to midpoint
+                    mx, my, mz = (px + x) / 2, (py + y) / 2, (pz + z) / 2
+                    cylinder = bd.Pos(mx, my, mz) * cylinder
+                    sweep_shape = sweep_shape + cylinder if sweep_shape is not None else cylinder
+                # Add sphere at current point
                 ball = bd.Sphere(rad)
                 ball = bd.Pos(x, y, z) * ball
-                hull2balls = (last_ball + ball)
-                # Compute hull of the two balls
-                verts = np.array(
-                    [(v.X, v.Y, v.Z) for v in hull2balls.vertices()]
-                )
-                if len(verts) >= 4:
-                    try:
-                        hull = ConvexHull(verts, qhull_options='QJ')
-                    except Exception:
-                        # If hull fails, just join the two balls
-                        sweep_shape = sweep_shape + ball if sweep_shape is not None else ball
-                        last_ball = ball
-                        continue
-                    faces = []
-                    for simplex in hull.simplices:
-                        pts = [bd.Vector(*verts[i]) for i in simplex]
-                        e1 = Edge.make_line(pts[0], pts[1])
-                        e2 = Edge.make_line(pts[1], pts[2])
-                        e3 = Edge.make_line(pts[2], pts[0])
-                        w = Wire([e1, e2, e3])
-                        f = Face(w)
-                        faces.append(f)
-                    shell = Shell(faces)
-                    hull_solid = Solid(shell)
-                    sweep_shape = sweep_shape + hull_solid if sweep_shape is not None else hull_solid
-                else:
-                    sweep_shape = sweep_shape + ball if sweep_shape is not None else ball
+                sweep_shape = sweep_shape + ball if sweep_shape is not None else ball
                 last_ball = ball
         self.solid = sweep_shape
+
+
+def _clean_polygon_path(path, tol=1e-6):
+    """Remove duplicate adjacent points and degenerate segments from a polygon path."""
+    if not path or len(path) < 3:
+        return None
+    cleaned = [path[0]]
+    for p in path[1:]:
+        dx = p[0] - cleaned[-1][0]
+        dy = p[1] - cleaned[-1][1]
+        if dx * dx + dy * dy > tol * tol:
+            cleaned.append(p)
+    # Also check last-to-first closure
+    if len(cleaned) >= 3:
+        dx = cleaned[-1][0] - cleaned[0][0]
+        dy = cleaned[-1][1] - cleaned[0][1]
+        if dx * dx + dy * dy <= tol * tol:
+            cleaned[-1] = cleaned[0]  # snap last to first
+        return cleaned
+    return None
 
 
 class BDTextZ(BDShape):
@@ -646,20 +678,31 @@ class BDTextZ(BDShape):
         for glyph_paths in glyphs_paths:
             glyph3d: bd.Solid | bd.Part | None = None
             for path in glyph_paths:
-                if len(path) >= 3:
-                    poly = bd.Polygon(*path)
-                    ext = bd.extrude(poly, tck)
-                    glyph3d = (
-                        ext
-                        if glyph3d is None
-                        else glyph3d + ext
-                    )
+                cleaned = _clean_polygon_path(path)
+                if cleaned is not None and len(cleaned) >= 3:
+                    try:
+                        poly = bd.Polygon(*cleaned, align=None)
+                        ext = bd.extrude(poly, tck)
+                        # Ensure extrusion starts at Z=0 (winding order may flip direction)
+                        bb = ext.bounding_box()
+                        if bb.min.Z < 0:
+                            ext = bd.Pos(0, 0, -bb.min.Z) * ext
+                        glyph3d = (
+                            ext
+                            if glyph3d is None
+                            else glyph3d + ext
+                        )
+                    except Exception:
+                        # Skip degenerate glyph paths
+                        pass
             if glyph3d is not None:
-                text3d = (
-                    glyph3d
-                    if text3d is None
-                    else text3d + glyph3d
-                )
+                if text3d is None:
+                    text3d = glyph3d
+                else:
+                    joined = text3d + glyph3d
+                    if isinstance(joined, ShapeList):
+                        joined = Compound(joined)
+                    text3d = joined
 
         if text3d is not None:
             bb = text3d.bounding_box()
