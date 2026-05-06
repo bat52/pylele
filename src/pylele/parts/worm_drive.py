@@ -8,8 +8,19 @@
     https://www.thingiverse.com/thing:6664561
 """
 
-from solid2 import sphere, minkowski
-from solid2.extensions.bosl2.gears import worm_gear, worm, enveloping_worm, worm_gear_thickness, worm_dist
+try:
+    from solid2 import sphere, minkowski
+    from solid2.extensions.bosl2.gears import worm_gear, worm, enveloping_worm, worm_gear_thickness, worm_dist
+    WORM_DRIVE_AVAILABLE = True
+except ImportError:
+    sphere = None
+    minkowski = None
+    worm_gear = None
+    worm = None
+    enveloping_worm = None
+    worm_gear_thickness = None
+    worm_dist = None
+    WORM_DRIVE_AVAILABLE = False
 
 import os
 import sys

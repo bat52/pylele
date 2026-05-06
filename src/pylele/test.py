@@ -8,9 +8,11 @@ import unittest
 
 import os
 import sys
+
+from pylele.parts.worm_gear import WORM_GEAR_AVAILABLE
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
-from b13d.api.core import test_api, DEFAULT_TEST_DIR
+from b13d.api.core import test_api, DEFAULT_TEST_DIR, Implementation, supported_apis
 from b13d.api.utils import make_or_exist_path
 from b13d.test import test_report, test_main
 
@@ -23,7 +25,8 @@ class PyleleTestMethods(unittest.TestCase):
     from pylele.parts.bridge import test_bridge, test_bridge_mock
     from pylele.parts.tunable_saddle import test_tunable_saddle, test_tunable_saddle_mock
     from pylele.parts.tunable_bridge import test_tunable_bridge, test_tunable_bridge_mock
-    from pylele.parts.worm_gear import test_worm_gear, test_worm_gear_mock
+    if Implementation.SOLID2 in supported_apis():
+        from pylele.parts.worm_gear import test_worm_gear, test_worm_gear_mock
     from pylele.parts.worm_gear_holder import test_worm_gear_holder, test_worm_gear_holder_mock
     from pylele.parts.worm_gear_holder_cover import test_worm_gear_holder_cover, test_worm_gear_holder_cover_mock
     from pylele.parts.tuner_knob import test_tuner_knob, test_tuner_knob_mock
