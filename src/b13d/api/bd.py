@@ -190,7 +190,8 @@ class BDShape(Shape):
     def _ensure3d(self) -> BDShape:
         """If cross_section is set but solid is None, convert to 3D via dummy extrude."""
         if self.cross_section is not None and self.solid is None:
-            self.solid = bd.extrude(self.cross_section, 0)
+            # Use a tiny positive height since build123d's extrude rejects 0
+            self.solid = bd.extrude(self.cross_section, 1e-6)
             self.cross_section = None
         return self
 
@@ -740,11 +741,30 @@ class BDImport(BDShape):
         assert os.path.isfile(infile), f"ERROR: file {infile} does not exist!"
 
         if infile.endswith(".stl"):
-            self.solid = bd.import_step(infile)
+            self.solid = bd.import_stl(infile)
         elif infile.endswith(".step") or infile.endswith(".stp"):
             self.solid = bd.import_step(infile)
         elif infile.endswith(".brep"):
             self.solid = bd.import_brep(infile)
+        elif infile.endswith(".svg"):
+            # import_svg returns ShapeList[Wire | Face]; convert to 3D solid
+            svg_shapes = bd.import_svg(infile)
+            faces = []
+            for shape in svg_shapes:
+                if isinstance(shape, bd.Wire):
+                    faces.append(bd.make_face(shape))
+                elif isinstance(shape, bd.Face):
+                    faces.append(shape)
+            if extrude is not None:
+                # Extrude all faces into a 3D solid
+                if len(faces) == 1:
+                    self.solid = bd.extrude(faces[0], extrude)
+                else:
+                    compound = bd.Compound(faces)
+                    self.solid = bd.extrude(compound, extrude)
+            else:
+                # Store as cross-section for deferred 3D conversion
+                self.cross_section = bd.Sketch(faces)
         else:
             raise ValueError(f"Unsupported file format: {infile}")
 
