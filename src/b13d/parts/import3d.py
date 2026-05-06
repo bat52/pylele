@@ -54,8 +54,8 @@ def test_import3d(self,apis=supported_apis()):
     
     tests[Implementation.BUILD123D]={
         'bd_step': ['-imp',test_step],
-        # 'bd_svg' : ['-imp',test_svg, '-eh', '10'],
-        # 'bd_dxf' : ['-imp',test_dxf, '-eh', '10'],
+        'bd_svg' : ['-imp',test_svg, '-eh', '10'],
+        'bd_stl' : ['-imp',test_stl],
         }
     
     tests[Implementation.TRIMESH]={
@@ -87,4 +87,10 @@ def test_import3d_mock(self):
     test_import3d(self,apis=[Implementation.MOCK])
 
 if __name__ == '__main__':
-    main()
+    # When run without -imp (e.g., ./import3d.py -i bd), run the test function
+    if not any(a in sys.argv for a in ('-imp', '--import_file')):
+        from b13d.api.solid import lele_solid_parser
+        args, _ = lele_solid_parser().parse_known_args()
+        test_import3d(None, apis=[args.implementation])
+    else:
+        main()
