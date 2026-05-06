@@ -72,6 +72,7 @@ class Implementation(StringEnum):
     TRIMESH = "tm"
     SOLID2 = "sp2"
     MANIFOLD = "mf"
+    BUILD123D = "bd"
 
     def __repr__(self):
         return f"Implementation({self.value})"
@@ -113,6 +114,7 @@ APIS_INFO = {
     Implementation.TRIMESH   : {"module": "b13d.api.tm", "class": "TMShapeAPI", "fillet": False, "hull" : True},
     Implementation.SOLID2    : {"module": "b13d.api.sp2", "class": "Sp2ShapeAPI", "fillet": False, "hull" : True},
     Implementation.MANIFOLD  : {"module": "b13d.api.mf", "class": "MFShapeAPI", "fillet": False, "hull" : True},
+    Implementation.BUILD123D : {"module": "b13d.api.bd", "class": "BDShapeAPI", "fillet": True, "hull" : True},
 }
 
 def supported_apis() -> list:
@@ -120,7 +122,7 @@ def supported_apis() -> list:
     ver = sys.version_info
     assert ver[0] == 3
 
-    apis = [Implementation.TRIMESH, Implementation.CADQUERY, Implementation.SOLID2, Implementation.MANIFOLD]
+    apis = [Implementation.TRIMESH, Implementation.CADQUERY, Implementation.SOLID2, Implementation.MANIFOLD, Implementation.BUILD123D]
 
     if ver[1] == 11:
         # blender bpy package currently only supported with python 3.11

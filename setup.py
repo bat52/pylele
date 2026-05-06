@@ -34,6 +34,7 @@ setup(
         "networkx",
         "pyglet<2",
         "fonttools",
+        "build123d==0.10.0",
         "solidpython2<=2.1.1", # for enveloping worm
         "numpy-stl",
         "packaging",

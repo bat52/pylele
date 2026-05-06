@@ -237,6 +237,10 @@ class B13DTestMethods(unittest.TestCase):
         """Test Manifold API"""
         test_api(api=Implementation.MANIFOLD)
 
+    def test_build123d_api(self):
+        """Test build123d API"""
+        test_api(api=Implementation.BUILD123D)
+
     ## Solid Parts
     from b13d.parts.tube import test_tube, test_tube_mock
     from b13d.parts.screw import test_screw, test_screw_mock
