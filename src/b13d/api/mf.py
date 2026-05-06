@@ -226,6 +226,9 @@ class MFShapeAPI(ShapeAPI):
         cs = CrossSection([list(points)], FillRule.EvenOdd)
         return MFShape(self, cross_section=cs)
 
+    def genImport(self, infile: str, extrude: float = None) -> MFShape:
+        return MFImport(infile, extrude=extrude, api=self)
+
 class MFShape(Shape):
 
     def __init__(self, api: MFShapeAPI, solid: Manifold = None,

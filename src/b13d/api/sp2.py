@@ -202,6 +202,9 @@ class Sp2ShapeAPI(ShapeAPI):
         import solid2 as s2
         return Sp2Shape(self, solid=s2.polygon(points=points, paths=paths, convexity=convexity))
 
+    def genImport(self, infile: str, extrude: float = None) -> Sp2Shape:
+        return Sp2Import(infile, extrude=extrude, api=self)
+
 class Sp2Shape(Shape):
     """
     SolidPython2 Pylele Shape implementation for test

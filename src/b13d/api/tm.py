@@ -185,6 +185,9 @@ class TMShapeAPI(ShapeAPI):
         ret.solid = solid
         return ret
 
+    def genImport(self, infile: str, extrude: float = None) -> TMShape:
+        return TMImport(infile, extrude=extrude, api=self)
+
 class TMShape(Shape):
 
     X_AXIS = (1, 0, 0)

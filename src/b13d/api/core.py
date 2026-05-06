@@ -654,6 +654,10 @@ class ShapeAPI(ABC):
     @abstractmethod
     def polygon(self, points, paths=None, convexity=1) -> Shape: ...
 
+    @abstractmethod
+    def genImport(self, infile: str, extrude: float = None) -> Shape:
+        ...
+
     def sphere_quadrant(self, rad: float, pickTop: bool, pickFront: bool):
         maxDim = Shape.MAX_DIM
         ball = self.sphere(rad)

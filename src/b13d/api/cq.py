@@ -188,6 +188,9 @@ class CQShapeAPI(ShapeAPI):
         ret.solid = solid
         return ret
 
+    def genImport(self, infile: str, extrude: float = None) -> CQShape:
+        return CQImport(infile, extrude=extrude, api=self)
+
 class CQShape(Shape):
 
     def __init__(self, api: CQShapeAPI):

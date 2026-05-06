@@ -240,6 +240,9 @@ class BlenderShapeAPI(ShapeAPI):
         pts = [(p[0], p[1]) for p in points]
         return BlenderPolyExtrusionZ(pts, 0.001, self, checkWinding=False)
 
+    def genImport(self, infile: str, extrude: float = None) -> BlenderShape:
+        return BlenderImport(infile, extrude=extrude, api=self)
+
 class BlenderShape(Shape):
 
     # MAX_DIM = 10000 # for max and min dimensions

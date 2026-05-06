@@ -163,6 +163,9 @@ class BDShapeAPI(ShapeAPI):
         poly = bd.Polygon(*points)
         return BDShape(self, cross_section=poly)
 
+    def genImport(self, infile: str, extrude: float = None) -> BDShape:
+        return BDImport(infile, extrude=extrude, api=self)
+
 
 class BDShape(Shape):
     """build123d implementation of Shape."""
