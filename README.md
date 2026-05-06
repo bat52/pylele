@@ -54,6 +54,7 @@ B13D is a portable Python 3D Modeling Library that acts as a common wrapper arou
 * [Trimesh (tm)](https://github.com/mikedh/trimesh) (Fast, supports hull)
 * [SolidPython2 (sp2)](https://github.com/jeff-dh/SolidPython) (Supports .stl, .svg, .scad, and [BOSL2](https://github.com/BelfrySCAD/BOSL2) library import, fast when using manifold option)
 * [Manifold3D (mf)](https://github.com/elalish/manifold) (Fastest, used by trimesh and OpenSCAD)
+* [build123d (bd)](https://github.com/gumyr/build123d)(Evolution of cadquery)
 
 ## GUIs
 
