@@ -1,5 +1,5 @@
 numpy==1.26.4
-nlopt==2.7.1
+nlopt>=2.9.0,<3.0
 cadquery<=2.5.2
 # bpy==4.0.0; python_version < '3.11'
 # fake-bpy-module-4.0; python_version < '3.11'
