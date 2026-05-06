@@ -17,10 +17,10 @@ openpyxl
 prettytable
 
 # b1scad
-# sly
-# svgpathtools
+sly
+svgpathtools
 # svg2dxf
-# svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
+svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
 
 # Build123d backend (bd)
 build123d==0.10.0
