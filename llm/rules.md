@@ -66,3 +66,7 @@ When a backend produces unexpected output, compare against:
 
 If CQ, MF, and SP2 agree on a result, the new backend is likely wrong.
 If only one backend disagrees, the bug is in that backend.
+
+## 5. Update README.md with new Backend Implementation description
+
+Mention quickly the new backend.
