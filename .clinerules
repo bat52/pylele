@@ -1,0 +1,44 @@
+All repository modifications must be performed exclusively via:
+
+./llm/ai_edit.sh
+
+Rules:
+
+* Never edit files directly
+* Never output inline patches
+* Never use direct write tools
+* Every mutation must invoke:
+  ./ai_edit.sh "<instruction>" <files>
+
+GOOD:
+./ai_edit.sh "update parser logic" parser.py
+
+BAD:
+./ai_edit.sh "improve parser"
+
+Requirements:
+
+* Always specify target files
+* Keep changes atomic
+* Re-read repository state after every execution
+* Assume git commits are the source of truth
+
+Before any modification, verify:
+
+1. Am I using ./llm/ai_edit.sh?
+2. Did I specify files?
+3. Is this atomic?
+
+Implement the following workflow
+
+User task
+↓
+Cline analyzes repo
+↓
+Cline emits ONE ai_edit.sh command
+↓
+Aider edits + commits
+↓
+Cline re-reads repo
+↓
+Repeat
