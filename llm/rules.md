@@ -1,13 +1,13 @@
-# LLM Rules for b13d Backend Implementation
+# LLM Rules for New API Implementation
 
 ## 1. Always run full regression tests after backend changes
 
-When implementing or fixing a backend (bd.py, mf.py, cq.py, sp2.py, etc.), do NOT stop after testing the API-specific test (`python3 src/b13d/api/<backend>.py`). You **must** also run the full b13d regression test suite:
+When implementing or fixing a backend (bd.py, mf.py, cq.py, sp2.py, etc.), do NOT stop after testing the API-specific test (`python3 src/b13d/api/<api>.py`). You **must** also run the full b13d regression test suite:
 
 ```bash
-python3 -m pytest src/b13d/test.py -v -k test_build123d_api  # example for bd
+python3 -m pytest src/b13d/test.py -v -k test_<api>_api  # example for bd
 # or run all API tests:
-python3 src/b13d/test.py B13DTestMethods.test_build123d_api
+python3 src/b13d/test.py B13DTestMethods.test_<api>_api
 ```
 
 The full test suite (`src/b13d/test.py`) covers not just `test_api()` but also parts-level tests:
@@ -25,13 +25,13 @@ When validating a backend change, run tests in this order to catch failures earl
 
 1. **First**: Run the single backend's API test with trimesh validation:
    ```bash
-   python3 src/b13d/api/<backend>.py
+   python3 src/b13d/api/<api>.py
    ```
    This is fast and catches basic geometry issues (wrong volume, not watertight, wrong bbox).
 
 2. **Second**: Run the parts-level tests for that backend:
    ```bash
-   python3 src/b13d/test.py B13DTestMethods.test_<part>_<backend>
+   python3 src/b13d/test.py B13DTestMethods.test_<part>_<api>
    ```
    Parts tests exercise `Solid` helper methods (join/cut/mirror/rotate etc.) via the `MockShape` → compare approach. A failure here indicates a bug in the `Solid` helper implementation (e.g., `dup()`, `mirror()`, `cut()`).
 
@@ -67,6 +67,17 @@ When a backend produces unexpected output, compare against:
 If CQ, MF, and SP2 agree on a result, the new backend is likely wrong.
 If only one backend disagrees, the bug is in that backend.
 
-## 5. Update README.md with new Backend Implementation description
+## 5. Update README.md with new Api Implementation description
 
-Mention quickly the new backend.
+Mention quickly the new api.
+
+## 6. Make sure pip dependencies do not conflict with the exising configuration
+
+Validate the consistency of requirements.txt and setup.py.
+If it is not possible to resolve the conflicts, make the new backend optional in setup.py, and create a new requirements_<api>.txt that should be free of conflict by removing other optional backends.
+
+Compute a compatibility matrix of the existing apis based on the dependency tree, and document in README.md .
+
+## 7. update git workflow test.yml to enable testing of the new api
+
+If the new api is incompatible with some of the others, test in isolation by resetting the enviromment, or creating a new test_<api>.yml

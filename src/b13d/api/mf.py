@@ -3,7 +3,16 @@
 from __future__ import annotations
 import copy
 from math import pi, ceil
-from manifold3d import Manifold, CrossSection, FillRule, Mesh, JoinType
+try:
+    from manifold3d import Manifold, CrossSection, FillRule, Mesh, JoinType
+    MF_AVAILABLE = True
+except ImportError:
+    Manifold = None
+    CrossSection = None
+    FillRule = None
+    Mesh = None
+    JoinType = None
+    MF_AVAILABLE = False
 import numpy as np
 import os
 from pathlib import Path

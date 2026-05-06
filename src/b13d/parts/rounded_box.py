@@ -117,7 +117,9 @@ class RoundedBox(Solid):
     def gen(self) -> Shape:
         """ generate rounded box """
         
-        if self.cli.implementation in [Implementation.CADQUERY, Implementation.BLENDER]:
+        if self.cli.implementation in [Implementation.CADQUERY, 
+                                       Implementation.BLENDER,
+                                       Implementation.BUILD123D]:
             # apis that support fillet
             return self.gen_cadquery()
             # apis that support hull

@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
-import bpy
-import bmesh
 import copy
 from math import ceil, pi
-from mathutils import Vector, Quaternion, Matrix
 import os
 from pathlib import Path
 import sys
 from typing import Union
+
+try:
+    import bpy
+    import bmesh
+    from mathutils import Vector, Quaternion, Matrix
+    BPY_AVAILABLE = True
+except ImportError:
+    bpy = None
+    bmesh = None
+    Vector = None
+    Quaternion = None
+    Matrix = None
+    BPY_AVAILABLE = False
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 

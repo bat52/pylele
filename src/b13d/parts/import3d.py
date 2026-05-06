@@ -52,6 +52,12 @@ def test_import3d(self,apis=supported_apis()):
         'cq_dxf' : ['-imp',test_dxf, '-eh', '10'],
         }
     
+    tests[Implementation.BUILD123D]={
+        'bd_step': ['-imp',test_step],
+        # 'bd_svg' : ['-imp',test_svg, '-eh', '10'],
+        # 'bd_dxf' : ['-imp',test_dxf, '-eh', '10'],
+        }
+    
     tests[Implementation.TRIMESH]={
         'tm_stl' : ['-imp',test_stl],
         'tm_svg' : ['-imp',test_svg, '-eh', '10'],

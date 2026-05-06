@@ -3,8 +3,8 @@
 from __future__ import annotations
 import copy
 from math import pi, cos, sin, ceil
-from nptyping import NDArray
 import numpy as np
+NDArray = np.ndarray
 import os
 from pathlib import Path
 from shapely.geometry import Polygon

@@ -95,7 +95,13 @@ class Implementation(StringEnum):
 
     def get_api(self, fidelity: Fidelity = Fidelity.LOW) -> ShapeAPI:
         """ Get the handler to the selected implementation API """
-        mod = importlib.import_module(self.module_name())
+        try:
+            mod = importlib.import_module(self.module_name())
+        except ImportError as e:
+            raise ImportError(
+                f"Backend '{self.value}' is not installed. "
+                f"Install the required package to use it. Error: {e}"
+            )
         api = getattr(mod, self.class_name())
         return api(implementation = self, fidelity=fidelity)
     
@@ -118,15 +124,34 @@ APIS_INFO = {
 }
 
 def supported_apis() -> list:
-    """Returns the list of supported apis"""
+    """Returns the list of supported apis, probing which backends are actually installed"""
     ver = sys.version_info
     assert ver[0] == 3
 
-    apis = [Implementation.TRIMESH, Implementation.CADQUERY, Implementation.SOLID2, Implementation.MANIFOLD, Implementation.BUILD123D]
+    # Always available (mandatory dependencies)
+    apis = [Implementation.TRIMESH]
 
-    if ver[1] == 11:
-        # blender bpy package currently only supported with python 3.11
-        apis.append(Implementation.BLENDER)
+    # Probe optional backends by trying to import their modules
+    # and checking the module's *_AVAILABLE flag (since the module file
+    # itself may import successfully even when the backend package is missing)
+    optional_impls = [
+        (Implementation.SOLID2, "SP2_AVAILABLE"),
+        (Implementation.MANIFOLD, "MF_AVAILABLE"),
+        (Implementation.CADQUERY, "CQ_AVAILABLE"),
+        (Implementation.BUILD123D, "BD_AVAILABLE"),
+        (Implementation.BLENDER, "BPY_AVAILABLE"),
+    ]
+    for impl, avail_flag in optional_impls:
+        try:
+            mod = importlib.import_module(impl.module_name())
+            if getattr(mod, avail_flag, False):
+                apis.append(impl)
+        except ImportError:
+            pass
+
+    # Python version gate for Blender (only supported with 3.10 and 3.11)
+    # if Implementation.BLENDER in apis and ver[1] not in (10, 11):
+    #    apis.remove(Implementation.BLENDER)
 
     return apis
 

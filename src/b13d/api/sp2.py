@@ -11,10 +11,20 @@ from typing import Union
 try:
     from solid2 import cube, sphere, polygon, text, cylinder, polyhedron, import_, scad_render, render, square
     from solid2.extensions.bosl2 import circle
-except:
-    # only a subset allowed when using implicitcad
-    print("# WARNING: import solid2 failed, using implicitcad ?")
-    from solid2 import cube, sphere, polygon, cylinder, square
+    SP2_AVAILABLE = True
+except ImportError:
+    cube = None
+    sphere = None
+    polygon = None
+    text = None
+    cylinder = None
+    polyhedron = None
+    import_ = None
+    scad_render = None
+    render = None
+    square = None
+    circle = None
+    SP2_AVAILABLE = False
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 

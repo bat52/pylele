@@ -50,7 +50,7 @@ The following tuner configurations are available:
 B13D is a portable Python 3D Modeling Library that acts as a common wrapper around the following backends:
 
 * [CadQuery (cq)](https://github.com/CadQuery/cadquery) (Most Accurate, supports fillet)
-* [Blender (bpy)](https://github.com/blender/blender) (*Still a little buggy...*, supports fillet, Python 3.11 only)
+* [Blender (bpy)](https://github.com/blender/blender) (*Still a little buggy...*, supports fillet, Python 3.10 and 3.11 only)
 * [Trimesh (tm)](https://github.com/mikedh/trimesh) (Fast, supports hull)
 * [SolidPython2 (sp2)](https://github.com/jeff-dh/SolidPython) (Supports .stl, .svg, .scad, and [BOSL2](https://github.com/BelfrySCAD/BOSL2) library import, fast when using manifold option)
 * [Manifold3D (mf)](https://github.com/elalish/manifold) (Fastest, used by trimesh and OpenSCAD)
@@ -84,7 +84,31 @@ pylele1 --help # first implementation, more stable
 pylele2 --help # newer implementation, more options available
 ```
 
-CadQuery, Trimesh and Manifold APIs should be available on most systems with this method.
+Trimesh and Manifold APIs are installed by default. CadQuery and build123d backends are available as optional extras (see below).
+
+To also enable the Blender (bpy) backend on Python 3.10 or 3.11, install with the optional extras:
+
+```
+pip install git+https://github.com/bat52/pylele@main[blender]
+```
+
+To enable the CadQuery (cq) backend:
+
+```
+pip install git+https://github.com/bat52/pylele@main[cadquery]
+```
+
+To enable the build123d (bd) backend:
+
+```
+pip install git+https://github.com/bat52/pylele@main[build123d]
+```
+
+Multiple extras can be combined, e.g.:
+
+```
+pip install git+https://github.com/bat52/pylele@main[cadquery,build123d,blender]
+```
 
 ### Simple (for Ubuntu/Debian)
 

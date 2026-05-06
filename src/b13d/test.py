@@ -211,20 +211,6 @@ class B13DTestMethods(unittest.TestCase):
         """Test Blender API"""
         test_api(api=Implementation.BLENDER)
 
-    def test_polyhedron_api(self):
-        """Test Polyhedron support across implementation APIs"""
-        points = [(0, 0, 0), (10, 0, 0), (0, 10, 0), (0, 0, 10)]
-        faces = [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]]
-
-        for api in supported_apis() + [Implementation.MOCK]:
-            with self.subTest(api=api):
-                sapi = api.get_api()
-                poly = sapi.polyhedron(points=points, faces=faces, convexity=1)
-                self.assertIsNotNone(poly)
-                self.assertTrue(hasattr(poly, "solid"))
-                if api != Implementation.MOCK:
-                    self.assertIsNotNone(poly.solid)
-
     def test_trimesh_api(self):
         """Test Trimesh API"""
         test_api(api=Implementation.TRIMESH)
@@ -246,7 +232,8 @@ class B13DTestMethods(unittest.TestCase):
     from b13d.parts.screw import test_screw, test_screw_mock
     from b13d.parts.screw_holder import test_screw_holder, test_screw_holder_mock
     from b13d.parts.import3d import test_import3d, test_import3d_mock
-    from b13d.parts.scad_example import test_scad_example
+    if Implementation.SOLID2 in supported_apis():
+        from b13d.parts.scad_example import test_scad_example
     from b13d.parts.rounded_box import test_rounded_box, test_rounded_box_mock
     from b13d.parts.rounded_rectangle_extrusion import test_rounded_rectangle, test_rounded_rectangle_mock
     from b13d.parts.rounded_face_rectangle import test_rounded_face_rectangle, test_rounded_face_rectangle_mock

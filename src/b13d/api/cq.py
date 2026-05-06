@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
-import cadquery as cq
 import copy
 import math
 import os
@@ -11,9 +10,16 @@ from typing import Union
 
 import numpy as np
 from scipy.spatial import ConvexHull
-from OCP.BRepBuilderAPI import BRepBuilderAPI_Sewing
-from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
-from OCP.gp import gp_Pnt
+
+try:
+    import cadquery as cq
+    from OCP.BRepBuilderAPI import BRepBuilderAPI_Sewing
+    from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
+    from OCP.gp import gp_Pnt
+    CQ_AVAILABLE = True
+except ImportError:
+    cq = None
+    CQ_AVAILABLE = False
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
@@ -26,14 +32,17 @@ from b13d.conversion.svg2dxf import svg2dxf_wrapper
     Encapsulate CAD Query implementation specific calls
 """
 
-CQ_EXPORTERS = {
-    ".stl": cq.exporters.ExportTypes.STL,
-    ".step": cq.exporters.ExportTypes.STEP,
-    ".svg": cq.exporters.ExportTypes.SVG,
-    ".dxf": cq.exporters.ExportTypes.DXF,
-    ".tjs": cq.exporters.ExportTypes.TJS,
-    ".vrml": cq.exporters.ExportTypes.VRML,
-}
+if CQ_AVAILABLE:
+    CQ_EXPORTERS = {
+        ".stl": cq.exporters.ExportTypes.STL,
+        ".step": cq.exporters.ExportTypes.STEP,
+        ".svg": cq.exporters.ExportTypes.SVG,
+        ".dxf": cq.exporters.ExportTypes.DXF,
+        ".tjs": cq.exporters.ExportTypes.TJS,
+        ".vrml": cq.exporters.ExportTypes.VRML,
+    }
+else:
+    CQ_EXPORTERS = {}
 
 class CQShapeAPI(ShapeAPI):
 

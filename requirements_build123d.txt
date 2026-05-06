@@ -1,0 +1,26 @@
+numpy>=2,<3
+nlopt==2.7.1
+trimesh==4.4.8
+manifold3d<=2.5.1 # 3.0.0 # 3.0.1 causes pylele1 to crash with segmentation fault
+pillow
+shapely
+scipy
+networkx
+pyglet<2
+fonttools
+# solidpython2<=2.1.1 # for enveloping worm
+numpy-stl
+packaging
+json-tricks
+openpyxl
+# html-testRunner
+prettytable
+
+# b1scad
+# sly
+# svgpathtools
+# svg2dxf
+# svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
+
+# Build123d backend (bd)
+build123d==0.10.0

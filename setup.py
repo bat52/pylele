@@ -20,22 +20,14 @@ setup(
     install_requires=[
         "numpy==1.26.4",
         "nlopt==2.7.1",
-        "cadquery<=2.5.2",
-        # "bpy==4.0.0; python_version < '3.11'",
-        # "fake-bpy-module-4.0; python_version < '3.11'",
-        "bpy==4.5.1; python_version == '3.11'",
-        "fake-bpy-module-4.1; python_version == '3.11'",
         "trimesh==4.4.8",
-        "mathutils",
-        "manifold3d<=2.5.1", # 3.0.1 causes pylele1 to crash with segmentation fault
+        "manifold3d<=2.5.1",
         "pillow",
         "shapely",
         "scipy",
         "networkx",
         "pyglet<2",
         "fonttools",
-        "build123d==0.10.0",
-        "solidpython2<=2.1.1", # for enveloping worm
         "numpy-stl",
         "packaging",
         "json-tricks",
@@ -46,6 +38,24 @@ setup(
         "svgpathtools",
         "svg2dxf @ git+https://github.com/multigcs/svg2dxf@main"
       ],
+    extras_require={
+        "blender": [
+            "bpy==4.0.0; python_version < '3.11'",
+            "bpy==4.5.1; python_version == '3.11'",
+            "fake-bpy-module-4.0; python_version < '3.11'",
+            "fake-bpy-module-4.1; python_version == '3.11'",
+            "mathutils==3.3.0; python_version <= '3.11'",
+        ],
+        "cadquery": [
+            "cadquery<=2.5.2",
+        ],
+        "build123d": [
+            "build123d==0.10.0",
+        ],
+        "solidpython2": [
+            "solidpython2<=2.1.1",
+        ],
+    },
     entry_points={
         "console_scripts": [
             "pylele1=pylele.pylele1.main:pylele_main",

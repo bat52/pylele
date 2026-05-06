@@ -162,7 +162,7 @@ class RoundedRectangle(Solid):
     def gen(self) -> Shape:
         """ generate rounded box """
         
-        if self.cli.implementation in [Implementation.CADQUERY, Implementation.BLENDER, Implementation.MOCK]:
+        if self.cli.implementation in [Implementation.CADQUERY, Implementation.BLENDER, Implementation.MOCK, Implementation.BUILD123D]:
             # apis that support fillet
             # return self.gen_fillet()
             return self.gen_default()
