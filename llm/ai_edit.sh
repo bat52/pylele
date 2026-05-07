@@ -16,9 +16,9 @@ resolve_api_key() {
         return
     fi
 
-    # 3. AIDER_API_KEY env var (legacy, treated as openrouter)
+    # 3. AIDER_API_KEY env var (legacy, treated as deepseek)
     if [[ -n "${AIDER_API_KEY:-}" ]]; then
-        echo "openrouter:$AIDER_API_KEY"
+        echo "deepseek:$AIDER_API_KEY"
         return
     fi
 
