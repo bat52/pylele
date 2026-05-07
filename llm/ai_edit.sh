@@ -6,17 +6,24 @@ set -euo pipefail
 resolve_api_key() {
     # 1. explicit --api-key / -k flag (already parsed into API_KEY variable)
     if [[ -n "${API_KEY:-}" ]]; then
-        echo "$API_KEY"
+        echo "explicit:$API_KEY"
         return
     fi
 
-    # 2. AIDER_API_KEY env var
+    # 2. OPENROUTER_API_KEY env var
+    if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
+        echo "openrouter:$OPENROUTER_API_KEY"
+        return
+    fi
+
+    # 3. AIDER_API_KEY env var (legacy, treated as deepseek)
     if [[ -n "${AIDER_API_KEY:-}" ]]; then
-        echo "$AIDER_API_KEY"
+        echo "deepseek:$AIDER_API_KEY"
         return
     fi
 
-    # 3. Cline's DeepSeek key from ~/.cline/data/secrets.json
+
+    # 4. Cline's DeepSeek key from ~/.cline/data/secrets.json
     local secrets_file="$HOME/.cline/data/secrets.json"
     if [[ -f "$secrets_file" ]]; then
         local deepseek_key
@@ -32,7 +39,7 @@ except Exception:
     pass
 " 2>/dev/null)
         if [[ -n "$deepseek_key" ]]; then
-            echo "$deepseek_key"
+            echo "deepseek:$deepseek_key"
             return
         fi
     fi
@@ -43,6 +50,7 @@ except Exception:
 
 # --- Argument parsing ---
 API_KEY=""
+MODEL_NAME=""
 POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -64,12 +72,31 @@ while [[ $# -gt 0 ]]; do
             API_KEY="${1#??}"
             shift
             ;;
+        --model|-m)
+            if [[ -n "${2:-}" ]]; then
+                MODEL_NAME="$2"
+                shift 2
+            else
+                echo "ERROR: --model requires a value"
+                exit 1
+            fi
+            ;;
+        --model=*)
+            MODEL_NAME="${1#*=}"
+            shift
+            ;;
+        -m*)
+            MODEL_NAME="${1#??}"
+            shift
+            ;;
         --help|-h)
-            echo "Usage: ai_edit.sh [--api-key KEY] \"instruction\" [files...]"
+            echo "Usage: ai_edit.sh [--api-key KEY] [--model MODEL] \"instruction\" [files...]"
             echo ""
             echo "Options:"
-            echo "  --api-key KEY, -k KEY   API key for aider (overrides AIDER_API_KEY env var)"
-            echo "  --help, -h              Show this help message"
+            echo "  --api-key KEY, -k KEY       API key for aider (e.g., 'deepseek=KEY' or 'openrouter=KEY')"
+            echo "                              Overrides OPENROUTER_API_KEY or AIDER_API_KEY env vars"
+            echo "  --model MODEL, -m MODEL     Model to use (e.g., 'deepseek/deepseek-coder', 'openrouter/google/gemini-2.5-flash')"
+            echo "  --help, -h                  Show this help message"
             exit 0
             ;;
         --)
@@ -94,7 +121,7 @@ set -- "${POSITIONAL_ARGS[@]}"
 MSG="${1:-}"
 
 if [[ -z "$MSG" ]]; then
-    echo "Usage: ai_edit.sh [--api-key KEY] \"instruction\" [files...]"
+    echo "Usage: ai_edit.sh [--api-key KEY] [--model MODEL] \"instruction\" [files...]"
     exit 1
 fi
 
@@ -130,15 +157,45 @@ echo "$MSG" >> .ai_logs/history.log
 echo "---" >> .ai_logs/history.log
 
 # Resolve API key
-RESOLVED_KEY=$(resolve_api_key)
+RESOLVED_KEY_PROVIDER=$(resolve_api_key)
+KEY=""
+PROVIDER=""
 
-if [[ -z "$RESOLVED_KEY" ]]; then
-    echo "ERROR: No API key found. Provide via --api-key, AIDER_API_KEY env var, or ~/.cline/data/secrets.json"
+if [[ -n "$RESOLVED_KEY_PROVIDER" ]]; then
+    IFS=':' read -r PROVIDER KEY <<< "$RESOLVED_KEY_PROVIDER"
+fi
+
+if [[ -z "$KEY" ]]; then
+    echo "ERROR: No API key found. Provide via --api-key, OPENROUTER_API_KEY/AIDER_API_KEY env vars, or ~/.cline/data/secrets.json"
     exit 1
 fi
 
-# Invoke aider with resolved key
-aider --api-key deepseek="$RESOLVED_KEY" --message "$MSG" "${FILES[@]}"
+# Determine model to use
+if [[ -z "$MODEL_NAME" ]]; then
+    if [[ "$PROVIDER" == "openrouter" ]]; then
+        MODEL_NAME="openrouter/google/gemini-2.5-flash"
+    else
+        MODEL_NAME="deepseek/deepseek-coder"
+    fi
+fi
+
+# Invoke aider with resolved key and model
+if [[ "$PROVIDER" == "openrouter" ]]; then
+    aider --api-key openrouter="$KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
+elif [[ "$PROVIDER" == "deepseek" || "$PROVIDER" == "explicit" ]]; then
+    # If explicit --api-key was provided, it might have a provider prefix (e.g., deepseek=...)
+    # In this case, use it directly as aider expects.
+    # Otherwise, assume deepseek if no provider prefix was given in API_KEY.
+    if [[ "${API_KEY}" == *"="* && "$PROVIDER" == "explicit" ]]; then
+        aider --api-key "$API_KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
+    else
+        aider --api-key deepseek="$KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
+    fi
+else
+    # Fallback for unknown provider, assume deepseek for now
+    aider --api-key deepseek="$KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
+fi
+
 
 NOQA_COUNT=$(git diff HEAD~1 | grep -c "# noqa" || true)
 
