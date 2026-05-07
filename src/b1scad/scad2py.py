@@ -5,14 +5,13 @@
 # scad_parser.py
 from __future__ import annotations
 import textwrap
-from sly import Parser, _
+from sly import Parser
 
 import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
 from b13d.api.utils import gen_scad_foo, snake2camel, file_replace_extension
 from b1scad.scad2ast import scad2ast, OpenSCADLexer
-from b1scad.scad2ast import *
 from b1scad.ast_nodes import (
     ASTNode, Module, NumberLiteral, VectorLiteral, Identifier,
     BinaryOp, UnaryOp, TernaryOp, ShapeCall, Transform, BooleanOp,
@@ -40,6 +39,8 @@ class OpenSCADParser(Parser):
         ('right', UMINUS, NOT),
         ('left', CARET),
     )
+
+    _ = Parser._
 
     def __init__(self):
         self.result = []
