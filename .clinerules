@@ -30,10 +30,10 @@
 - Never output inline patches or diffs.
 - Never assume in-memory repository state after mutations.
 - All repository mutations MUST go through:
-    ./ai_edit.sh
+    llm/ai_edit.sh
 
 - Repository/codebase intelligence queries SHOULD go through:
-    ./ai_query.sh
+    llm/ai_query.sh
 
 - Always prefer shell execution over internal editing.
 
@@ -44,7 +44,7 @@
 
 All code modifications MUST use:
 
-    ./ai_edit.sh [--api-key KEY] "<instruction>" <files>
+    llm/ai_edit.sh [--api-key KEY] "<instruction>" <files>
 
 Requirements:
 - Always specify explicit target files.
@@ -61,7 +61,7 @@ Requirements:
 
 For repository understanding, prefer:
 
-    ./ai_query.sh "<query>"
+    llm/ai_query.sh "<query>"
 
 Use ai_query.sh for:
 - locating implementations
@@ -84,12 +84,12 @@ Instructions sent to ai_edit.sh MUST be:
 - atomic
 
 GOOD:
-    ./ai_edit.sh \
+    llm/ai_edit.sh \
       "Add API key authentication support to auth.py and config.py. Preserve existing password login behavior." \
       auth.py config.py
 
 BAD:
-    ./ai_edit.sh "improve authentication"
+    llm/ai_edit.sh "improve authentication"
 
 
 # ============================================================
@@ -141,8 +141,8 @@ After every ai_edit.sh execution:
 # ============================================================
 
 Preferred:
-- ./ai_query.sh
-- ./ai_edit.sh
+- llm/ai_query.sh
+- llm/ai_edit.sh
 - git
 - targeted shell commands
 - targeted file reads
@@ -176,10 +176,10 @@ Prefer many small commits over giant changes.
 
 Before any repository mutation, verify:
 
-1. Am I using ./ai_edit.sh?
+1. Am I using llm/ai_edit.sh?
 2. Did I specify explicit target files?
 3. Is this a single atomic change?
-4. Should repository understanding be delegated to ai_query.sh first?
+4. Should repository understanding be delegated to llm/ai_query.sh first?
 5. Do I need to re-read repository state after execution?
 
 If any answer is NO:
@@ -193,10 +193,10 @@ If any answer is NO:
 
 Correct behavior:
 
-    ./ai_query.sh \
+    llm/ai_query.sh \
       "Identify authentication entry points and relevant files"
 
-    ./ai_edit.sh \
+    llm/ai_edit.sh \
       "Add API key authentication support while preserving existing login behavior" \
       auth.py middleware/auth.py config.py
 
