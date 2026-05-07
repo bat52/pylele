@@ -5,7 +5,7 @@
 # scad_parser.py
 from __future__ import annotations
 import textwrap
-from sly import Parser
+from sly import Parser, _
 
 import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
@@ -35,10 +35,10 @@ class OpenSCADParser(Parser):
 
     # Precedence and associativity (lowest to highest)
     precedence = (
-        ('left', PLUS, MINUS),
-        ('left', TIMES, DIVIDE, MOD),
-        ('right', UMINUS, NOT),
-        ('left', CARET),
+        ('left', 'PLUS', 'MINUS'),
+        ('left', 'TIMES', 'DIVIDE', 'MOD'),
+        ('right', 'UMINUS', 'NOT'),
+        ('left', 'CARET'),
     )
 
     def __init__(self):
