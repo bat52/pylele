@@ -1507,9 +1507,47 @@ class AstToPython:
         body = self.visit(node.body)
         return f"__import__('functools').reduce(lambda a,b:a+b, [{body} for {var} in {values}])"
 
+    def _substitute_vars(self, node: ASTNode, var_map: dict) -> ASTNode:
+        if node is None:
+            return None
+        if isinstance(node, Identifier) and node.name in var_map:
+            return var_map[node.name]
+        # Recursively substitute in child nodes
+        for attr_name in dir(node):
+            if attr_name.startswith('_'):
+                continue
+            try:
+                attr = getattr(node, attr_name)
+            except Exception:
+                continue
+            if isinstance(attr, ASTNode):
+                setattr(node, attr_name, self._substitute_vars(attr, var_map))
+            elif isinstance(attr, list):
+                new_list = []
+                for item in attr:
+                    if isinstance(item, ASTNode):
+                        new_list.append(self._substitute_vars(item, var_map))
+                    else:
+                        new_list.append(item)
+                setattr(node, attr_name, new_list)
+            elif isinstance(attr, dict):
+                new_dict = {}
+                for k, v in attr.items():
+                    if isinstance(v, ASTNode):
+                        new_dict[k] = self._substitute_vars(v, var_map)
+                    else:
+                        new_dict[k] = v
+                setattr(node, attr_name, new_dict)
+        return node
+
     def visit_LetBinding(self, node: LetBinding) -> str:
-        body = self.visit(node.body)
-        return body
+        # Build substitution map from let-bindings
+        var_map = {}
+        for assign in node.assignments:
+            var_map[assign.name] = assign.value
+        # Substitute variables in body
+        body = self._substitute_vars(node.body, var_map)
+        return self.visit(body)
 
     def visit_FunctionDef(self, node: FunctionDef) -> str:
         self.helper_functions[node.name] = node
