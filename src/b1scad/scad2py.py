@@ -1235,6 +1235,8 @@ class AstToPython:
         return self._inline_vars(node.statements)
 
     def visit_Block(self, node: Block) -> str:
+        # Blocks inherit the current variable map (passed via parent_var_map)
+        # but we don't have it here; _inline_vars will start fresh if no parent_var_map given.
         return self._inline_vars(node.statements)
 
     def visit_NumberLiteral(self, node: NumberLiteral) -> str:
@@ -1282,29 +1284,39 @@ class AstToPython:
         false_expr = self.visit(node.false_expr)
         return f"({true_expr} if {cond} else {false_expr})"
 
-    def _inline_vars(self, statements: list[ASTNode]) -> str:
+    def _inline_vars(self, statements: list[ASTNode], parent_var_map: dict[str, ASTNode] | None = None) -> str:
         """Collect assignments and inline variable references in subsequent statements.
         
         SCAD variables are constants (no mutation), so we can substitute their
         values directly wherever they are referenced. This avoids generating
         invalid Python like 'x=10 + self.api.box(x,x,x)'.
+        
+        Variables are only substituted in statements that appear *after* their
+        assignment. Nested blocks (Block nodes) get their own scope: they start
+        with a copy of the current var_map, but assignments inside the block
+        do not leak out.
         """
-        # First pass: collect all assignments into a substitution map
+        # Start with the parent's variable map (if any)
         var_map: dict[str, ASTNode] = {}
+        if parent_var_map is not None:
+            var_map.update(parent_var_map)
+        
+        parts: list[str] = []
         for stmt in statements:
             if isinstance(stmt, Assignment):
+                # Record the assignment for later statements
                 var_map[stmt.name] = stmt.value
-        
-        if not var_map:
-            # No assignments - just concatenate as before
-            parts = [self.visit(s) for s in statements]
-            return " + ".join(p for p in parts if p)
-        
-        # Second pass: process non-assignment statements with variable substitution
-        parts = []
-        for stmt in statements:
-            if isinstance(stmt, Assignment):
-                continue  # assignments contribute no geometry
+                # Assignments contribute no geometry
+                continue
+            
+            if isinstance(stmt, Block):
+                # Nested block gets its own scope: pass a *copy* of the current var_map
+                rendered = self._inline_vars(stmt.statements, dict(var_map))
+                if rendered:
+                    parts.append(rendered)
+                continue
+            
+            # For any other statement, substitute using the current var_map
             substituted = _replace_identifiers(stmt, var_map)
             rendered = self.visit(substituted)
             if rendered:
