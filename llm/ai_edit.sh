@@ -16,9 +16,9 @@ resolve_api_key() {
         return
     fi
 
-    # 3. AIDER_API_KEY env var (legacy, treated as deepseek)
+    # 3. AIDER_API_KEY env var (legacy, treated as openrouter)
     if [[ -n "${AIDER_API_KEY:-}" ]]; then
-        echo "deepseek:$AIDER_API_KEY"
+        echo "openrouter:$AIDER_API_KEY"
         return
     fi
 
@@ -172,28 +172,26 @@ fi
 
 # Determine model to use
 if [[ -z "$MODEL_NAME" ]]; then
-    if [[ "$PROVIDER" == "openrouter" ]]; then
-        MODEL_NAME="openrouter/google/gemini-2.5-flash"
-    else
+    if [[ "$PROVIDER" == "deepseek" ]]; then
         MODEL_NAME="deepseek/deepseek-coder"
+    else
+        MODEL_NAME="openrouter/google/gemini-2.5-flash"
     fi
 fi
 
 # Invoke aider with resolved key and model
 if [[ "$PROVIDER" == "openrouter" ]]; then
-    aider --api-key openrouter="$KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
-elif [[ "$PROVIDER" == "deepseek" || "$PROVIDER" == "explicit" ]]; then
+    aider --api-key "openrouter=$KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
+elif [[ "$PROVIDER" == "deepseek" ]]; then
+    aider --api-key "deepseek=$KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
+elif [[ "$PROVIDER" == "explicit" ]]; then
     # If explicit --api-key was provided, it might have a provider prefix (e.g., deepseek=...)
-    # In this case, use it directly as aider expects.
-    # Otherwise, assume deepseek if no provider prefix was given in API_KEY.
-    if [[ "${API_KEY}" == *"="* && "$PROVIDER" == "explicit" ]]; then
-        aider --api-key "$API_KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
-    else
-        aider --api-key deepseek="$KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
-    fi
+    # Use it directly as aider expects.
+    aider --api-key "$API_KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
 else
-    # Fallback for unknown provider, assume deepseek for now
-    aider --api-key deepseek="$KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
+    # Fallback for unknown provider or if specific provider not detected from explicit key
+    # Default to openrouter
+    aider --api-key "openrouter=$KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
 fi
 
 
