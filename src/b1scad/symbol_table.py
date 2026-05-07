@@ -147,3 +147,20 @@ class SymbolTable:
         self.current_scope = self.root_scope
         self.scopes_stack = [self.root_scope]
         self.errors = []
+
+    def merge_from_use(self, other: "SymbolTable") -> "SymbolTable":
+        """Merge symbols from another SymbolTable's root scope into the current scope.
+
+        Only imports 'module' and 'function' type symbols (not variables).
+        Returns self for chaining.
+        """
+        for name, sym in other.root_scope.get_all_symbols().items():
+            if sym.symbol_type in ("module", "function"):
+                self.define(
+                    name,
+                    sym.symbol_type,
+                    value=sym.value,
+                    parameters=sym.parameters,
+                    line=sym.line,
+                )
+        return self
