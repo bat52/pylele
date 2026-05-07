@@ -140,6 +140,14 @@ fi
 # Invoke aider with resolved key
 aider --api-key deepseek="$RESOLVED_KEY" --message "$MSG" "${FILES[@]}"
 
+NOQA_COUNT=$(git diff HEAD~1 | grep -c "# noqa" || true)
+
+if [[ "$NOQA_COUNT" -gt 3 ]]; then
+    echo "ERROR: excessive noqa additions detected"
+    git reset --hard HEAD~1
+    exit 1
+fi
+
 echo
 echo "========================================"
 echo "POST-EDIT STATUS"
