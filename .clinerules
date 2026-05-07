@@ -1,294 +1,323 @@
 # ============================================================
-# Cline + Aider Controlled Workflow
+# Multi-Agent Workflow Specification
 # ============================================================
-
-# Architecture
 #
-# Cline:
-#   - planning
-#   - orchestration
-#   - shell execution
-#   - test/build execution
-#   - workflow management
-#   - repository intelligence via depwire MCP tools
+# This file defines a modular orchestration layer for Cline.
+# Cline acts as the Orchestrator, delegating specialized work
+# to Agent Roles via abstract Model Tiers and reusable Workflow
+# Blocks.
 #
-# Aider:
-#   - ai_query.sh (semantic fallback only)
-#   - code search
-#   - code mutation
-#   - commit generation
+# Architecture:
+#
+#   Orchestrator (Cline)
+#     ├── Planner Agent        (TIER_REASONING)
+#     ├── Repo Intelligence    (depwire MCP)
+#     ├── Reasoning Agent      (TIER_REASONING)
+#     ├── Mutation Agent       (Aider + TIER_CODING)
+#     └── Fast Query Agent     (TIER_FAST)
 #
 # Git commits are the source of truth.
 # Filesystem state must always be re-read after mutations.
 
+# ============================================================
+# 1. Agent Roles
+# ============================================================
+#
+# Each agent role has a defined scope, allowed tools, and
+# explicit prohibitions.
+
+# --- Orchestrator (Cline) ---
+# Responsibility: High-level task management, workflow selection,
+#   tool execution, state tracking, agent dispatch.
+# Allowed: shell commands, targeted file reads, git, test/build
+#   execution, depwire MCP invocation, ai_query.sh invocation,
+#   ai_edit.sh invocation.
+# NOT allowed: direct code editing, inline patch generation,
+#   monolithic refactors, uncontrolled exploration.
+# Input: User task description.
+# Output: Completed task or escalated failure.
+
+# --- Planner Agent ---
+# Responsibility: Task decomposition, strategy formulation,
+#   implementation sequencing, risk assessment.
+# Allowed: Reasoning via TIER_REASONING model, reading plan docs.
+# NOT allowed: code mutation, repository scanning, tool execution.
+# Input: Task description + repo context from Orchestrator.
+# Output: Structured plan (implementation_plan.md or equivalent).
+
+# --- Repo Intelligence Agent ---
+# Responsibility: Structural repository analysis, symbol lookup,
+#   dependency mapping, impact analysis.
+# Allowed: depwire MCP tools (search_symbols, impact_analysis,
+#   get_dependencies, get_dependents, get_architecture_summary).
+# NOT allowed: semantic reasoning, code mutation, file editing.
+# Input: Structural query from Orchestrator.
+# Output: Structured data (symbol locations, dependency graphs).
+
+# --- Reasoning Agent ---
+# Responsibility: Complex logic, semantic code comprehension,
+#   design intent analysis, natural-language code understanding.
+# Allowed: ai_query.sh with TIER_REASONING model.
+# NOT allowed: structural queries (delegate to Repo Intelligence),
+#   code mutation, file editing.
+# Input: Semantic query from Orchestrator.
+# Output: Natural-language analysis or explanation.
+
+# --- Mutation Agent ---
+# Responsibility: Atomic code edits, commit generation.
+# Allowed: llm/ai_edit.sh with TIER_CODING model.
+# NOT allowed: planning, exploration, structural analysis,
+#   multi-file refactors in a single invocation.
+# Input: Explicit, scoped, atomic instruction + target files.
+# Output: Git commit with changes.
+
+# --- Fast Query Agent ---
+# Responsibility: Lightweight semantic checks, quick lookups,
+#   simple code comprehension.
+# Allowed: ai_query.sh with TIER_FAST model.
+# NOT allowed: structural queries, complex reasoning, mutation.
+# Input: Simple semantic query.
+# Output: Brief answer.
 
 # ============================================================
-# Core Rules
+# 2. Model Tiers
 # ============================================================
+#
+# Abstract tiers decouple workflow logic from specific models.
+# Map each tier to a concrete model in a single location.
 
-- Never modify files directly.
-- Never use built-in editing/write tools.
-- Never output inline patches or diffs.
-- Never assume in-memory repository state after mutations.
-- All repository mutations MUST go through:
-    llm/ai_edit.sh
+# TIER_REASONING: High-intelligence models for planning and
+#   complex reasoning. Examples: Claude 3.5 Sonnet, GPT-4o,
+#   Gemini 2.5 Pro.
+#   Used by: Planner Agent, Reasoning Agent.
 
-- Repository/codebase intelligence queries SHOULD go through:
-    llm/ai_query.sh
-- Repository intelligence queries MUST preferentially use depwire MCP tools over ai_query.sh for structural questions (symbol location, dependencies, impact analysis). Use ai_query.sh only as a semantic fallback when depwire cannot answer.
+# TIER_CODING: Models optimized for code generation and editing.
+#   Examples: DeepSeek Coder, Claude 3.5 Haiku.
+#   Used by: Mutation Agent.
 
-- Always prefer shell execution over internal editing.
+# TIER_FAST: Low-latency, high-context models for quick queries.
+#   Examples: Gemini 2.0 Flash, GPT-4o Mini.
+#   Used by: Fast Query Agent.
 
+# Default model mapping (override via --model flag):
+#   TIER_REASONING → openrouter/google/gemini-2.5-flash
+#   TIER_CODING    → openrouter/deepseek/deepseek-coder
+#   TIER_FAST      → openrouter/google/gemini-2.5-flash
 
-# ============================================================
-# Mutation Protocol
-# ============================================================
-
-All code modifications MUST use:
-
-    llm/ai_edit.sh [--api-key KEY] [--model MODEL] "<instruction>" <files>
-
-Requirements:
-- Always specify explicit target files.
-- Keep edits atomic and narrowly scoped.
-- One logical change per invocation.
-- Re-read repository state after execution.
-- Assume ai_edit.sh creates a git commit.
-- API key resolution order: --api-key flag > OPENROUTER_API_KEY env var > AIDER_API_KEY env var > DeepSeekApiKey from ~/.cline/data/secrets.json
-
+# Routing rules:
+# - Never use a coding model for repo-wide reasoning.
+# - Never use TIER_FAST for final patch correctness when
+#   multiple files are affected.
+# - TIER_REASONING may be used for planning, debugging, and
+#   complex refactoring analysis.
 
 # ============================================================
-# Query Protocol
+# 3. Workflow Blocks
 # ============================================================
+#
+# Reusable sequences for common tasks. The Orchestrator selects
+# a workflow based on task intent classification.
 
-For repository understanding, prefer depwire MCP tools for structural questions:
+# --- EXPLORE_REPO_WORKFLOW ---
+# Purpose: Understand a new codebase or feature area.
+# Trigger: Task requires understanding unfamiliar code.
+# Steps:
+#   1. Orchestrator classifies intent → EXPLORE_REPO
+#   2. Orchestrator dispatches Repo Intelligence Agent for
+#      structural overview (get_architecture_summary, list_files)
+#   3. Orchestrator dispatches Repo Intelligence Agent for
+#      targeted symbol lookups (search_symbols) as needed
+#   4. Orchestrator reads key files identified in step 2-3
+#   5. If semantic understanding is needed, Orchestrator
+#      dispatches Fast Query Agent (TIER_FAST)
+#   6. Orchestrator summarizes findings
+# Output: Structured understanding of the relevant code area.
 
-    search_symbols
-    impact_analysis
-    get_dependencies
-    get_dependents
-    get_architecture_summary
+# --- PLAN_CHANGE_WORKFLOW ---
+# Purpose: Architect a solution before implementation.
+# Trigger: Task requires structural changes or new features.
+# Steps:
+#   1. Orchestrator classifies intent → PLAN_CHANGE
+#   2. Orchestrator dispatches Repo Intelligence Agent for
+#      impact analysis (impact_analysis, get_dependents)
+#   3. Orchestrator dispatches Reasoning Agent (TIER_REASONING)
+#      to formulate implementation strategy
+#   4. Orchestrator writes implementation_plan.md
+#   5. Orchestrator presents plan for review
+# Output: Approved implementation plan.
 
-Use ai_query.sh only as a semantic fallback when depwire cannot answer (e.g., natural-language code comprehension, design intent). It also supports an optional `--model` flag.
+# --- IMPLEMENT_CHANGE_WORKFLOW ---
+# Purpose: Execute atomic code mutations with verification.
+# Trigger: Approved plan ready for execution.
+# Steps:
+#   1. Orchestrator classifies intent → LOCAL_EDIT or
+#      COMPLEX_REFACTOR
+#   2. Orchestrator selects next atomic change from plan
+#   3. Orchestrator dispatches Mutation Agent (Aider +
+#      TIER_CODING) with explicit, scoped instruction
+#   4. Orchestrator re-reads repository state from disk
+#   5. Orchestrator runs tests / validation
+#   6. If tests pass, repeat from step 2 for next change
+#   7. If tests fail, Orchestrator dispatches Debug Workflow
+# Output: Verified, committed changes.
 
-Avoid recursive repository exploration when possible.
+# --- DEBUG_WORKFLOW ---
+# Purpose: Root cause analysis and regression fixing.
+# Trigger: Test failure or unexpected behavior.
+# Steps:
+#   1. Orchestrator classifies intent → DEBUGGING
+#   2. Orchestrator dispatches Repo Intelligence Agent for
+#      dependency analysis of failing code
+#   3. Orchestrator dispatches Reasoning Agent (TIER_REASONING)
+#      for root cause analysis
+#   4. Orchestrator formulates fix plan
+#   5. Orchestrator dispatches Mutation Agent for fix
+#   6. Orchestrator re-reads state and re-runs tests
+#   7. If fix fails, Orchestrator escalates (see Fallback)
+# Output: Fixed, verified code.
 
-
-# ============================================================
-# Instruction Quality Rules
-# ============================================================
-
-Instructions sent to ai_edit.sh MUST be:
-- explicit
-- deterministic
-- scoped
-- atomic
-
-GOOD:
-    llm/ai_edit.sh \
-      "Add API key authentication support to auth.py and config.py. Preserve existing password login behavior." \
-      auth.py config.py
-
-BAD:
-    llm/ai_edit.sh "improve authentication"
-
-
-# ============================================================
-# Workflow Loop
-# ============================================================
-
-For every task:
-
-1. Understand the task
-2. Query repository structure if needed using depwire MCP tools (fall back to ai_query.sh for semantic questions)
-3. Decide the next atomic modification
-4. Execute exactly one ai_edit.sh command
-5. Re-read repository state from disk
-6. Continue iteratively
-7. Track token use reported by ai_query.sh and ai_edit.sh
-
-Never batch large unrelated changes.
-
-
-# ============================================================
-# Repository Search Policy
-# ============================================================
-
-Prefer:
-- depwire MCP tools (search_symbols, impact_analysis, get_dependencies, get_dependents, get_architecture_summary)
-- targeted grep
-- targeted file reads
-
-Avoid:
-- ai_query.sh for structural queries (depwire should handle those)
-- repeatedly reopening the same files
-- broad recursive exploration
-- unnecessary full-file reads
-- uncontrolled repository scanning
-
-
-# ============================================================
-# State Management
-# ============================================================
-
-After every ai_edit.sh execution:
-- assume files changed externally
-- re-read state from disk
-- do not trust prior assumptions
-- use git history as progress tracking
-
-
-# ============================================================
-# Tooling Priorities
-# ============================================================
-
-Preferred:
-- depwire MCP tools
-- llm/ai_query.sh
-- llm/ai_edit.sh
-- git
-- targeted shell commands
-- targeted file reads
-
-Avoid:
-- direct editing tools
-- large speculative edits
-- monolithic refactors
-- uncontrolled autonomous exploration
-
+# --- REFACTOR_WORKFLOW ---
+# Purpose: Structural improvements without behavior change.
+# Trigger: Code quality improvements, tech debt reduction.
+# Steps:
+#   1. Orchestrator classifies intent → COMPLEX_REFACTOR
+#   2. Orchestrator dispatches Repo Intelligence Agent for
+#      full impact analysis
+#   3. Orchestrator dispatches Reasoning Agent (TIER_REASONING)
+#      for refactoring strategy
+#   4. Orchestrator creates refactoring plan
+#   5. For each atomic refactoring step:
+#      a. Orchestrator dispatches Mutation Agent
+#      b. Orchestrator re-reads state
+#      c. Orchestrator runs tests
+#   6. If any step fails, Orchestrator dispatches Debug Workflow
+# Output: Refactored, verified code.
 
 # ============================================================
-# Operational Principles
+# 4. Communication & State Protocol
 # ============================================================
+#
+# Defines how agents hand off work and maintain state.
 
-Optimize for:
-- deterministic edits
-- low token usage
-- clean git history
-- atomic commits
-- minimal context growth
-- reproducibility
-- stable long-running workflows
+# Handoff mechanism:
+# - Orchestrator is the sole dispatcher. Agents do not call
+#   other agents directly.
+# - Each agent invocation is a synchronous call from
+#   Orchestrator.
+# - Output from one agent is passed as input context to the
+#   next agent in the workflow.
 
-Prefer many small commits over giant changes.
-
-
-# ============================================================
-# Self-Check Before Every Modification
-# ============================================================
-
-Before any repository mutation, verify:
-
-1. Am I using llm/ai_edit.sh?
-2. Did I specify explicit target files?
-3. Is this a single atomic change?
-4. Should repository understanding be delegated to depwire MCP tools first (then ai_query.sh for semantic needs)?
-5. Do I need to re-read repository state after execution?
-
-If any answer is NO:
-- stop
-- reformulate the action
-
+# State management:
+# - Git commits are the source of truth for code state.
+# - After every Mutation Agent invocation, Orchestrator MUST
+#   re-read repository state from disk.
+# - Orchestrator MUST NOT assume in-memory state is valid
+#   after any mutation.
+# - Plan documents (implementation_plan.md) are the source of
+#   truth for planned work.
+# - Token usage from ai_query.sh and ai_edit.sh MUST be
+#   tracked and reported.
 
 # ============================================================
-# Expected Behavior
+# 5. Fallback & Escalation
 # ============================================================
+#
+# Defines behavior when an agent fails or produces unexpected
+# results.
 
-Correct behavior:
+# Agent failure types:
+# - Mutation Agent: ai_edit.sh exits non-zero or produces
+#   incorrect code.
+# - Repo Intelligence: depwire MCP returns empty or error.
+# - Reasoning Agent: ai_query.sh returns unclear analysis.
+# - Test failure: post-mutation tests fail.
 
-    llm/ai_query.sh \
-      "Identify authentication entry points and relevant files"
+# Escalation path:
+#   1. Orchestrator retries the failed agent once with
+#      additional context about the failure.
+#   2. If retry fails, Orchestrator dispatches Reasoning Agent
+#      (TIER_REASONING) to analyze the failure.
+#   3. If Reasoning Agent provides a fix strategy, Orchestrator
+#      dispatches Mutation Agent with the corrected instruction.
+#   4. If Reasoning Agent cannot resolve, Orchestrator reports
+#      the failure to the user with full context and stops.
 
-    llm/ai_edit.sh \
-      "Add API key authentication support while preserving existing login behavior" \
-      auth.py middleware/auth.py config.py
-
-Incorrect behavior:
-- direct file edits
-- inline patch generation
-- giant multi-system refactors
-- uncontrolled repository exploration
-- assumptions about filesystem state
-
-Repository understanding MUST preferentially use depwire MCP tools.
-
-Prefer:
-- search_symbols
-- impact_analysis
-- get_dependencies
-- get_dependents
-- get_architecture_summary
-
-Avoid blind repository scanning when depwire can answer structurally.
-
-For every task:
-
-1. Classify intent into:
-   EXPLORE_REPO | PLAN_CHANGE | LOCAL_EDIT | COMPLEX_REFACTOR | DEBUGGING
-
-2. Select model:
-
-- EXPLORE_REPO → openrouter/google/gemini-2.5-flash
-- PLAN_CHANGE → openrouter/google/gemini-2.5-flash
-- LOCAL_EDIT → openrouter/deepseek/deepseek-coder
-- COMPLEX_REFACTOR → openrouter/deepseek/deepseek-chat
-- DEBUGGING → openrouter/deepseek/deepseek-chat (fallback openrouter/deepseek/deepseek-coder)
-
-3. Never use a coding model for repo-wide reasoning.
-
-4. Never use openrouter/google/gemini-2.5-flash for final patch correctness when multiple files are affected.
-
-5. All code changes MUST go through Aider.
-
+# Specific fallbacks:
+# - depwire MCP failure → fall back to ai_query.sh with
+#   TIER_FAST for structural queries.
+# - ai_edit.sh patch failure → fall back to ai_edit.sh with
+#   TIER_REASONING model for the same instruction.
+# - Test failure → dispatch DEBUG_WORKFLOW.
 
 # ============================================================
-# Routing Policy
+# 6. Core Rules
 # ============================================================
+#
+# Non-negotiable constraints that apply to all workflows.
 
-- EXPLORE_REPO: openrouter/google/gemini-2.5-flash
-- PLAN_CHANGE: openrouter/google/gemini-2.5-flash
-- LOCAL_EDIT: openrouter/deepseek/deepseek-coder
-- COMPLEX_REFACTOR: openrouter/deepseek/deepseek-chat
-- DEBUGGING: openrouter/deepseek/deepseek-chat (fallback openrouter/deepseek/deepseek-coder)
-
-Repository understanding MUST preferentially use depwire MCP tools.
-
-Prefer:
-- search_symbols
-- impact_analysis
-- get_dependencies
-- get_dependents
-- get_architecture_summary
-
-Avoid blind repository scanning when depwire can answer structurally.
-
-For every task:
-
-1. Classify intent into:
-   EXPLORE_REPO | PLAN_CHANGE | LOCAL_EDIT | COMPLEX_REFACTOR | DEBUGGING
-
-2. Select model:
-
-- EXPLORE_REPO → openrouter/google/gemini-2.5-flash
-- PLAN_CHANGE → openrouter/google/gemini-2.5-flash
-- LOCAL_EDIT → openrouter/deepseek/deepseek-coder
-- COMPLEX_REFACTOR → openrouter/deepseek/deepseek-chat
-- DEBUGGING → openrouter/deepseek/deepseek-chat (fallback openrouter/deepseek/deepseek-coder)
-
-3. Never use a coding model for repo-wide reasoning.
-
-4. Never use openrouter/google/gemini-2.5-flash for final patch correctness when multiple files are affected.
-
-5. All code changes MUST go through Aider.
-
+# - Never modify files directly.
+# - Never use built-in editing/write tools.
+# - Never output inline patches or diffs.
+# - All repository mutations MUST go through:
+#     llm/ai_edit.sh
+# - Repository intelligence queries MUST preferentially use
+#   depwire MCP tools over ai_query.sh for structural questions.
+# - Use ai_query.sh only as a semantic fallback when depwire
+#   cannot answer.
+# - Always prefer shell execution over internal editing.
+# - Never batch large unrelated changes.
+# - Prefer many small commits over giant changes.
 
 # ============================================================
-# Routing Policy
+# 7. Instruction Quality Rules
 # ============================================================
+#
+# Instructions sent to ai_edit.sh MUST be:
+# - explicit
+# - deterministic
+# - scoped
+# - atomic
 
-- EXPLORE_REPO: openrouter/google/gemini-2.5-flash
-- PLAN_CHANGE: openrouter/google/gemini-2.5-flash
-- LOCAL_EDIT: openrouter/deepseek/deepseek-coder
-- COMPLEX_REFACTOR: openrouter/deepseek/deepseek-chat
-- DEBUGGING: openrouter/deepseek/deepseek-chat (fallback openrouter/deepseek/deepseek-coder)
+# GOOD:
+#     llm/ai_edit.sh \
+#       "Add API key authentication support to auth.py and config.py. Preserve existing password login behavior." \
+#       auth.py config.py
 
+# BAD:
+#     llm/ai_edit.sh "improve authentication"
+
+# ============================================================
+# 8. Self-Check Before Every Mutation
+# ============================================================
+#
+# Before any repository mutation, verify:
+# 1. Am I using llm/ai_edit.sh?
+# 2. Did I specify explicit target files?
+# 3. Is this a single atomic change?
+# 4. Should repository understanding be delegated to depwire
+#    MCP tools first (then ai_query.sh for semantic needs)?
+# 5. Do I need to re-read repository state after execution?
+#
+# If any answer is NO: stop and reformulate the action.
+
+# ============================================================
+# 9. API Key Resolution
+# ============================================================
+#
+# Order of precedence for ai_edit.sh and ai_query.sh:
+# 1. --api-key / -k flag
+# 2. OPENROUTER_API_KEY env var
+# 3. AIDER_API_KEY env var (legacy, treated as deepseek)
+# 4. DeepSeekApiKey from ~/.cline/data/secrets.json
+
+# ============================================================
+# 10. Intent Classification & Workflow Selection
+# ============================================================
+#
+# For every task, classify intent and select workflow:
+
+# EXPLORE_REPO  → EXPLORE_REPO_WORKFLOW  → TIER_FAST
+# PLAN_CHANGE   → PLAN_CHANGE_WORKFLOW   → TIER_REASONING
+# LOCAL_EDIT    → IMPLEMENT_CHANGE_WORKFLOW → TIER_CODING
+# COMPLEX_REFACTOR → REFACTOR_WORKFLOW   → TIER_REASONING
+# DEBUGGING     → DEBUG_WORKFLOW         → TIER_REASONING
