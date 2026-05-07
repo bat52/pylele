@@ -181,7 +181,7 @@ Before any repository mutation, verify:
 1. Am I using llm/ai_edit.sh?
 2. Did I specify explicit target files?
 3. Is this a single atomic change?
-4. Should repository understanding be delegated to llm/ai_query.sh first?
+4. Should repository understanding be delegated to depwire MCP tools first (then ai_query.sh for semantic needs)?
 5. Do I need to re-read repository state after execution?
 
 If any answer is NO:
