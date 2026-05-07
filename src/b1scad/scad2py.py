@@ -1625,15 +1625,10 @@ class AstToPython:
                     params.append(pname)
             params_str = ", ".join(params)
             
-            # Generate method body
-            body_parts = []
-            for stmt in node.body.statements:
-                body_str = self.visit(stmt)
-                if body_str:
-                    body_parts.append(body_str)
+            # Generate method body using _inline_vars to handle variable assignments
+            body_expr = self._inline_vars(node.body.statements)
             
-            if body_parts:
-                body_expr = " + ".join(body_parts)
+            if body_expr:
                 if 'children()' in body_expr:
                     body_expr = body_expr.replace(
                         'children()',
