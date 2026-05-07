@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# flake8: noqa: F821
 
 """ converts scad to python """
 
