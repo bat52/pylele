@@ -967,6 +967,12 @@ class SymbolTableVisitor:
     def visit_UndefLiteral(self, node: UndefLiteral): pass
     def visit_Identifier(self, node: Identifier): pass
     def visit_SpecialVar(self, node: SpecialVar): pass
+    def visit_ChildrenRef(self, node: ChildrenRef) -> str:
+        if node.index:
+            return f'self.api.children({self.visit(node.index)})'
+        else:
+            return 'self.api.children()'
+    def visit_ChildrenRef(self, node: ChildrenRef): pass
 
 
 # ============================================================
@@ -1171,6 +1177,11 @@ def _replace_identifiers(node: ASTNode, var_map: dict[str, ASTNode]) -> ASTNode:
     if isinstance(node, Assert):
         new_msg = _replace_identifiers(node.message, var_map) if node.message else None
         return Assert(_replace_identifiers(node.condition, var_map), new_msg)
+    
+    # ChildrenRef
+    if isinstance(node, ChildrenRef):
+        new_index = _replace_identifiers(node.index, var_map) if node.index else None
+        return ChildrenRef(new_index)
     
     # IncludeDirective / UseDirective - pass through
     if isinstance(node, (IncludeDirective, UseDirective)):
