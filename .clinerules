@@ -46,7 +46,7 @@
 
 All code modifications MUST use:
 
-    llm/ai_edit.sh [--api-key KEY] "<instruction>" <files>
+    llm/ai_edit.sh [--api-key KEY] [--model MODEL] "<instruction>" <files>
 
 Requirements:
 - Always specify explicit target files.
