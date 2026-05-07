@@ -26,7 +26,7 @@ class OpenSCADLexer(Lexer):
         MIRROR, MULTMATRIX, RESIZE, COLOR, PROJECTION, MINKOWSKI, OFFSET,
         
         # New keywords
-        MODULE, FUNCTION, IF, ELSE, FOR, LET, EACH, INCLUDE, USE, ASSERT, ECHO,
+        MODULE, FUNCTION, IF, ELSE, FOR, LET, EACH, INCLUDE, USE, ASSERT, ECHO, CHILDREN,
 
         # Literals
         NUMBER, STRING, TRUE, FALSE, UNDEF,
@@ -95,6 +95,7 @@ class OpenSCADLexer(Lexer):
     USE = r'use'
     ASSERT = r'assert'
     ECHO = r'echo'
+    CHILDREN = r'children'
 
 
     # --- Literals ---
