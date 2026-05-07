@@ -10,9 +10,10 @@
 #   - shell execution
 #   - test/build execution
 #   - workflow management
+#   - repository intelligence via depwire MCP tools
 #
 # Aider:
-#   - repository intelligence
+#   - ai_query.sh (semantic fallback only)
 #   - code search
 #   - code mutation
 #   - commit generation
