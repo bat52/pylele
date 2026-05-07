@@ -35,6 +35,7 @@
 
 - Repository/codebase intelligence queries SHOULD go through:
     llm/ai_query.sh
+- Repository intelligence queries MUST preferentially use depwire MCP tools over ai_query.sh for structural questions (symbol location, dependencies, impact analysis). Use ai_query.sh only as a semantic fallback when depwire cannot answer.
 
 - Always prefer shell execution over internal editing.
 
