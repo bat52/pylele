@@ -30,6 +30,7 @@ from b1scad.symbol_table import SymbolTable
 
 
 class OpenSCADParser(Parser):
+    _ = None  # injected by ParserMeta metaclass
     tokens = OpenSCADLexer.tokens
     debugfile = 'parser.out'
 
