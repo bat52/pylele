@@ -61,16 +61,15 @@ Requirements:
 # Query Protocol
 # ============================================================
 
-For repository understanding, prefer:
+For repository understanding, prefer depwire MCP tools for structural questions:
 
-    llm/ai_query.sh "<query>"
+    search_symbols
+    impact_analysis
+    get_dependencies
+    get_dependents
+    get_architecture_summary
 
-Use ai_query.sh for:
-- locating implementations
-- identifying relevant files
-- understanding architecture
-- discovering symbol relationships
-- planning refactors
+Use ai_query.sh only as a semantic fallback when depwire cannot answer (e.g., natural-language code comprehension, design intent).
 
 Avoid recursive repository exploration when possible.
 
