@@ -228,15 +228,15 @@ For every task:
 
 2. Select model:
 
-- EXPLORE_REPO → Gemini Flash (via OpenRouter)
-- PLAN_CHANGE → Gemini Flash
-- LOCAL_EDIT → DeepSeek Coder
-- COMPLEX_REFACTOR → DeepSeek Chat
-- DEBUGGING → DeepSeek Chat (fallback DeepSeek Coder)
+- EXPLORE_REPO → openrouter/google/gemini-2.5-flash
+- PLAN_CHANGE → openrouter/google/gemini-2.5-flash
+- LOCAL_EDIT → openrouter/deepseek/deepseek-coder
+- COMPLEX_REFACTOR → openrouter/deepseek/deepseek-chat
+- DEBUGGING → openrouter/deepseek/deepseek-chat (fallback openrouter/deepseek/deepseek-coder)
 
 3. Never use a coding model for repo-wide reasoning.
 
-4. Never use Gemini Flash for final patch correctness when multiple files are affected.
+4. Never use openrouter/google/gemini-2.5-flash for final patch correctness when multiple files are affected.
 
 5. All code changes MUST go through Aider.
 
