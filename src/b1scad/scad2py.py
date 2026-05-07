@@ -1584,11 +1584,11 @@ class AstToPython:
             
             if body_parts:
                 body_expr = " + ".join(body_parts)
-                # Replace 'children()' with actual children handling
-                body_expr = body_expr.replace(
-                    "children()",
-                    " + ".join("children") if "children" else "self.api.box(0,0,0, center=False)"
-                )
+                if 'children()' in body_expr:
+                    body_expr = body_expr.replace(
+                        'children()',
+                        '(__import__("functools").reduce(lambda a,b:a+b, children) if children else self.api.box(0,0,0, center=False))'
+                    )
                 lines = [f"    def _{name}(self, {params_str}, *children):",
                          f"        return {body_expr}"]
             else:
