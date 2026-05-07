@@ -13,39 +13,39 @@ from b13d.api.utils import gen_scad_foo
 class OpenSCADLexer(Lexer):
     tokens = (
         # New transforms/operations (Longer patterns first)
-        LINEAR_EXTRUDE, ROTATE_EXTRUDE, INTERSECTION_FOR,
+        'LINEAR_EXTRUDE', 'ROTATE_EXTRUDE', 'INTERSECTION_FOR',
         
         # Existing shape/transform tokens
-        CUBE, SPHERE, CYLINDER, POLYHEDRON,
-        TRANSLATE, ROTATE, SCALE, UNION, DIFFERENCE, INTERSECTION, HULL,
+        'CUBE', 'SPHERE', 'CYLINDER', 'POLYHEDRON',
+        'TRANSLATE', 'ROTATE', 'SCALE', 'UNION', 'DIFFERENCE', 'INTERSECTION', 'HULL',
         
         # New 2D primitives
-        SQUARE, CIRCLE, POLYGON, TEXT,
+        'SQUARE', 'CIRCLE', 'POLYGON', 'TEXT',
         
         # New transforms/operations (Others)
-        MIRROR, MULTMATRIX, RESIZE, COLOR, PROJECTION, MINKOWSKI, OFFSET,
+        'MIRROR', 'MULTMATRIX', 'RESIZE', 'COLOR', 'PROJECTION', 'MINKOWSKI', 'OFFSET',
         
         # New keywords
-        MODULE, FUNCTION, IF, ELSE, FOR, LET, EACH, INCLUDE, USE, ASSERT, ECHO, CHILDREN,
+        'MODULE', 'FUNCTION', 'IF', 'ELSE', 'FOR', 'LET', 'EACH', 'INCLUDE', 'USE', 'ASSERT', 'ECHO', 'CHILDREN',
 
         # Literals
-        NUMBER, STRING, TRUE, FALSE, UNDEF,
+        'NUMBER', 'STRING', 'TRUE', 'FALSE', 'UNDEF',
         
         # Identifiers and special vars
-        IDENTIFIER, SFN, SFA, SFS,
+        'IDENTIFIER', 'SFN', 'SFA', 'SFS',
         
         # Structural
-        LBRACE, RBRACE, LPAREN, RPAREN, LSQUARE, RSQUARE, COMMA, SEMICOLON,
-        EQU, COLON, DOT, QUESTION, PIPE,
+        'LBRACE', 'RBRACE', 'LPAREN', 'RPAREN', 'LSQUARE', 'RSQUARE', 'COMMA', 'SEMICOLON',
+        'EQU', 'COLON', 'DOT', 'QUESTION', 'PIPE',
         
         # Arithmetic operators
-        PLUS, MINUS, TIMES, DIVIDE, MOD, CARET,
+        'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'MOD', 'CARET',
         
         # Comparison operators
-        LESS, GREATER, LE, GE, EQ, NEQ,
+        'LESS', 'GREATER', 'LE', 'GE', 'EQ', 'NEQ',
         
         # Logical operators
-        AND, OR, NOT,
+        'AND', 'OR', 'NOT',
     )
     
     ignore = ' \t\n'
