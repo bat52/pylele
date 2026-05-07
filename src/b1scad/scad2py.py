@@ -1486,7 +1486,7 @@ class AstToPython:
         var = node.variable
         values = self.visit(node.values)
         body = self.visit(node.body)
-        return f"[{body} for {var} in {values}]"
+        return f"__import__('functools').reduce(lambda a,b: a.intersection(b), [{body} for {var} in {values}])"
 
     def visit_IncludeDirective(self, node: IncludeDirective) -> str:
         return ""
