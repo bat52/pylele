@@ -1589,11 +1589,19 @@ class AstToPython:
                         'children()',
                         '(__import__("functools").reduce(lambda a,b:a+b, children) if children else self.api.box(0,0,0, center=False))'
                     )
-                lines = [f"    def _{name}(self, {params_str}, *children):",
-                         f"        return {body_expr}"]
+                if params_str:
+                    lines = [f"    def _{name}(self, {params_str}, *children):",
+                             f"        return {body_expr}"]
+                else:
+                    lines = [f"    def _{name}(self, *children):",
+                             f"        return {body_expr}"]
             else:
-                lines = [f"    def _{name}(self, {params_str}, *children):",
-                         "        return self.api.box(0,0,0, center=False)"]
+                if params_str:
+                    lines = [f"    def _{name}(self, {params_str}, *children):",
+                             "        return self.api.box(0,0,0, center=False)"]
+                else:
+                    lines = [f"    def _{name}(self, *children):",
+                             "        return self.api.box(0,0,0, center=False)"]
             parts.append("\n".join(lines))
         
         for name, node in sorted(self.helper_functions.items()):
