@@ -1,44 +1,208 @@
-All repository modifications must be performed exclusively via:
+# ============================================================
+# Cline + Aider Controlled Workflow
+# ============================================================
 
-./llm/ai_edit.sh
+# Architecture
+#
+# Cline:
+#   - planning
+#   - orchestration
+#   - shell execution
+#   - test/build execution
+#   - workflow management
+#
+# Aider:
+#   - repository intelligence
+#   - code search
+#   - code mutation
+#   - commit generation
+#
+# Git commits are the source of truth.
+# Filesystem state must always be re-read after mutations.
 
-Rules:
 
-* Never edit files directly
-* Never output inline patches
-* Never use direct write tools
-* Every mutation must invoke:
-  ./ai_edit.sh "<instruction>" <files>
+# ============================================================
+# Core Rules
+# ============================================================
 
-GOOD:
-./ai_edit.sh "update parser logic" parser.py
+- Never modify files directly.
+- Never use built-in editing/write tools.
+- Never output inline patches or diffs.
+- Never assume in-memory repository state after mutations.
+- All repository mutations MUST go through:
+    ./ai_edit.sh
 
-BAD:
-./ai_edit.sh "improve parser"
+- Repository/codebase intelligence queries SHOULD go through:
+    ./ai_query.sh
+
+- Always prefer shell execution over internal editing.
+
+
+# ============================================================
+# Mutation Protocol
+# ============================================================
+
+All code modifications MUST use:
+
+    ./ai_edit.sh [--api-key KEY] "<instruction>" <files>
 
 Requirements:
+- Always specify explicit target files.
+- Keep edits atomic and narrowly scoped.
+- One logical change per invocation.
+- Re-read repository state after execution.
+- Assume ai_edit.sh creates a git commit.
+- API key resolution order: --api-key flag > AIDER_API_KEY env var > ~/.cline/data/secrets.json
 
-* Always specify target files
-* Keep changes atomic
-* Re-read repository state after every execution
-* Assume git commits are the source of truth
 
-Before any modification, verify:
+# ============================================================
+# Query Protocol
+# ============================================================
 
-1. Am I using ./llm/ai_edit.sh?
-2. Did I specify files?
-3. Is this atomic?
+For repository understanding, prefer:
 
-Implement the following workflow
+    ./ai_query.sh "<query>"
 
-User task
-↓
-Cline analyzes repo
-↓
-Cline emits ONE ai_edit.sh command
-↓
-Aider edits + commits
-↓
-Cline re-reads repo
-↓
-Repeat
+Use ai_query.sh for:
+- locating implementations
+- identifying relevant files
+- understanding architecture
+- discovering symbol relationships
+- planning refactors
+
+Avoid recursive repository exploration when possible.
+
+
+# ============================================================
+# Instruction Quality Rules
+# ============================================================
+
+Instructions sent to ai_edit.sh MUST be:
+- explicit
+- deterministic
+- scoped
+- atomic
+
+GOOD:
+    ./ai_edit.sh \
+      "Add API key authentication support to auth.py and config.py. Preserve existing password login behavior." \
+      auth.py config.py
+
+BAD:
+    ./ai_edit.sh "improve authentication"
+
+
+# ============================================================
+# Workflow Loop
+# ============================================================
+
+For every task:
+
+1. Understand the task
+2. Query repository structure if needed using ai_query.sh
+3. Decide the next atomic modification
+4. Execute exactly one ai_edit.sh command
+5. Re-read repository state from disk
+6. Continue iteratively
+7. Track token use reported by ai_query.sh and ai_edit.sh
+
+Never batch large unrelated changes.
+
+
+# ============================================================
+# Repository Search Policy
+# ============================================================
+
+Prefer:
+- ai_query.sh
+- targeted grep
+- targeted file reads
+
+Avoid:
+- repeatedly reopening the same files
+- broad recursive exploration
+- unnecessary full-file reads
+- uncontrolled repository scanning
+
+
+# ============================================================
+# State Management
+# ============================================================
+
+After every ai_edit.sh execution:
+- assume files changed externally
+- re-read state from disk
+- do not trust prior assumptions
+- use git history as progress tracking
+
+
+# ============================================================
+# Tooling Priorities
+# ============================================================
+
+Preferred:
+- ./ai_query.sh
+- ./ai_edit.sh
+- git
+- targeted shell commands
+- targeted file reads
+
+Avoid:
+- direct editing tools
+- large speculative edits
+- monolithic refactors
+- uncontrolled autonomous exploration
+
+
+# ============================================================
+# Operational Principles
+# ============================================================
+
+Optimize for:
+- deterministic edits
+- low token usage
+- clean git history
+- atomic commits
+- minimal context growth
+- reproducibility
+- stable long-running workflows
+
+Prefer many small commits over giant changes.
+
+
+# ============================================================
+# Self-Check Before Every Modification
+# ============================================================
+
+Before any repository mutation, verify:
+
+1. Am I using ./ai_edit.sh?
+2. Did I specify explicit target files?
+3. Is this a single atomic change?
+4. Should repository understanding be delegated to ai_query.sh first?
+5. Do I need to re-read repository state after execution?
+
+If any answer is NO:
+- stop
+- reformulate the action
+
+
+# ============================================================
+# Expected Behavior
+# ============================================================
+
+Correct behavior:
+
+    ./ai_query.sh \
+      "Identify authentication entry points and relevant files"
+
+    ./ai_edit.sh \
+      "Add API key authentication support while preserving existing login behavior" \
+      auth.py middleware/auth.py config.py
+
+Incorrect behavior:
+- direct file edits
+- inline patch generation
+- giant multi-system refactors
+- uncontrolled repository exploration
+- assumptions about filesystem state

@@ -1,0 +1,1 @@
+cline --tui --auto-condense
