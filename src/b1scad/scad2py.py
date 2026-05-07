@@ -15,6 +15,7 @@ from b1scad.scad2ast import scad2ast, OpenSCADLexer
 from b1scad.ast_nodes import (
     ASTNode, Module, NumberLiteral, VectorLiteral, Identifier,
     BinaryOp, UnaryOp, TernaryOp, ShapeCall, Transform, BooleanOp,
+    ChildrenRef,
     Hull, Assignment, Block, FunctionCall,
     StringLiteral, BooleanLiteral, UndefLiteral, RangeLiteral,
     IntersectionFor, IncludeDirective, UseDirective,
@@ -131,6 +132,14 @@ class OpenSCADParser(Parser):
     @_('IDENTIFIER LPAREN args RPAREN LBRACE statements RBRACE')
     def shape_statement(self, p):
         return FunctionCall(p.IDENTIFIER, [], _args_to_dict(p.args))
+
+    @_('CHILDREN LPAREN args RPAREN SEMICOLON')
+    def shape_statement(self, p):
+        return ChildrenRef(_args_to_dict(p.args))
+
+    @_('CHILDREN LPAREN args RPAREN LBRACE statements RBRACE')
+    def shape_statement(self, p):
+        return ChildrenRef(_args_to_dict(p.args))
 
     # ============================================================
     # Shape calls (primitives)
