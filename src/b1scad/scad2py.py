@@ -34,10 +34,10 @@ class OpenSCADParser(Parser):
 
     # Precedence and associativity (lowest to highest)
     precedence = (
-        ('left', OpenSCADLexer.PLUS, OpenSCADLexer.MINUS),
-        ('left', OpenSCADLexer.TIMES, OpenSCADLexer.DIVIDE, OpenSCADLexer.MOD),
-        ('right', OpenSCADLexer.UMINUS, OpenSCADLexer.NOT),
-        ('left', OpenSCADLexer.CARET),
+        ('left', PLUS, MINUS),
+        ('left', TIMES, DIVIDE, MOD),
+        ('right', UMINUS, NOT),
+        ('left', CARET),
     )
 
     _ = Parser._
