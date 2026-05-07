@@ -115,11 +115,12 @@ Never batch large unrelated changes.
 # ============================================================
 
 Prefer:
-- ai_query.sh
+- depwire MCP tools (search_symbols, impact_analysis, get_dependencies, get_dependents, get_architecture_summary)
 - targeted grep
 - targeted file reads
 
 Avoid:
+- ai_query.sh for structural queries (depwire should handle those)
 - repeatedly reopening the same files
 - broad recursive exploration
 - unnecessary full-file reads
