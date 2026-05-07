@@ -1108,13 +1108,15 @@ def _replace_identifiers(node: ASTNode, var_map: dict[str, ASTNode]) -> ASTNode:
     if isinstance(node, FunctionCall):
         new_args = {k: _replace_identifiers(v, var_map) if isinstance(v, ASTNode) else v
                     for k, v in node.named_arguments.items()}
-        return FunctionCall(node.name, [], new_args)
+        new_children = [_replace_identifiers(c, var_map) for c in node.arguments]
+        return FunctionCall(node.name, new_children, new_args)
     
     # FunctionCallExpr
     if isinstance(node, FunctionCallExpr):
         new_args = {k: _replace_identifiers(v, var_map) if isinstance(v, ASTNode) else v
                     for k, v in node.named_arguments.items()}
-        return FunctionCallExpr(_replace_identifiers(node.callee, var_map), [], new_args)
+        new_children = [_replace_identifiers(c, var_map) for c in node.arguments]
+        return FunctionCallExpr(_replace_identifiers(node.callee, var_map), new_children, new_args)
     
     # ArrayAccess
     if isinstance(node, ArrayAccess):
