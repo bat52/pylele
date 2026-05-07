@@ -174,7 +174,7 @@ fi
 if [[ -z "$MODEL_NAME" ]]; then
     if [[ "$PROVIDER" == "deepseek" ]]; then
         MODEL_NAME="deepseek/deepseek-coder"
-    else
+    else # Default for openrouter or unknown to a fast openrouter model
         MODEL_NAME="openrouter/google/gemini-2.5-flash"
     fi
 fi
@@ -190,7 +190,7 @@ elif [[ "$PROVIDER" == "explicit" ]]; then
     aider --api-key "$API_KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
 else
     # Fallback for unknown provider or if specific provider not detected from explicit key
-    # Default to openrouter
+    # Default to openrouter for safety if no specific provider could be determined.
     aider --api-key "openrouter=$KEY" --model "$MODEL_NAME" --message "$MSG" "${FILES[@]}"
 fi
 

@@ -22,7 +22,7 @@ resolve_api_key() {
         return
     fi
 
-    # 3. Cline's DeepSeek key from ~/.cline/data/secrets.json
+    # 4. Cline's DeepSeek key from ~/.cline/data/secrets.json
     local secrets_file="$HOME/.cline/data/secrets.json"
     if [[ -f "$secrets_file" ]]; then
         local deepseek_key
@@ -38,7 +38,7 @@ except Exception:
     pass
 " 2>/dev/null)
         if [[ -n "$deepseek_key" ]]; then
-            echo "$deepseek_key"
+            echo "deepseek:$deepseek_key"
             return
         fi
     fi
@@ -142,24 +142,21 @@ fi
 if [[ -z "$MODEL_NAME" ]]; then
     if [[ "$PROVIDER" == "openrouter" ]]; then
         MODEL_NAME="openrouter/google/gemini-2.5-flash"
-    else
+    else # Default to deepseek for unknown or deepseek provider
         MODEL_NAME="deepseek/deepseek-coder"
     fi
 fi
 
 # Invoke aider with resolved key and model
 if [[ "$PROVIDER" == "openrouter" ]]; then
-    aider --api-key openrouter="$KEY" --model "$MODEL_NAME" --message "$QUERY"
-elif [[ "$PROVIDER" == "deepseek" || "$PROVIDER" == "explicit" ]]; then
+    aider --api-key "openrouter=$KEY" --model "$MODEL_NAME" --message "$QUERY"
+elif [[ "$PROVIDER" == "deepseek" ]]; then
+    aider --api-key "deepseek=$KEY" --model "$MODEL_NAME" --message "$QUERY"
+elif [[ "$PROVIDER" == "explicit" ]]; then
     # If explicit --api-key was provided, it might have a provider prefix (e.g., deepseek=...)
-    # In this case, use it directly as aider expects.
-    # Otherwise, assume deepseek if no provider prefix was given in API_KEY.
-    if [[ "${API_KEY}" == *"="* && "$PROVIDER" == "explicit" ]]; then
-        aider --api-key "$API_KEY" --model "$MODEL_NAME" --message "$QUERY"
-    else
-        aider --api-key deepseek="$KEY" --model "$MODEL_NAME" --message "$QUERY"
-    fi
+    # Use it directly as aider expects.
+    aider --api-key "$API_KEY" --model "$MODEL_NAME" --message "$QUERY"
 else
-    # Fallback for unknown provider, assume deepseek for now
-    aider --api-key deepseek="$KEY" --model "$MODEL_NAME" --message "$QUERY"
+    # Fallback for unknown provider, assume deepseek and use the raw key
+    aider --api-key "deepseek=$KEY" --model "$MODEL_NAME" --message "$QUERY"
 fi

@@ -54,7 +54,7 @@ Requirements:
 - One logical change per invocation.
 - Re-read repository state after execution.
 - Assume ai_edit.sh creates a git commit.
-- API key resolution order: --api-key flag > OPENROUTER_API_KEY env var > AIDER_API_KEY env var > ~/.cline/data/secrets.json
+- API key resolution order: --api-key flag > OPENROUTER_API_KEY env var > AIDER_API_KEY env var > DeepSeekApiKey from ~/.cline/data/secrets.json
 
 
 # ============================================================
@@ -209,6 +209,47 @@ Incorrect behavior:
 - giant multi-system refactors
 - uncontrolled repository exploration
 - assumptions about filesystem state
+
+Repository understanding MUST preferentially use depwire MCP tools.
+
+Prefer:
+- search_symbols
+- impact_analysis
+- get_dependencies
+- get_dependents
+- get_architecture_summary
+
+Avoid blind repository scanning when depwire can answer structurally.
+
+For every task:
+
+1. Classify intent into:
+   EXPLORE_REPO | PLAN_CHANGE | LOCAL_EDIT | COMPLEX_REFACTOR | DEBUGGING
+
+2. Select model:
+
+- EXPLORE_REPO → openrouter/google/gemini-2.5-flash
+- PLAN_CHANGE → openrouter/google/gemini-2.5-flash
+- LOCAL_EDIT → openrouter/deepseek/deepseek-coder
+- COMPLEX_REFACTOR → openrouter/deepseek/deepseek-chat
+- DEBUGGING → openrouter/deepseek/deepseek-chat (fallback openrouter/deepseek/deepseek-coder)
+
+3. Never use a coding model for repo-wide reasoning.
+
+4. Never use openrouter/google/gemini-2.5-flash for final patch correctness when multiple files are affected.
+
+5. All code changes MUST go through Aider.
+
+
+# ============================================================
+# Routing Policy
+# ============================================================
+
+- EXPLORE_REPO: openrouter/google/gemini-2.5-flash
+- PLAN_CHANGE: openrouter/google/gemini-2.5-flash
+- LOCAL_EDIT: openrouter/deepseek/deepseek-coder
+- COMPLEX_REFACTOR: openrouter/deepseek/deepseek-chat
+- DEBUGGING: openrouter/deepseek/deepseek-chat (fallback openrouter/deepseek/deepseek-coder)
 
 Repository understanding MUST preferentially use depwire MCP tools.
 
