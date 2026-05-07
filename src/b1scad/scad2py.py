@@ -32,16 +32,6 @@ class OpenSCADParser(Parser):
     tokens = OpenSCADLexer.tokens
     debugfile = 'parser.out'
 
-    # Make token names available in class scope for precedence
-    PLUS = OpenSCADLexer.PLUS
-    MINUS = OpenSCADLexer.MINUS
-    TIMES = OpenSCADLexer.TIMES
-    DIVIDE = OpenSCADLexer.DIVIDE
-    MOD = OpenSCADLexer.MOD
-    UMINUS = OpenSCADLexer.UMINUS
-    NOT = OpenSCADLexer.NOT
-    CARET = OpenSCADLexer.CARET
-
     # Precedence and associativity (lowest to highest)
     precedence = (
         ('left', PLUS, MINUS),
@@ -49,8 +39,6 @@ class OpenSCADParser(Parser):
         ('right', UMINUS, NOT),
         ('left', CARET),
     )
-
-    _ = Parser._
 
     def __init__(self):
         self.result = []
