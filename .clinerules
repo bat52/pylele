@@ -221,3 +221,22 @@ Prefer:
 
 Avoid blind repository scanning when depwire can answer structurally.
 
+For every task:
+
+1. Classify intent into:
+   EXPLORE_REPO | PLAN_CHANGE | LOCAL_EDIT | COMPLEX_REFACTOR | DEBUGGING
+
+2. Select model:
+
+- EXPLORE_REPO → Gemini Flash (via OpenRouter)
+- PLAN_CHANGE → Gemini Flash
+- LOCAL_EDIT → DeepSeek Coder
+- COMPLEX_REFACTOR → DeepSeek Chat
+- DEBUGGING → DeepSeek Chat (fallback DeepSeek Coder)
+
+3. Never use a coding model for repo-wide reasoning.
+
+4. Never use Gemini Flash for final patch correctness when multiple files are affected.
+
+5. All code changes MUST go through Aider.
+
