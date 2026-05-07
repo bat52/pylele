@@ -1416,7 +1416,10 @@ class AstToPython:
             return f"{self.visit(node.operands[0])} - ({' + '.join(self.visit(op) for op in node.operands[1:])})"
         elif node.operation == 'intersection':
             parts = [self.visit(op) for op in node.operands]
-            return ".intersection(".join(parts)
+            result = parts[0]
+            for p in parts[1:]:
+                result = f"{result}.intersection({p})"
+            return result
         else:
             raise NotImplementedError(f"Unknown boolean op: {node.operation}")
 
