@@ -210,3 +210,14 @@ Incorrect behavior:
 - uncontrolled repository exploration
 - assumptions about filesystem state
 
+Repository understanding MUST preferentially use depwire MCP tools.
+
+Prefer:
+- search_symbols
+- impact_analysis
+- get_dependencies
+- get_dependents
+- get_architecture_summary
+
+Avoid blind repository scanning when depwire can answer structurally.
+
