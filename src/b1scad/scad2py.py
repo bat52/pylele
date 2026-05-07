@@ -133,6 +133,14 @@ class OpenSCADParser(Parser):
     def shape_statement(self, p):
         return FunctionCall(p.IDENTIFIER, [], _args_to_dict(p.args))
 
+    @_('IDENTIFIER LPAREN args RPAREN shape_call SEMICOLON')
+    def shape_statement(self, p):
+        return FunctionCall(p.IDENTIFIER, [p.shape_call], _args_to_dict(p.args))
+
+    @_('IDENTIFIER LPAREN args RPAREN shape_statement')
+    def shape_statement(self, p):
+        return FunctionCall(p.IDENTIFIER, [p.shape_statement], _args_to_dict(p.args))
+
     @_('CHILDREN LPAREN args RPAREN SEMICOLON')
     def shape_statement(self, p):
         return ChildrenRef(_args_to_dict(p.args))
