@@ -1465,8 +1465,16 @@ class AstToPython:
 
     def visit_FunctionCall(self, node: FunctionCall) -> str:
         args_str = self._format_named_args(node.named_arguments)
-        # Use underscore prefix for user-defined modules to distinguish from built-in methods
-        return f"self._{node.name}({args_str})"
+        children_str = ', '.join(self.visit(child) for child in node.arguments)
+        if children_str and args_str:
+            return f'self._{node.name}({children_str}, {args_str})'
+        elif children_str:
+            return f'self._{node.name}({children_str})'
+        else:
+            return f'self._{node.name}({args_str})'
+
+    def visit_ChildrenRef(self, node: ChildrenRef) -> str:
+        return 'children()'
 
     def visit_FunctionCallExpr(self, node: FunctionCallExpr) -> str:
         callee = self.visit(node.callee)
@@ -1576,10 +1584,15 @@ class AstToPython:
             
             if body_parts:
                 body_expr = " + ".join(body_parts)
-                lines = [f"    def _{name}(self, {params_str}):",
+                # Replace 'children()' with actual children handling
+                body_expr = body_expr.replace(
+                    "children()",
+                    " + ".join("children") if "children" else "self.api.box(0,0,0, center=False)"
+                )
+                lines = [f"    def _{name}(self, {params_str}, *children):",
                          f"        return {body_expr}"]
             else:
-                lines = [f"    def _{name}(self, {params_str}):",
+                lines = [f"    def _{name}(self, {params_str}, *children):",
                          "        return self.api.box(0,0,0, center=False)"]
             parts.append("\n".join(lines))
         
