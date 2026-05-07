@@ -100,7 +100,7 @@ BAD:
 For every task:
 
 1. Understand the task
-2. Query repository structure if needed using ai_query.sh
+2. Query repository structure if needed using depwire MCP tools (fall back to ai_query.sh for semantic questions)
 3. Decide the next atomic modification
 4. Execute exactly one ai_edit.sh command
 5. Re-read repository state from disk
