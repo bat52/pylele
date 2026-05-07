@@ -1262,8 +1262,8 @@ class AstToPython:
         end = self.visit(node.end)
         if node.step:
             step = self.visit(node.step)
-            return f"range({start}, {end}, {step})"
-        return f"range({start}, {end})"
+            return f"range({start}, ({end})+1, {step})"
+        return f"range({start}, ({end})+1)"
 
     def visit_Identifier(self, node: Identifier) -> str:
         return node.name
