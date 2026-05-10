@@ -73,6 +73,7 @@ class Implementation(StringEnum):
     SOLID2 = "sp2"
     MANIFOLD = "mf"
     BUILD123D = "bd"
+    PYVISTA = "pv"
 
     def __repr__(self):
         return f"Implementation({self.value})"
@@ -121,6 +122,7 @@ APIS_INFO = {
     Implementation.SOLID2    : {"module": "b13d.api.sp2", "class": "Sp2ShapeAPI", "fillet": False, "hull" : True},
     Implementation.MANIFOLD  : {"module": "b13d.api.mf", "class": "MFShapeAPI", "fillet": False, "hull" : True},
     Implementation.BUILD123D : {"module": "b13d.api.bd", "class": "BDShapeAPI", "fillet": True, "hull" : True},
+    Implementation.PYVISTA : {"module": "b13d.api.pv", "class": "PVShapeAPI", "fillet": False, "hull" : True},
 }
 
 def supported_apis() -> list:
@@ -140,6 +142,7 @@ def supported_apis() -> list:
         (Implementation.CADQUERY, "CQ_AVAILABLE"),
         (Implementation.BUILD123D, "BD_AVAILABLE"),
         (Implementation.BLENDER, "BPY_AVAILABLE"),
+        (Implementation.PYVISTA, "PV_AVAILABLE"),
     ]
     for impl, avail_flag in optional_impls:
         try:

@@ -55,6 +55,7 @@ B13D is a portable Python 3D Modeling Library that acts as a common wrapper arou
 * [SolidPython2 (sp2)](https://github.com/jeff-dh/SolidPython) (Supports .stl, .svg, .scad, and [BOSL2](https://github.com/BelfrySCAD/BOSL2) library import, fast when using manifold option)
 * [Manifold3D (mf)](https://github.com/elalish/manifold) (Fastest, used by trimesh and OpenSCAD)
 * [build123d (bd)](https://github.com/gumyr/build123d)(Evolution of cadquery)
+* [PyVista (pv)](https://github.com/pyvista/pyvista) (VTK-based 3D plotting and mesh analysis, supports boolean operations)
 
 ## GUIs
 
@@ -102,6 +103,12 @@ To enable the build123d (bd) backend:
 
 ```
 pip install git+https://github.com/bat52/pylele@main[build123d]
+```
+
+To enable the PyVista (pv) backend:
+
+```
+pip install git+https://github.com/bat52/pylele@main[pyvista]
 ```
 
 Multiple extras can be combined, e.g.:

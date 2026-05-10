@@ -227,6 +227,10 @@ class B13DTestMethods(unittest.TestCase):
         """Test build123d API"""
         test_api(api=Implementation.BUILD123D)
 
+    def test_pyvista_api(self):
+        """Test PyVista API"""
+        test_api(api=Implementation.PYVISTA)
+
     ## Solid Parts
     from b13d.parts.tube import test_tube, test_tube_mock
     from b13d.parts.screw import test_screw, test_screw_mock

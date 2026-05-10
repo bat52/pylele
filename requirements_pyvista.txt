@@ -1,0 +1,23 @@
+numpy>=2,<3
+nlopt==2.7.1
+trimesh==4.4.8
+manifold3d<=2.5.1
+pillow
+shapely
+scipy
+networkx
+pyglet<2
+fonttools
+numpy-stl
+packaging
+json-tricks
+openpyxl
+prettytable
+
+# b1scad
+sly
+svgpathtools
+svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
+
+# PyVista backend (pv)
+pyvista>=0.43.0

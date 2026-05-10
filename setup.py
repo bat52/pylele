@@ -55,6 +55,10 @@ setup(
         "solidpython2": [
             "solidpython2<=2.1.1",
         ],
+        "pyvista": [
+            "pyvista>=0.43.0",
+            "vtk>=9.2.0",
+        ],
     },
     entry_points={
         "console_scripts": [
