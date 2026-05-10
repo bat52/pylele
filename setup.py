@@ -58,6 +58,7 @@ setup(
         "pyvista": [
             "pyvista>=0.43.0",
             "vtk>=9.2.0",
+            "lxml",
         ],
     },
     entry_points={

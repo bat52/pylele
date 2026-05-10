@@ -22,3 +22,4 @@ svgpathtools
 
 # PyVista backend (pv)
 pyvista>=0.43.0
+lxml
