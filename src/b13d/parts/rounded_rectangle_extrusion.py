@@ -167,9 +167,10 @@ class RoundedRectangle(Solid):
             # return self.gen_fillet()
             return self.gen_default()
         elif self.cli.implementation in [ Implementation.SOLID2, 
-                                         Implementation.TRIMESH, 
-                                         Implementation.MANIFOLD,
-                                         ]:
+                                          Implementation.TRIMESH, 
+                                          Implementation.MANIFOLD,
+                                          Implementation.PYVISTA,
+                                          ]:
             # apis that support hull
             return self.gen_solidpython()
         
