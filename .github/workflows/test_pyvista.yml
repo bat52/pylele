@@ -25,8 +25,7 @@ jobs:
     - name: install dependencies
       run: |
         chmod +x ./install_dependencies.sh
-        # Skip problematic installations that might conflict with PyVista
-        ./install_dependencies.sh 2>&1 | grep -v "Error\|error\|fail\|Fail" || true
+        ./install_dependencies.sh
     - name: pip configuration report
       run: |
         mkdir test
@@ -42,4 +41,4 @@ jobs:
       with:
           # path depends on the tag and the module name
           name: pylele_test_out_pv_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
-          path: test/**/**/**/*
+          path: test/**/*/*.py test/**/*/*.txt test/**/*/*.log test/**/*/*.out test/**/*/*.err test/**/*/*.stl test/**/*/*.glb test/**/*/*.scad test/**/*/*.step test/**/*/*.stp

@@ -246,19 +246,17 @@ class PVShape(Shape):
         self.solid = self.solid.extrude((0, 0, h), capping=True)
         return self
 
-    def rotate_extrude(self, angle=360, convexity=1) -> PVShape:
+    def rotate_extrude(self, angle=360, convexity=1, resolution=36) -> PVShape:
         """Rotate extrusion of a 2D shape around the Z-axis.
         
         Args:
             angle: Angle of rotation in degrees (default 360 for full revolution)
             convexity: Convexity parameter (not used in current implementation)
-            
-        Note:
-            Uses fixed resolution of 36 segments for the revolve operation.
+            resolution: Number of segments for the revolve operation (default 36)
         """
         if self.solid is None:
             raise NotImplementedError("rotate_extrude requires a 2D shape")
-        self.solid = self.solid.revolve(angle, resolution=36)
+        self.solid = self.solid.revolve(angle, resolution=resolution)
         return self
 
     def offset(self, r=None, chamfer=False) -> PVShape:
