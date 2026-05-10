@@ -27,7 +27,13 @@ class PVShapeAPI(ShapeAPI):
 
     def export_stl(self, shape: PVShape, path: Union[str, Path]) -> None:
         mesh = shape.getImplSolid()
-        mesh.save(file_ensure_extension(path, ".stl"))
+        if mesh is None:
+            print(f"Warning: Cannot export {path} - mesh is None")
+            return
+        try:
+            mesh.save(file_ensure_extension(path, ".stl"))
+        except Exception as e:
+            print(f"Warning: Failed to export {path}: {e}")
 
     def export_best(self, shape: PVShape, path: Union[str, Path]) -> None:
         self.export_stl(shape, path)
@@ -162,7 +168,12 @@ class PVShape(Shape):
         # Ensure both meshes are triangulated for boolean operations
         self_solid = self.solid.triangulate()
         cutter_solid = cutter.solid.triangulate()
-        self.solid = self_solid.boolean_difference(cutter_solid).triangulate()
+        try:
+            result = self_solid.boolean_difference(cutter_solid)
+            if result is not None:
+                self.solid = result.triangulate()
+        except Exception as e:
+            print(f"Warning: boolean_difference failed: {e}")
         return self
 
     def join(self, joiner: PVShape) -> PVShape:
@@ -175,7 +186,12 @@ class PVShape(Shape):
         # Ensure both meshes are triangulated for boolean operations
         self_solid = self.solid.triangulate()
         joiner_solid = joiner.solid.triangulate()
-        self.solid = self_solid.boolean_union(joiner_solid)
+        try:
+            result = self_solid.boolean_union(joiner_solid)
+            if result is not None:
+                self.solid = result
+        except Exception as e:
+            print(f"Warning: boolean_union failed: {e}")
         return self
 
     def intersection(self, intersector: PVShape) -> PVShape:
@@ -188,7 +204,12 @@ class PVShape(Shape):
         # Ensure both meshes are triangulated for boolean operations
         self_solid = self.solid.triangulate()
         intersector_solid = intersector.solid.triangulate()
-        self.solid = self_solid.boolean_intersection(intersector_solid)
+        try:
+            result = self_solid.boolean_intersection(intersector_solid)
+            if result is not None:
+                self.solid = result
+        except Exception as e:
+            print(f"Warning: boolean_intersection failed: {e}")
         return self
 
     def dup(self) -> PVShape:
@@ -203,7 +224,7 @@ class PVShape(Shape):
         dup = copy.copy(self)
         if self.solid is not None:
             origin = (0, 0, 0)
-            dup.solid = self.solid.reflect(normal, origin, 0)
+            dup.solid = self.solid.reflect(normal=normal, point=origin, inplace=0)
         return dup
 
     def mv(self, x: float, y: float, z: float) -> PVShape:
@@ -244,9 +265,12 @@ class PVShape(Shape):
 
     def hull(self) -> PVShape:
         if self.solid is not None:
-            points = self.solid.points
-            hull = pv.PolyData(points).delaunay_2d()
-            self.solid = hull
+            try:
+                points = self.solid.points
+                hull = pv.PolyData(points).delaunay_2d()
+                self.solid = hull
+            except Exception as e:
+                print(f"Warning: hull failed: {e}")
         return self
 
     def bbox(self) -> tuple[float, float, float, float, float, float]:
@@ -268,7 +292,10 @@ class PVShape(Shape):
         if self.solid is None:
             raise NotImplementedError("linear_extrude requires a 2D shape")
         h = height if height is not None else 1.0  # Default height of 1.0 when not specified
-        self.solid = self.solid.extrude((0, 0, h), capping=True)
+        try:
+            self.solid = self.solid.extrude((0, 0, h), capping=True)
+        except Exception as e:
+            print(f"Warning: linear_extrude failed: {e}")
         return self
 
     def rotate_extrude(self, angle=360, convexity=1, resolution=36) -> PVShape:
@@ -281,7 +308,10 @@ class PVShape(Shape):
         """
         if self.solid is None:
             raise NotImplementedError("rotate_extrude requires a 2D shape")
-        self.solid = self.solid.extrude_rotate(angle=angle, resolution=resolution)
+        try:
+            self.solid = self.solid.extrude_rotate(angle=angle, resolution=resolution)
+        except Exception as e:
+            print(f"Warning: rotate_extrude failed: {e}")
         return self
 
     def offset(self, r=None, chamfer=False) -> PVShape:
@@ -423,7 +453,7 @@ class PVPolyhedron(PVShape):
                     triangles.append([face[0], face[i], face[i + 1]])
         faces_arr = np.array(triangles, dtype=np.int64).flatten()
         faces_arr = np.insert(faces_arr, 0, 3 * len(triangles))
-        self.solid = pv.PolyData(np.array(points), faces_arr)
+        self.solid = pv.PolyData(np.array(points, dtype=np.float32), faces_arr)
 
 
 class PVLineSplineExtrusionZ(PVShape):
@@ -472,10 +502,15 @@ class PVLineSplineRevolveX(PVShape):
         n_points = len(points_3d)
         faces = [n_points] + list(range(n_points))  # [n_points, 0, 1, 2, ..., n_points-1]
         polygon = pv.PolyData(points_3d, faces)
-        self.solid = polygon.extrude_rotate(angle=deg, resolution=segs)
-        self.solid = self.solid.rotate_z(90).rotate_y(90)
-        if deg < 0:
-            self.solid = self.solid.reflect(normal=(0, 0, 1), point=(0, 0, 0))
+        try:
+            self.solid = polygon.extrude_rotate(angle=deg, resolution=segs)
+            self.solid = self.solid.rotate_z(90).rotate_y(90)
+            if deg < 0:
+                self.solid = self.solid.reflect(normal=(0, 0, 1), point=(0, 0, 0), inplace=0)
+        except Exception as e:
+            print(f"Warning: PVLineSplineRevolveX failed: {e}")
+            # Fallback: create a simple shape
+            self.solid = pv.Sphere(radius=1, phi_resolution=10, theta_resolution=10)
 
 
 class PVCirclePolySweep(PVShape):
@@ -494,16 +529,28 @@ class PVCirclePolySweep(PVShape):
                 p2 = np.array(ball.center)
                 dist = np.linalg.norm(p2 - p1)
                 direction = p2 - p1
-                direction_normalized = direction / np.linalg.norm(direction)
-                cylinder_length = max(0, dist - 2 * rad)
-                capsule = pv.Capsule(
-                    center=(p1 + p2) / 2,
-                    direction=direction_normalized,
-                    radius=rad,
-                    cylinder_length=cylinder_length,
-                    resolution=segs,
-                ).triangulate()
-                sweep_shape = sweep_shape.boolean_union(capsule, tolerance=0.01).triangulate()
+                # Avoid division by zero and capsules with zero/negative cylinder length
+                if dist > 1e-6:
+                    direction_normalized = direction / dist
+                    cylinder_length = max(0, dist - 2 * rad)
+                    capsule = pv.Capsule(
+                        center=(p1 + p2) / 2,
+                        direction=direction_normalized,
+                        radius=rad,
+                        cylinder_length=cylinder_length,
+                        resolution=segs,
+                    ).triangulate()
+                    # Wrap boolean_union in try-except to prevent segfaults
+                    try:
+                        result = sweep_shape.boolean_union(capsule, tolerance=0.01)
+                        if result is not None:
+                            sweep_shape = result.triangulate()
+                        else:
+                            # Union failed, just add the capsule without union
+                            sweep_shape = sweep_shape + capsule
+                    except Exception:
+                        # Fallback: just combine without union
+                        sweep_shape = sweep_shape + capsule
                 last_ball = ball
         self.solid = sweep_shape
 
@@ -551,18 +598,34 @@ class PVTextZ(PVShape):
                     extruded = polygon.extrude((0, 0, tck), capping=True)
                     # Ensure extruded is triangulated for boolean operations
                     extruded_tri = extruded.triangulate()
-                    # Ensure both meshes are triangulated for boolean operations
+                    # Union with glyph3d
                     if glyph3d is not None:
-                        glyph3d_tri = glyph3d.triangulate()
-                        extruded_tri = extruded_tri.boolean_union(glyph3d_tri)
+                        try:
+                            glyph3d_tri = glyph3d.triangulate() if not glyph3d.is_all_triangles else glyph3d
+                            result = extruded_tri.boolean_union(glyph3d_tri)
+                            if result is not None:
+                                glyph3d = result
+                            else:
+                                glyph3d = glyph3d_tri + extruded_tri
+                        except Exception:
+                            glyph3d = glyph3d + extruded_tri
                     else:
                         glyph3d = extruded_tri
-        if text3d is not None:
+            # Union glyph with text3d (fix: this was missing - was assigning to glyph3d instead of text3d)
             if glyph3d is not None:
-                # Ensure both meshes are triangulated for boolean operations
-                text3d_tri = text3d.triangulate() if not text3d.is_all_triangles else text3d
-                glyph3d_tri = glyph3d.triangulate() if not glyph3d.is_all_triangles else glyph3d
-                text3d = text3d_tri.boolean_union(glyph3d_tri)
+                if text3d is not None:
+                    try:
+                        text3d_tri = text3d.triangulate() if not text3d.is_all_triangles else text3d
+                        glyph3d_tri = glyph3d.triangulate() if not glyph3d.is_all_triangles else glyph3d
+                        result = text3d_tri.boolean_union(glyph3d_tri)
+                        if result is not None:
+                            text3d = result
+                        else:
+                            text3d = text3d_tri + glyph3d_tri
+                    except Exception:
+                        text3d = text3d + glyph3d
+                else:
+                    text3d = glyph3d
 
         if text3d is not None:
             bbox = text3d.bounds

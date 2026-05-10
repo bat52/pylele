@@ -688,9 +688,19 @@ class ShapeAPI(ABC):
         try:
             import trimesh
             mesh = trimesh.load(str(stl_path))
-            if not mesh.is_watertight:
-                print(f"  WARNING: {name} ({stl_path.name}) is NOT WATERTIGHT")
-            vol = mesh.volume
+            # Handle both single mesh and Scene (multiple geometries)
+            if isinstance(mesh, trimesh.Scene):
+                # For scenes, check each geometry
+                for geom in mesh.geometry.values():
+                    if not geom.is_watertight:
+                        print(f"  WARNING: {name} ({stl_path.name}) is NOT WATERTIGHT")
+                        break
+                # Use convex hull volume for scene
+                vol = mesh.convex_hull.volume if hasattr(mesh, 'convex_hull') else 0
+            else:
+                if not mesh.is_watertight:
+                    print(f"  WARNING: {name} ({stl_path.name}) is NOT WATERTIGHT")
+                vol = mesh.volume
             if vol < min_volume:
                 print(f"  WARNING: {name} ({stl_path.name}) volume={vol:.2f} < min={min_volume}")
         except Exception as e:
