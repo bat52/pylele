@@ -121,7 +121,21 @@ class PVShapeAPI(ShapeAPI):
         return PVShape(self, mesh=pv.Disc(center=(0, 0, 0), inner=0.0, outer=r, r_res=64))
 
     def polygon(self, points, paths=None, convexity=1) -> PVShape:
-        return PVShape(self, mesh=pv.Polygon(points))
+        # Create polygon from points using PolyData
+        import numpy as np
+        # Close the path if not already closed
+        if points[0] != points[-1]:
+            closed_points = points + [points[0]]
+        else:
+            closed_points = points
+        # Convert to numpy array
+        points_2d = np.array(closed_points)
+        # Add Z coordinate (0 for flat polygon)
+        points_3d = np.column_stack([points_2d, np.zeros(len(points_2d))])
+        # Create faces (assuming convex polygon for simplicity)
+        n_points = len(points_3d)
+        faces = [n_points] + list(range(n_points))  # [n_points, 0, 1, 2, ..., n_points-1]
+        return PVShape(self, mesh=pv.PolyData(points_3d, faces))
 
 
 class PVShape(Shape):
@@ -145,14 +159,11 @@ class PVShape(Shape):
             return self
         if cutter.solid is None:
             return self
-        self.solid = self.solid.boolean_subtract(cutter.solid)
+        # Ensure both meshes are triangulated for boolean operations
+        self_solid = self.solid.triangulate()
+        cutter_solid = cutter.solid.triangulate()
+        self.solid = self_solid.boolean_difference(cutter_solid).triangulate()
         return self
-
-    def dup(self) -> PVShape:
-        duplicate = copy.copy(self)
-        if self.solid is not None:
-            duplicate.solid = self.solid.copy()
-        return duplicate
 
     def join(self, joiner: PVShape) -> PVShape:
         if joiner is None:
@@ -161,7 +172,10 @@ class PVShape(Shape):
             return self
         if joiner.solid is None:
             return self
-        self.solid = self.solid.boolean_union(joiner.solid)
+        # Ensure both meshes are triangulated for boolean operations
+        self_solid = self.solid.triangulate()
+        joiner_solid = joiner.solid.triangulate()
+        self.solid = self_solid.boolean_union(joiner_solid)
         return self
 
     def intersection(self, intersector: PVShape) -> PVShape:
@@ -171,8 +185,19 @@ class PVShape(Shape):
             return self
         if intersector.solid is None:
             return self
-        self.solid = self.solid.boolean_intersection(intersector.solid)
+        # Ensure both meshes are triangulated for boolean operations
+        self_solid = self.solid.triangulate()
+        intersector_solid = intersector.solid.triangulate()
+        self.solid = self_solid.boolean_intersection(intersector_solid)
         return self
+
+    def dup(self) -> PVShape:
+        duplicate = copy.copy(self)
+        if self.solid is not None:
+            duplicate.solid = self.solid.copy()
+        return duplicate
+
+
 
     def mirror(self, normal=(0, 1, 0)) -> PVShape:
         dup = copy.copy(self)
@@ -256,7 +281,7 @@ class PVShape(Shape):
         """
         if self.solid is None:
             raise NotImplementedError("rotate_extrude requires a 2D shape")
-        self.solid = self.solid.revolve(angle, resolution=resolution)
+        self.solid = self.solid.extrude_rotate(angle=angle, resolution=resolution)
         return self
 
     def offset(self, r=None, chamfer=False) -> PVShape:
@@ -318,21 +343,74 @@ class PVConeZ(PVShape):
     def __init__(self, h: float, r1: float, r2: float, sides: float, api: PVShapeAPI):
         super().__init__(api)
         segs = sides if sides is not None else self._smoothing_segments(2 * pi * max(r1, r2))
-        self.solid = pv.Cone(height=h, radius_bottom=r1, radius_top=r2, resolution=int(segs))
+        
+        # Create frustum/cone manually since pv.Cone doesn't support radius_top/radius_bottom
+        if abs(r1 - r2) < 1e-10:  # Essentially a cylinder/cone
+            # Regular cone (or cylinder if r1 == r2 and we want flat top)
+            self.solid = pv.Cone(height=h, radius=r1, resolution=int(segs))
+        else:
+            # Frustum - create manually
+            self.solid = self._create_frustum(h, r1, r2, int(segs))
+    
+    def _create_frustum(self, h: float, r1: float, r2: float, resolution: int):
+        """Create a conical frustum"""
+        import numpy as np
+        
+        # Points for bottom circle
+        bottom_points = []
+        for i in range(resolution):
+            angle = 2 * np.pi * i / resolution
+            bottom_points.append([r1 * np.cos(angle), r1 * np.sin(angle), 0])
+        
+        # Points for top circle
+        top_points = []
+        for i in range(resolution):
+            angle = 2 * np.pi * i / resolution
+            top_points.append([r2 * np.cos(angle), r2 * np.sin(angle), h])
+        
+        points = np.array(bottom_points + top_points, dtype=np.float64)
+        
+        # Create faces
+        faces = []
+        
+        # Side faces (two triangles per quad)
+        for i in range(resolution):
+            next_i = (i + 1) % resolution
+            faces.append([3, i, next_i, resolution + next_i])
+            faces.append([3, i, resolution + next_i, resolution + i])
+        
+        # Flatten faces for PyVista
+        faces_flat = np.array(faces, dtype=np.int64).flatten()
+        
+        # Create mesh
+        return pv.PolyData(points, faces_flat)
 
 
 class PVPolyExtrusionZ(PVShape):
     def __init__(self, path: list[tuple[float, float]], tck: float, api: PVShapeAPI):
         super().__init__(api)
-        polygon = pv.Polygon(path)
-        self.solid = polygon.extrude((0, 0, tck), capping=True)
+        # Create polygon from points using PolyData
+        import numpy as np
+        # Close the path if not already closed
+        if path[0] != path[-1]:
+            closed_path = path + [path[0]]
+        else:
+            closed_path = path
+        # Convert to numpy array
+        points_2d = np.array(closed_path)
+        # Add Z coordinate (0 for flat polygon)
+        points_3d = np.column_stack([points_2d, np.zeros(len(points_2d))])
+        # Create faces (assuming convex polygon for simplicity)
+        n_points = len(points_3d)
+        faces = [n_points] + list(range(n_points))  # [n_points, 0, 1, 2, ..., n_points-1]
+        self.solid = pv.PolyData(points_3d, faces)
 
 
 class PVRodZ(PVShape):
     def __init__(self, l: float, rad: float, sides: float, api: PVShapeAPI):
         super().__init__(api)
         segs = sides if sides is not None else self._smoothing_segments(2 * pi * rad)
-        self.solid = pv.Cylinder(radius=rad, height=l, resolution=int(segs)).translate((0, 0, -l/2))
+        self.solid = pv.Cylinder(radius=rad, height=l, resolution=int(segs), direction=(0, 0, 1))
 
 
 class PVPolyhedron(PVShape):
@@ -354,7 +432,21 @@ class PVLineSplineExtrusionZ(PVShape):
         self.path = path
         self.ht = ht
         approx_curve_path = lineSplineXY(start, path, self._smoothing_segments)
-        polygon = pv.Polygon(approx_curve_path)
+        # Create polygon from points using PolyData
+        import numpy as np
+        # Close the path if not already closed
+        if approx_curve_path[0] != approx_curve_path[-1]:
+            closed_path = approx_curve_path + [approx_curve_path[0]]
+        else:
+            closed_path = approx_curve_path
+        # Convert to numpy array
+        points_2d = np.array(closed_path)
+        # Add Z coordinate (0 for flat polygon)
+        points_3d = np.column_stack([points_2d, np.zeros(len(points_2d))])
+        # Create faces (assuming convex polygon for simplicity)
+        n_points = len(points_3d)
+        faces = [n_points] + list(range(n_points))  # [n_points, 0, 1, 2, ..., n_points-1]
+        polygon = pv.PolyData(points_3d, faces)
         self.solid = polygon.extrude((0, 0, ht), capping=True)
 
 
@@ -367,11 +459,23 @@ class PVLineSplineRevolveX(PVShape):
         # Convert from (x,y) to (0,y,x) coordinates for proper revolution around X-axis
         # This swaps Y and Z while keeping X at 0 for the revolution operation
         approx_curve_path = [(0, y, x) for x, y in approx_curve_path]
-        polygon = pv.Polygon(approx_curve_path)
-        self.solid = polygon.revolve(deg, resolution=segs)
+        # Create polygon from points using PolyData
+        import numpy as np
+        # Close the path if not already closed
+        if approx_curve_path[0] != approx_curve_path[-1]:
+            closed_path = approx_curve_path + [approx_curve_path[0]]
+        else:
+            closed_path = approx_curve_path
+        # Convert to numpy array - we already have 3D points (0, y, x)
+        points_3d = np.array(closed_path)
+        # Create faces (assuming convex polygon for simplicity)
+        n_points = len(points_3d)
+        faces = [n_points] + list(range(n_points))  # [n_points, 0, 1, 2, ..., n_points-1]
+        polygon = pv.PolyData(points_3d, faces)
+        self.solid = polygon.extrude_rotate(angle=deg, resolution=segs)
         self.solid = self.solid.rotate_z(90).rotate_y(90)
         if deg < 0:
-            self.solid = self.solid.reflect((0, 0, 1), (0, 0, 0), 0)
+            self.solid = self.solid.reflect(normal=(0, 0, 1), point=(0, 0, 0))
 
 
 class PVCirclePolySweep(PVShape):
@@ -382,11 +486,24 @@ class PVCirclePolySweep(PVShape):
         for i, (x, y, z) in enumerate(path):
             if i == 0:
                 last_ball = pv.Sphere(radius=rad, phi_resolution=segs, theta_resolution=segs).translate((x, y, z))
-                sweep_shape = last_ball
+                sweep_shape = last_ball.triangulate()
             else:
                 ball = pv.Sphere(radius=rad, phi_resolution=segs, theta_resolution=segs).translate((x, y, z))
-                hull2balls = pv.PolyData(np.vstack([last_ball.points, ball.points])).delaunay_3d().extract_surface()
-                sweep_shape = sweep_shape.boolean_union(hull2balls)
+                # Use capsule to connect spheres instead of delaunay hull
+                p1 = np.array(last_ball.center)
+                p2 = np.array(ball.center)
+                dist = np.linalg.norm(p2 - p1)
+                direction = p2 - p1
+                direction_normalized = direction / np.linalg.norm(direction)
+                cylinder_length = max(0, dist - 2 * rad)
+                capsule = pv.Capsule(
+                    center=(p1 + p2) / 2,
+                    direction=direction_normalized,
+                    radius=rad,
+                    cylinder_length=cylinder_length,
+                    resolution=segs,
+                ).triangulate()
+                sweep_shape = sweep_shape.boolean_union(capsule, tolerance=0.01).triangulate()
                 last_ball = ball
         self.solid = sweep_shape
 
@@ -413,11 +530,39 @@ class PVTextZ(PVShape):
             glyph3d = None
             for path in glyph_paths:
                 if len(path) >= 3:
-                    polygon = pv.Polygon(path)
+                    # Extract coordinates from path points
+                    # path is a list of points, where each point is a list/tuple of coordinates
+                    coords_2d = [point[:2] for point in path]  # Take only x,y coordinates
+                    # Create polygon from points using PolyData
+                    import numpy as np
+                    # Close the path if not already closed
+                    if coords_2d[0] != coords_2d[-1]:
+                        closed_coords = coords_2d + [coords_2d[0]]
+                    else:
+                        closed_coords = coords_2d
+                    # Convert to numpy array
+                    points_2d = np.array(closed_coords)
+                    # Add Z coordinate (0 for flat polygon)
+                    points_3d = np.column_stack([points_2d, np.zeros(len(points_2d))])
+                    # Create faces (assuming convex polygon for simplicity)
+                    n_points = len(points_3d)
+                    faces = [n_points] + list(range(n_points))  # [n_points, 0, 1, 2, ..., n_points-1]
+                    polygon = pv.PolyData(points_3d, faces)
                     extruded = polygon.extrude((0, 0, tck), capping=True)
-                    glyph3d = extruded if glyph3d is None else glyph3d.boolean_union(extruded)
+                    # Ensure extruded is triangulated for boolean operations
+                    extruded_tri = extruded.triangulate()
+                    # Ensure both meshes are triangulated for boolean operations
+                    if glyph3d is not None:
+                        glyph3d_tri = glyph3d.triangulate()
+                        extruded_tri = extruded_tri.boolean_union(glyph3d_tri)
+                    else:
+                        glyph3d = extruded_tri
+        if text3d is not None:
             if glyph3d is not None:
-                text3d = glyph3d if text3d is None else text3d.boolean_union(glyph3d)
+                # Ensure both meshes are triangulated for boolean operations
+                text3d_tri = text3d.triangulate() if not text3d.is_all_triangles else text3d
+                glyph3d_tri = glyph3d.triangulate() if not glyph3d.is_all_triangles else glyph3d
+                text3d = text3d_tri.boolean_union(glyph3d_tri)
 
         if text3d is not None:
             bbox = text3d.bounds
