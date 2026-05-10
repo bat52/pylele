@@ -560,7 +560,7 @@ class PVLineSplineRevolveX(PVShape):
         faces = [n_points] + list(range(n_points))  # [n_points, 0, 1, 2, ..., n_points-1]
         polygon = pv.PolyData(points_3d, faces)
         try:
-            self.solid = polygon.extrude_rotate(angle=deg, resolution=segs)
+            self.solid = polygon.extrude_rotate(angle=deg, resolution=segs, capping=True)
             self.solid = self.solid.rotate_z(90).rotate_y(90)
             if deg < 0:
                 self.solid = self.solid.reflect(normal=(0, 0, 1), point=(0, 0, 0), inplace=0)
