@@ -12,9 +12,9 @@ jobs:
         os: [ubuntu-latest, ubuntu-24.04, ubuntu-22.04] # latest and LTS
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
     # python packages included in install_dependencies
@@ -35,7 +35,7 @@ jobs:
       run: echo "timestamp=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_ENV
     - name: test_b13d
       run: |
-        python3 ./src/b13d/test.py B13DTestMethods.test_pyvista_api
+        python3 ./src/b13d/test.py
     - name: upload test output
       uses: actions/upload-artifact@v4
       with:
