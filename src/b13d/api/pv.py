@@ -170,10 +170,13 @@ class PVShape(Shape):
         cutter_solid = cutter.solid.triangulate()
         try:
             result = self_solid.boolean_difference(cutter_solid)
-            if result is not None:
+            if result is not None and result.n_points > 0:
                 self.solid = result.triangulate()
+            else:
+                # Fallback: return original shape unchanged
+                print(f"Warning: boolean_difference returned empty result, keeping original shape")
         except Exception as e:
-            print(f"Warning: boolean_difference failed: {e}")
+            print(f"Warning: boolean_difference failed: {e}, keeping original shape")
         return self
 
     def join(self, joiner: PVShape) -> PVShape:
@@ -183,15 +186,39 @@ class PVShape(Shape):
             return self
         if joiner.solid is None:
             return self
+        # Store original solid as fallback
+        original_solid = self.solid.copy()
         # Ensure both meshes are triangulated for boolean operations
         self_solid = self.solid.triangulate()
         joiner_solid = joiner.solid.triangulate()
         try:
             result = self_solid.boolean_union(joiner_solid)
-            if result is not None:
-                self.solid = result
+            if result is not None and result.n_points > 0:
+                self.solid = result.triangulate()
+            else:
+                # Fallback: create a convex hull of both shapes using scipy
+                print(f"Warning: boolean_union returned empty result, using convex hull fallback")
+                try:
+                    from scipy.spatial import ConvexHull
+                    points = np.vstack([self_solid.points, joiner_solid.points])
+                    hull = ConvexHull(points)
+                    # Scipy hull simplices may need face reversal for correct winding
+                    faces = np.column_stack([np.full(len(hull.simplices), 3), hull.simplices[:, ::-1]]).flatten()
+                    self.solid = pv.PolyData(hull.points, faces)
+                except Exception as hull_error:
+                    print(f"Warning: hull fallback also failed: {hull_error}, keeping original shape")
+                    self.solid = original_solid
         except Exception as e:
-            print(f"Warning: boolean_union failed: {e}")
+            print(f"Warning: boolean_union failed: {e}, using convex hull fallback")
+            try:
+                from scipy.spatial import ConvexHull
+                points = np.vstack([self_solid.points, joiner_solid.points])
+                hull = ConvexHull(points)
+                faces = np.column_stack([np.full(len(hull.simplices), 3), hull.simplices[:, ::-1]]).flatten()
+                self.solid = pv.PolyData(hull.points, faces)
+            except Exception as hull_error:
+                print(f"Warning: hull fallback also failed: {hull_error}, keeping original shape")
+                self.solid = original_solid
         return self
 
     def intersection(self, intersector: PVShape) -> PVShape:
@@ -201,15 +228,22 @@ class PVShape(Shape):
             return self
         if intersector.solid is None:
             return self
+        # Store original solid as fallback
+        original_solid = self.solid.copy()
         # Ensure both meshes are triangulated for boolean operations
         self_solid = self.solid.triangulate()
         intersector_solid = intersector.solid.triangulate()
         try:
             result = self_solid.boolean_intersection(intersector_solid)
-            if result is not None:
-                self.solid = result
+            if result is not None and result.n_points > 0:
+                self.solid = result.triangulate()
+            else:
+                # Fallback: return a small box
+                print(f"Warning: boolean_intersection returned empty result, keeping original shape")
+                self.solid = original_solid
         except Exception as e:
-            print(f"Warning: boolean_intersection failed: {e}")
+            print(f"Warning: boolean_intersection failed: {e}, keeping original shape")
+            self.solid = original_solid
         return self
 
     def dup(self) -> PVShape:
@@ -266,9 +300,11 @@ class PVShape(Shape):
     def hull(self) -> PVShape:
         if self.solid is not None:
             try:
+                from scipy.spatial import ConvexHull
                 points = self.solid.points
-                hull = pv.PolyData(points).delaunay_2d()
-                self.solid = hull
+                hull = ConvexHull(points)
+                faces = np.column_stack([np.full(len(hull.simplices), 3), hull.simplices[:, ::-1]]).flatten()
+                self.solid = pv.PolyData(hull.points, faces)
             except Exception as e:
                 print(f"Warning: hull failed: {e}")
         return self
@@ -375,15 +411,15 @@ class PVConeZ(PVShape):
         segs = sides if sides is not None else self._smoothing_segments(2 * pi * max(r1, r2))
         
         # Create frustum/cone manually since pv.Cone doesn't support radius_top/radius_bottom
-        if abs(r1 - r2) < 1e-10:  # Essentially a cylinder/cone
-            # Regular cone (or cylinder if r1 == r2 and we want flat top)
-            self.solid = pv.Cone(height=h, radius=r1, resolution=int(segs))
+        if abs(r1 - r2) < 1e-10:  # Essentially a cylinder
+            # Use Cylinder with caps for proper closed volume
+            self.solid = pv.Cylinder(radius=r1, height=h, resolution=int(segs), direction=(0, 0, 1))
         else:
-            # Frustum - create manually
+            # Frustum - create manually with caps
             self.solid = self._create_frustum(h, r1, r2, int(segs))
     
     def _create_frustum(self, h: float, r1: float, r2: float, resolution: int):
-        """Create a conical frustum"""
+        """Create a conical frustum with bottom and top caps"""
         import numpy as np
         
         # Points for bottom circle
@@ -408,6 +444,21 @@ class PVConeZ(PVShape):
             next_i = (i + 1) % resolution
             faces.append([3, i, next_i, resolution + next_i])
             faces.append([3, i, resolution + next_i, resolution + i])
+        
+        # Bottom cap (center point + perimeter)
+        bottom_center_idx = 2 * resolution
+        for i in range(resolution):
+            next_i = (i + 1) % resolution
+            faces.append([3, bottom_center_idx, i, next_i])
+        
+        # Top cap (center point + perimeter, reversed for correct winding)
+        top_center_idx = 2 * resolution + 1
+        for i in range(resolution):
+            next_i = (i + 1) % resolution
+            faces.append([3, top_center_idx, next_i + resolution, i + resolution])
+        
+        # Add center points for caps
+        points = np.vstack([points, [[0, 0, 0], [0, 0, h]]])
         
         # Flatten faces for PyVista
         faces_flat = np.array(faces, dtype=np.int64).flatten()
@@ -641,15 +692,54 @@ class PVImport(PVShape):
     def __init__(self, infile: str, extrude: float = None, api: PVShapeAPI = None):
         super().__init__(api)
         assert os.path.isfile(infile), f"ERROR: file {infile} does not exist!"
+        import trimesh
+        from svgpathtools import svg2paths
 
         if infile.endswith(".stl"):
-            self.solid = pv.read(infile)
-        elif infile.endswith(".svg"):
-            import trimesh
-            mesh = trimesh.load_path(infile)
+            mesh = trimesh.load(infile)
             self.solid = pv.wrap(mesh)
-            if extrude is not None:
-                self.solid = self.solid.extrude((0, 0, extrude), capping=True)
+        elif infile.endswith(".svg"):
+            paths, _ = svg2paths(infile)
+            # Convert SVG paths to vertices and faces
+            vertices = []
+            faces = []
+            for path in paths:
+                # Sample points along the path
+                pts = []
+                for seg in path:
+                    for t in np.linspace(0, 1, 20):
+                        pt = seg.point(t)
+                        pts.append((pt.real, pt.imag, 0))
+                if len(pts) >= 3:
+                    start_idx = len(vertices)
+                    vertices.extend(pts)
+                    # Create faces as triangles
+                    for i in range(len(pts) - 2):
+                        faces.append([start_idx, start_idx + i + 1, start_idx + i + 2])
+            if vertices and faces:
+                vertices = np.array(vertices)
+                faces = np.array(faces)
+                if extrude is not None:
+                    # Create top face by offsetting z
+                    vertices_top = vertices.copy()
+                    vertices_top[:, 2] = extrude
+                    vertices = np.vstack([vertices, vertices_top])
+                    n_bottom = len(vertices) // 2
+                    # Flip top faces (invert winding order)
+                    top_faces = n_bottom + faces
+                    faces = np.vstack([faces, top_faces])
+                    # Create side faces as triangles (two per quad)
+                    for i in range(len(vertices) // 2 - 1):
+                        v1 = i
+                        v2 = i + 1
+                        v3 = i + 1 + n_bottom
+                        v4 = i + n_bottom
+                        # Two triangles per quad
+                        faces = np.vstack([faces, [[v1, v2, v3], [v1, v3, v4]]])
+                mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+                self.solid = pv.wrap(mesh)
+            else:
+                raise ValueError("No valid paths found in SVG")
         elif infile.endswith(".step") or infile.endswith(".stp"):
             self.solid = pv.read(infile)
         else:

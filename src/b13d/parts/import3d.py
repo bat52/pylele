@@ -74,6 +74,11 @@ def test_import3d(self,apis=supported_apis()):
         'mf_svg': ['-imp',test_svg, '-eh', '10'],
         }
     
+    tests[Implementation.PYVISTA]={
+        'pv_stl': ['-imp',test_stl],
+        'pv_svg': ['-imp',test_svg, '-eh', '10'],
+        }
+    
     tests[Implementation.MOCK]={
         'mock_svg': ['-imp',test_svg, '-eh', '10'],
         }
