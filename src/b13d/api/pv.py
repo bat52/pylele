@@ -477,14 +477,17 @@ class PVPolyExtrusionZ(PVShape):
             closed_path = path + [path[0]]
         else:
             closed_path = path
+        # Reverse order for correct winding (right-hand rule for positive volume)
+        closed_path = closed_path[::-1]
         # Convert to numpy array
-        points_2d = np.array(closed_path)
+        points_2d = np.array(closed_path, dtype=np.float64)
         # Add Z coordinate (0 for flat polygon)
         points_3d = np.column_stack([points_2d, np.zeros(len(points_2d))])
         # Create faces (assuming convex polygon for simplicity)
         n_points = len(points_3d)
         faces = [n_points] + list(range(n_points))  # [n_points, 0, 1, 2, ..., n_points-1]
-        self.solid = pv.PolyData(points_3d, faces)
+        polygon = pv.PolyData(points_3d, faces)
+        self.solid = polygon.extrude((0, 0, tck), capping=True)
 
 
 class PVRodZ(PVShape):
@@ -628,7 +631,7 @@ class PVTextZ(PVShape):
 
         text3d = None
         for glyph_paths in glyphs_paths:
-            glyph3d = None
+            glyph_meshes = []
             for path in glyph_paths:
                 if len(path) >= 3:
                     # Extract coordinates from path points
@@ -650,34 +653,17 @@ class PVTextZ(PVShape):
                     faces = [n_points] + list(range(n_points))  # [n_points, 0, 1, 2, ..., n_points-1]
                     polygon = pv.PolyData(points_3d, faces)
                     extruded = polygon.extrude((0, 0, tck), capping=True)
-                    # Ensure extruded is triangulated for boolean operations
-                    extruded_tri = extruded.triangulate()
-                    # Union with glyph3d
-                    if glyph3d is not None:
-                        try:
-                            glyph3d_tri = glyph3d.triangulate() if not glyph3d.is_all_triangles else glyph3d
-                            result = extruded_tri.boolean_union(glyph3d_tri)
-                            if result is not None:
-                                glyph3d = result
-                            else:
-                                glyph3d = glyph3d_tri + extruded_tri
-                        except Exception:
-                            glyph3d = glyph3d + extruded_tri
-                    else:
-                        glyph3d = extruded_tri
-            # Union glyph with text3d (fix: this was missing - was assigning to glyph3d instead of text3d)
-            if glyph3d is not None:
+                    glyph_meshes.append(extruded)
+            
+            # Combine all paths for this glyph using + operator (more reliable than boolean_union)
+            if glyph_meshes:
+                glyph3d = glyph_meshes[0]
+                for m in glyph_meshes[1:]:
+                    glyph3d = glyph3d + m
+                
+                # Union glyph with text3d
                 if text3d is not None:
-                    try:
-                        text3d_tri = text3d.triangulate() if not text3d.is_all_triangles else text3d
-                        glyph3d_tri = glyph3d.triangulate() if not glyph3d.is_all_triangles else glyph3d
-                        result = text3d_tri.boolean_union(glyph3d_tri)
-                        if result is not None:
-                            text3d = result
-                        else:
-                            text3d = text3d_tri + glyph3d_tri
-                    except Exception:
-                        text3d = text3d + glyph3d
+                    text3d = text3d + glyph3d
                 else:
                     text3d = glyph3d
 
