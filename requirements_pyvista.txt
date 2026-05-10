@@ -17,7 +17,8 @@ prettytable
 # b1scad
 sly
 svgpathtools
-svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
+# Use local svg2dxf conversion utility
+# svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
 
 # PyVista backend (pv)
 pyvista>=0.43.0

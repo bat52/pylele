@@ -231,23 +231,51 @@ class PVShape(Shape):
         return (bounds[0], bounds[1], bounds[2], bounds[3], bounds[4], bounds[5])
 
     def linear_extrude(self, height=None, center=False, twist=0, scale=1.0, slices=None) -> PVShape:
+        """Linear extrusion of a 2D shape.
+        
+        Args:
+            height: Height of extrusion. If None, defaults to 1.0
+            center: Whether to center the extrusion along Z-axis
+            twist: Twist angle in degrees
+            scale: Scale factor
+            slices: Number of slices (not used in PV implementation)
+        """
         if self.solid is None:
             raise NotImplementedError("linear_extrude requires a 2D shape")
-        h = height if height is not None else 1.0
+        h = height if height is not None else 1.0  # Default height of 1.0 when not specified
         self.solid = self.solid.extrude((0, 0, h), capping=True)
         return self
 
     def rotate_extrude(self, angle=360, convexity=1) -> PVShape:
+        """Rotate extrusion of a 2D shape around the Z-axis.
+        
+        Args:
+            angle: Angle of rotation in degrees (default 360 for full revolution)
+            convexity: Convexity parameter (not used in current implementation)
+            
+        Note:
+            Uses fixed resolution of 36 segments for the revolve operation.
+        """
         if self.solid is None:
             raise NotImplementedError("rotate_extrude requires a 2D shape")
         self.solid = self.solid.revolve(angle, resolution=36)
         return self
 
     def offset(self, r=None, chamfer=False) -> PVShape:
+        """Offset a 2D shape by a specified distance.
+        
+        Args:
+            r: Offset distance. If None, defaults to 0.0
+            chamfer: If True, use chamfer join type; otherwise use round join
+            
+        Note:
+            Uses fixed join_type='round' when chamfer=False.
+        """
         if self.solid is None:
             raise NotImplementedError("offset requires a 2D shape")
         delta = r if r is not None else 0.0
-        self.solid = self.solid.offset(delta, join_type='round')
+        join_type = 'round' if not chamfer else 'mitre'  # 'mitre' used for chamfer
+        self.solid = self.solid.offset(delta, join_type=join_type)
         return self
 
     def projection(self, cut=False) -> PVShape:
@@ -338,6 +366,8 @@ class PVLineSplineRevolveX(PVShape):
         _, dimY = dimXY(start, path)
         segs = ceil(self._smoothing_segments(2 * pi * dimY) * abs(deg) / 360.0)
         approx_curve_path = lineSplineXY(start, path, self._smoothing_segments)
+        # Convert from (x,y) to (0,y,x) coordinates for proper revolution around X-axis
+        # This swaps Y and Z while keeping X at 0 for the revolution operation
         approx_curve_path = [(0, y, x) for x, y in approx_curve_path]
         polygon = pv.Polygon(approx_curve_path)
         self.solid = polygon.revolve(deg, resolution=segs)
