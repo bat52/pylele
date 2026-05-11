@@ -904,6 +904,14 @@ class ShapeAPI(ABC):
             self._test_counter += 1
 
 
+# test mirror
+        box = self.box(10, 20, 30)
+        mirrored = box.mirror()
+        mout = mirrored.join(box)
+        name = self._numbered_name(self._test_counter, "mirror")
+        self.export_stl(mout, expDir / name)
+        self._test_counter += 1
+
         # More complex tests
 
         box = self.box(10, 10, 2).mv(0, 0, -10)
