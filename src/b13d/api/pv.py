@@ -379,7 +379,8 @@ class PVShape(Shape):
                 from scipy.spatial import ConvexHull
                 points = self.solid.points
                 hull = ConvexHull(points)
-                faces = np.column_stack([np.full(len(hull.simplices), 3), hull.simplices[:, ::-1]]).flatten()
+                # Do NOT reverse simplices - scipy ConvexHull produces correct winding
+                faces = np.column_stack([np.full(len(hull.simplices), 3), hull.simplices]).flatten()
                 self.solid = pv.PolyData(hull.points, faces)
             except Exception as e:
                 print(f"Warning: hull failed: {e}")
