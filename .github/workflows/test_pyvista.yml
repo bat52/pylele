@@ -36,6 +36,15 @@ jobs:
     - name: test_b13d
       run: |
         python3 ./src/b13d/test.py
+      continue-on-error: false
+    - name: test_b1scad
+      run: |
+        python3 ./src/b1scad/test.py
+      continue-on-error: false
+    - name: test_pylele
+      run: |
+        source ./src/test.sh
+      continue-on-error: false
     - name: upload test output
       uses: actions/upload-artifact@v4
       with:

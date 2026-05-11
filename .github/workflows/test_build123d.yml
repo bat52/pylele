@@ -33,41 +33,18 @@ jobs:
     - name: Generate timestamp
       id: timestamp
       run: echo "timestamp=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_ENV
-    #- name: test pylele.sh
-    #  run: |
-    #    source ./src/pylele.sh -i bd
-    #- name: test pylele2.sh
-    #  run: |
-    #    source ./src/pylele2.sh -odoff -i bd
-    #- name: upload demo stl
-    #  uses: actions/upload-artifact@v4
-    #  with:
-    #      # path depends on the tag and the module name
-    #      name: pylele_stl_out_bd_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
-    #      path: build/LeleAllAssembly/LeleAllAssembly.stl
-    #      # compression-level: 0 # no compression
-    #- name: run pytravelele.sh
-    #  run: |
-    #    source ./src/clean.sh
-    #    source ./src/pytravelele.sh -odoff -i bd
-    #- name: upload travelele output
-    #  uses: actions/upload-artifact@v4
-    #  with:
-    #      # path depends on the tag and the module name
-    #      name: travelele_bd_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
-    #      path: build/*
-    - name: test_b1scad
-      run: |
-        python3 ./src/b1scad/test.py
-      continue-on-error: true
     - name: test_b13d
       run: |
         python3 ./src/b13d/test.py
-      continue-on-error: true
+      continue-on-error: false
+    - name: test_b1scad
+      run: |
+        python3 ./src/b1scad/test.py
+      continue-on-error: false
     - name: test_pylele
       run: |
         source ./src/test.sh
-      continue-on-error: true
+      continue-on-error: false
     - name: upload test output
       uses: actions/upload-artifact@v4
       with:
