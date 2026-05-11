@@ -51,11 +51,13 @@ def test_import3d(self,apis=supported_apis()):
 
     tests[Implementation.CADQUERY]={
         'cq_step': ['-imp',test_step],
-        'cq_svg' : ['-imp',test_svg, '-eh', '10'],
         }
     
     if SVG2DXF_AVAILABLE:
-        tests[Implementation.CADQUERY]['cq_dxf'] = ['-imp',test_dxf, '-eh', '10']
+        tests[Implementation.CADQUERY]={
+            'cq_dxf' : ['-imp',test_dxf, '-eh', '10'],
+            'cq_svg' : ['-imp',test_svg, '-eh', '10'],
+            }
     
     tests[Implementation.BUILD123D]={
         'bd_step': ['-imp',test_step],
@@ -65,11 +67,13 @@ def test_import3d(self,apis=supported_apis()):
     
     tests[Implementation.TRIMESH]={
         'tm_stl' : ['-imp',test_stl],
-        'tm_svg' : ['-imp',test_svg, '-eh', '10'],
         }
     
     if SVG2DXF_AVAILABLE:
-        tests[Implementation.TRIMESH]['tm_dxf'] = ['-imp',test_dxf, '-eh', '10']
+        tests[Implementation.TRIMESH]={
+            'tm_dxf' : ['-imp',test_dxf, '-eh', '10'],
+            'tm_svg' : ['-imp',test_svg, '-eh', '10'],
+            }
     
     tests[Implementation.BLENDER]={
         'bpy_stl' : ['-imp',test_stl],
