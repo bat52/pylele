@@ -3,6 +3,7 @@
 from __future__ import annotations
 import copy
 from math import pi, ceil
+import tempfile
 try:
     import pyvista as pv
     import numpy as np
@@ -16,6 +17,8 @@ from pathlib import Path
 import sys
 from typing import Union
 from enum import Enum
+
+PYVISTA_BOOLEAN_OPS_EN = False
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
@@ -194,43 +197,50 @@ class PVShape(Shape):
         # Ensure both meshes are triangulated for boolean operations
         self_solid = self.solid.triangulate()
         cutter_solid = cutter.solid.triangulate()
+        
+        if PYVISTA_BOOLEAN_OPS_EN:
+            return self._cut_pyvista_fallback(self_solid, cutter_solid)
+        else:
+            return self._cut_trimesh_fallback(self_solid, cutter_solid)
+
+    def _cut_pyvista_fallback(self, self_solid, cutter_solid) -> PVShape:
+        """Use PyVista boolean difference (for debugging only)."""
         try:
             result = self_solid.boolean_difference(cutter_solid)
             if result is not None and result.n_points > 0:
-                # Validate the result using trimesh to ensure watertight geometry
-                try:
-                    import trimesh
-                    result.save('/tmp/pv_cut_temp.stl')
-                    mesh = trimesh.load('/tmp/pv_cut_temp.stl')
-                    if not mesh.is_watertight:
-                        # Result is not watertight, fall back to trimesh boolean
-                        raise ValueError("PyVista result not watertight")
-                    # Use result without additional triangulation (boolean_difference
-                    # already produces triangulated output and re-triangulation can corrupt)
-                    self.solid = result
-                except Exception as e:
-                    # Fall back to trimesh for reliable boolean operations
-                    self.solid = self._cut_trimesh_fallback(self_solid, cutter_solid)
+                self.solid = result
+                return self
             else:
-                # Fallback: return original shape unchanged
-                print(f"Warning: boolean_difference returned empty result, keeping original shape")
+                print(f"Warning: boolean_difference returned empty result, using trimesh")
+                return self._cut_trimesh_fallback(self_solid, cutter_solid)
         except Exception as e:
-            print(f"Warning: boolean_difference failed: {e}, falling back to trimesh")
-            self.solid = self._cut_trimesh_fallback(self_solid, cutter_solid)
+            print(f"Warning: boolean_difference failed: {e}, using trimesh")
+            return self._cut_trimesh_fallback(self_solid, cutter_solid)
+
+    def _cut_trimesh_fallback(self, self_solid, cutter_solid) -> PVShape:
+        """Fallback cut operation using trimesh boolean_difference."""
+        try:
+            import trimesh
+            with tempfile.NamedTemporaryFile(suffix='.stl', delete=True) as tmp1:
+                with tempfile.NamedTemporaryFile(suffix='.stl', delete=True) as tmp2:
+                    self_solid.save(tmp1.name)
+                    cutter_solid.save(tmp2.name)
+                    mesh1 = trimesh.load(tmp1.name)
+                    mesh2 = trimesh.load(tmp2.name)
+                    result = mesh1.difference(mesh2)
+                    if result is not None and result.is_watertight:
+                        with tempfile.NamedTemporaryFile(suffix='.stl', delete=True) as tmp_out:
+                            result.export(tmp_out.name)
+                            self.solid = pv.read(tmp_out.name)
+                            return self
+        except Exception as e:
+            print(f"Warning: trimesh difference failed: {e}")
+        self.solid = self_solid
         return self
 
-    def _cut_trimesh_fallback(self, self_solid, cutter_solid) -> pv.PolyData:
-        """Fallback cut operation using trimesh for reliable boolean operations."""
-        import trimesh
-        # Export to trimesh, perform boolean, convert back to PyVista
-        self_solid.save('/tmp/pv_cut_self.stl')
-        cutter_solid.save('/tmp/pv_cut_cutter.stl')
-        mesh_self = trimesh.load('/tmp/pv_cut_self.stl')
-        mesh_cutter = trimesh.load('/tmp/pv_cut_cutter.stl')
-        result_mesh = trimesh.boolean.difference([mesh_self, mesh_cutter])
-        # Export result back to PyVista
-        result_mesh.export('/tmp/pv_cut_result.stl')
-        return pv.read('/tmp/pv_cut_result.stl')
+    def _run_trimesh_boolean_with_timeout(self, operation: str, meshes: list, timeout_seconds: int = 5):
+        """Deprecated - use trimesh directly via _cut_trimesh_fallback, _join_trimesh_fallback, _intersect_trimesh_fallback."""
+        return None
 
     def join(self, joiner: PVShape) -> PVShape:
         if joiner is None:
@@ -243,56 +253,46 @@ class PVShape(Shape):
         self_solid = self.solid.triangulate()
         joiner_solid = joiner.solid.triangulate()
         
-        # For complex geometry with many cells, boolean_union can hang
-        # Use a simple mesh merge instead for such cases
-        total_cells = self_solid.n_cells + joiner_solid.n_cells
-        
-        if total_cells > 1000:
-            # For complex geometry, just merge meshes without boolean operation
-            # This creates a non-manifold mesh but avoids hanging
-            print(f"Warning: Complex geometry ({total_cells} cells), merging without boolean")
-            self.solid = self_solid + joiner_solid
-            return self
-        
+        if PYVISTA_BOOLEAN_OPS_EN:
+            return self._join_pyvista_fallback(self_solid, joiner_solid)
+        else:
+            return self._join_trimesh_fallback(self_solid, joiner_solid)
+
+    def _join_pyvista_fallback(self, self_solid, joiner_solid) -> PVShape:
+        """Use PyVista boolean union (for debugging only)."""
         try:
             result = self_solid.boolean_union(joiner_solid)
             if result is not None and result.n_points > 0:
-                # Validate the result using trimesh to ensure watertight geometry
-                try:
-                    import trimesh
-                    result.save('/tmp/pv_join_temp.stl')
-                    mesh = trimesh.load('/tmp/pv_join_temp.stl')
-                    if mesh.is_watertight:
-                        # Do NOT triangulate - boolean_union already produces triangulated output
-                        self.solid = result
-                        return self
-                    else:
-                        print(f"Warning: boolean_union result not watertight")
-                except Exception as e:
-                    print(f"Warning: Validation failed: {e}")
+                self.solid = result
+                return self
             else:
-                print(f"Warning: boolean_union returned empty result")
+                print(f"Warning: boolean_union returned empty result, using trimesh")
+                return self._join_trimesh_fallback(self_solid, joiner_solid)
         except Exception as e:
-            print(f"Warning: boolean_union failed: {e}")
-        # If we reach here, the boolean operation failed - return self unchanged
-        # This avoids hanging on complex geometry while still allowing the test to proceed
-        print(f"Warning: join() returning self unchanged due to boolean failure")
-        return self
+            print(f"Warning: boolean_union failed: {e}, using trimesh")
+            return self._join_trimesh_fallback(self_solid, joiner_solid)
 
-    def _join_trimesh_fallback(self, self_solid, joiner_solid) -> pv.PolyData:
-        """Fallback join operation using trimesh for reliable boolean operations."""
-        import trimesh
-        self_solid.save('/tmp/pv_join_self.stl')
-        joiner_solid.save('/tmp/pv_join_joiner.stl')
-        mesh_self = trimesh.load('/tmp/pv_join_self.stl')
-        mesh_joiner = trimesh.load('/tmp/pv_join_joiner.stl')
-        result_mesh = trimesh.boolean.union([mesh_self, mesh_joiner])
-        # Ensure positive volume by flipping if needed
-        if result_mesh.volume < 0:
-            result_mesh = result_mesh.apply_transform([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-            result_mesh = result_mesh.apply_scale([-1, -1, -1])  # This flips winding
-        result_mesh.export('/tmp/pv_join_result.stl')
-        return pv.read('/tmp/pv_join_result.stl')
+    def _join_trimesh_fallback(self, self_solid, joiner_solid) -> PVShape:
+        """Fallback join operation using trimesh boolean_union."""
+        try:
+            import trimesh
+            with tempfile.NamedTemporaryFile(suffix='.stl', delete=True) as tmp1:
+                with tempfile.NamedTemporaryFile(suffix='.stl', delete=True) as tmp2:
+                    self_solid.save(tmp1.name)
+                    joiner_solid.save(tmp2.name)
+                    mesh1 = trimesh.load(tmp1.name)
+                    mesh2 = trimesh.load(tmp2.name)
+                    result = mesh1.union(mesh2)
+                    if result is not None and result.is_watertight:
+                        with tempfile.NamedTemporaryFile(suffix='.stl', delete=True) as tmp_out:
+                            result.export(tmp_out.name)
+                            self.solid = pv.read(tmp_out.name)
+                            return self
+        except Exception as e:
+            print(f"Warning: trimesh union failed: {e}")
+        # Fallback: merge without boolean
+        self.solid = (self_solid + joiner_solid).triangulate()
+        return self
 
     def intersection(self, intersector: PVShape) -> PVShape:
         if intersector is None:
@@ -304,40 +304,46 @@ class PVShape(Shape):
         # Ensure both meshes are triangulated for boolean operations
         self_solid = self.solid.triangulate()
         intersector_solid = intersector.solid.triangulate()
+        
+        if PYVISTA_BOOLEAN_OPS_EN:
+            return self._intersection_pyvista_fallback(self_solid, intersector_solid)
+        else:
+            return self._intersect_trimesh_fallback(self_solid, intersector_solid)
+
+    def _intersection_pyvista_fallback(self, self_solid, intersector_solid) -> PVShape:
+        """Use PyVista boolean intersection (for debugging only)."""
         try:
             result = self_solid.boolean_intersection(intersector_solid)
             if result is not None and result.n_points > 0:
-                # Validate the result using trimesh to ensure watertight geometry
-                try:
-                    import trimesh
-                    result.save('/tmp/pv_intersect_temp.stl')
-                    mesh = trimesh.load('/tmp/pv_intersect_temp.stl')
-                    if not mesh.is_watertight:
-                        raise ValueError("PyVista result not watertight")
-                    # Do NOT triangulate - boolean_intersection already produces triangulated output
-                    self.solid = result
-                except Exception as e:
-                    # Fall back to trimesh for reliable boolean operations
-                    self.solid = self._intersect_trimesh_fallback(self_solid, intersector_solid)
+                self.solid = result
+                return self
             else:
-                # Fallback to trimesh
-                print(f"Warning: boolean_intersection returned empty result, falling back to trimesh")
-                self.solid = self._intersect_trimesh_fallback(self_solid, intersector_solid)
+                print(f"Warning: boolean_intersection returned empty result, using trimesh")
+                return self._intersect_trimesh_fallback(self_solid, intersector_solid)
         except Exception as e:
-            print(f"Warning: boolean_intersection failed: {e}, falling back to trimesh")
-            self.solid = self._intersect_trimesh_fallback(self_solid, intersector_solid)
-        return self
+            print(f"Warning: boolean_intersection failed: {e}, using trimesh")
+            return self._intersect_trimesh_fallback(self_solid, intersector_solid)
 
-    def _intersect_trimesh_fallback(self, self_solid, intersector_solid) -> pv.PolyData:
-        """Fallback intersection operation using trimesh for reliable boolean operations."""
-        import trimesh
-        self_solid.save('/tmp/pv_intersect_self.stl')
-        intersector_solid.save('/tmp/pv_intersect_intersector.stl')
-        mesh_self = trimesh.load('/tmp/pv_intersect_self.stl')
-        mesh_intersector = trimesh.load('/tmp/pv_intersect_intersector.stl')
-        result_mesh = trimesh.boolean.intersection([mesh_self, mesh_intersector])
-        result_mesh.export('/tmp/pv_intersect_result.stl')
-        return pv.read('/tmp/pv_intersect_result.stl')
+    def _intersect_trimesh_fallback(self, self_solid, intersector_solid) -> PVShape:
+        """Fallback intersection operation using trimesh boolean_intersection."""
+        try:
+            import trimesh
+            with tempfile.NamedTemporaryFile(suffix='.stl', delete=True) as tmp1:
+                with tempfile.NamedTemporaryFile(suffix='.stl', delete=True) as tmp2:
+                    self_solid.save(tmp1.name)
+                    intersector_solid.save(tmp2.name)
+                    mesh1 = trimesh.load(tmp1.name)
+                    mesh2 = trimesh.load(tmp2.name)
+                    result = mesh1.intersection(mesh2)
+                    if result is not None and result.is_watertight:
+                        with tempfile.NamedTemporaryFile(suffix='.stl', delete=True) as tmp_out:
+                            result.export(tmp_out.name)
+                            self.solid = pv.read(tmp_out.name)
+                            return self
+        except Exception as e:
+            print(f"Warning: trimesh intersection failed: {e}")
+        self.solid = self_solid
+        return self
 
     def dup(self) -> PVShape:
         duplicate = copy.copy(self)
@@ -693,17 +699,9 @@ class PVCirclePolySweep(PVShape):
                         cylinder_length=cylinder_length,
                         resolution=segs,
                     ).triangulate()
-                    # Wrap boolean_union in try-except to prevent segfaults
-                    try:
-                        result = sweep_shape.boolean_union(capsule, tolerance=0.01)
-                        if result is not None:
-                            sweep_shape = result.triangulate()
-                        else:
-                            # Union failed, just add the capsule without union
-                            sweep_shape = sweep_shape + capsule
-                    except Exception:
-                        # Fallback: just combine without union
-                        sweep_shape = sweep_shape + capsule
+                    # Use + operator to combine shapes instead of boolean_union which can hang indefinitely
+                    # This matches the approach used elsewhere when PYVISTA_BOOLEAN_OPS_EN is False
+                    sweep_shape = sweep_shape + capsule
                 last_ball = ball
         self.solid = sweep_shape
 
