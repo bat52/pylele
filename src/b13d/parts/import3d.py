@@ -54,7 +54,7 @@ def test_import3d(self,apis=supported_apis()):
         'cq_svg' : ['-imp',test_svg, '-eh', '10'],
         }
     
-    if test_dxf:
+    if SVG2DXF_AVAILABLE:
         tests[Implementation.CADQUERY]['cq_dxf'] = ['-imp',test_dxf, '-eh', '10']
     
     tests[Implementation.BUILD123D]={
@@ -68,7 +68,7 @@ def test_import3d(self,apis=supported_apis()):
         'tm_svg' : ['-imp',test_svg, '-eh', '10'],
         }
     
-    if test_dxf:
+    if SVG2DXF_AVAILABLE:
         tests[Implementation.TRIMESH]['tm_dxf'] = ['-imp',test_dxf, '-eh', '10']
     
     tests[Implementation.BLENDER]={
