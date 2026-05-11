@@ -21,7 +21,7 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install -r requirements_solid2.txt
     - name: Install OpenSCAD
       run: choco install -y openscad
       shell: powershell
@@ -73,18 +73,18 @@ jobs:
     #      # path depends on the tag and the module name
     #      name: travelele_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
     #      path: build/*
-    - name: test_b1scad
-      run: |
-        python3 ./src/b1scad/test.py
-      continue-on-error: true
     - name: test_b13d
       run: |
         python3 ./src/b13d/test.py
-      continue-on-error: true
+      continue-on-error: false
+    - name: test_b1scad
+      run: |
+        python3 ./src/b1scad/test.py
+      continue-on-error: false
     - name: test_pylele
       run: |
         python3 ./src/pylele/test.py
-      continue-on-error: true
+      continue-on-error: false
     - name: upload test output
       uses: actions/upload-artifact@v4
       with:

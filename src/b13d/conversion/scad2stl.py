@@ -69,10 +69,14 @@ def openscad_version(command=OPENSCAD):
 def openscad_manifold_ok(command=OPENSCAD) -> bool:
     """ check manifold available """
     # https://github.com/openscad/openscad/issues/391#issuecomment-1718145488
-    ver = openscad_version(command)
-    # print(ver)
-    if version.parse(ver) > version.parse("2023.09"):
-        return True
+    try:
+        ver = openscad_version(command)
+        # print(ver)
+        if version.parse(ver) > version.parse("2023.09"):
+            return True
+    except Exception as e:        
+        print(f"WARNING: Could not determine openscad version: {e}")  
+    # assume no manifold support if version check fails
     return False
 
 def openscad_manifold_opt(command=OPENSCAD) -> str:
