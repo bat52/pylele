@@ -913,12 +913,14 @@ class ShapeAPI(ABC):
         rod = self.cylinder_z(20, 1)
         obj1 = box + ball + coneZ + rod - coneX
         obj1 = obj1.mv(10, 10, 11)
+        self._export_and_validate(obj1, expDir, "obj1", min_volume=1000)
         joined = obj1
 
         rx = self.cylinder_x(10, 3)
         ry = self.cylinder_y(10, 3)
         rz = self.cylinder_z(10, 3)
         obj2 = rx.join(ry).join(rz).mv(10, -10, 5)
+        self._export_and_validate(obj2, expDir, "obj2", min_volume=1000)
         joined += obj2
 
         rr1 = self.cylinder_rounded_x(10, 3).scale(0.5, 1, 1).mv(0, -20, 0)
@@ -926,12 +928,14 @@ class ShapeAPI(ABC):
         rr3 = self.cylinder_rounded_x(10, 3).scale(1, 1, 0.5).mv(0, 20, 0)
         rr4 = self.cylinder_rounded_y(50, 1)
         obj3 = rr1.join(rr2).join(rr3).join(rr4).mv(0, 0, -20)
+        self._export_and_validate(obj3, expDir, "obj3", min_volume=1000)
         joined += obj3
 
         rrx = self.cylinder_rounded_x(10, 3, 0.25)
         rry = self.cylinder_rounded_y(10, 3, 0.5)
         rrz = self.cylinder_rounded_z(10, 3)
         obj4 = rrx.join(rry).join(rrz).half().mv(-10, 10, 5)
+        self._export_and_validate(obj4, expDir, "obj4", min_volume=1000)
         joined += obj4
 
         pe = self.polygon_extrusion([(-10, 30), (10, 30), (10, -30), (-10, -30)], 10)
@@ -939,11 +943,13 @@ class ShapeAPI(ABC):
         obj5 = pe.join(tz).mv(30, -30, 0)
         mirror = obj5.mirror().mv(10, 0, 0)
         obj5 = obj5.join(mirror)
+        self._export_and_validate(obj5, expDir, "obj5", min_volume=1000)
         joined += obj5
 
         if self.implementation.has_fillet():
             rndBox = self.box(10, 10, 10).fillet([(5, 0, 5)], 1)
             obj6 = rndBox.mv(-10, -10, 5)
+            self._export_and_validate(obj6, expDir, "obj6", min_volume=1000)
             joined += obj6
 
         dome = self.spline_extrusion(
@@ -964,6 +970,7 @@ class ShapeAPI(ABC):
             ht=5,
         )
         obj7 = dome.rotate_y(-45).mv(-10, 15, 0)
+        self._export_and_validate(obj7, expDir, "obj7", min_volume=1000)
         joined += obj7
 
         donutStart = (60, 0.1)
@@ -982,30 +989,42 @@ class ShapeAPI(ABC):
             0, 0, self.tolerance()
         )
         obj8 = dome2.join(dome3).mv(0, 0, -10)
+        self._export_and_validate(obj8, expDir, "obj8", min_volume=1000)
         joined += obj8
 
         obj9 = self.regpoly_sweep(
             1, [(-20, 0, 0), (20, 0, 40), (40, 20, 40), (60, 20, 0)]
         )
+        self._export_and_validate(obj9, expDir, "obj9", min_volume=1000)
         joined += obj9
 
         obj10 = self.sphere_quadrant(10, True, True).scale(2, 1, 0.5).mv(-30, -20, 0)
+        self._export_and_validate(obj10, expDir, "obj10", min_volume=1000)
         joined += obj10
 
         obj11 = self.cylinder_half(10, True, 10).scale(1.5, 1, 1).mv(-30, 20, 0)
+        self._export_and_validate(obj11, expDir, "obj11", min_volume=1000)
         joined += obj11
 
         # move operator shortcut
         obj12 = self.sphere(5) << (Direction.X + 2)
+        self._export_and_validate(obj12, expDir, "obj12", min_volume=100)
         obj13 = self.sphere(5) << (Direction.Y + 2)
+        self._export_and_validate(obj13, expDir, "obj13", min_volume=100)
         obj14 = self.sphere(5) << (Direction.Z + 2)
+        self._export_and_validate(obj14, expDir, "obj14", min_volume=100)
         obj15 = self.sphere(5) << (0,1,2)
+        self._export_and_validate(obj15, expDir, "obj15", min_volume=100)
 
         # scale operator shortcut
         obj16 = self.sphere(5) * (Direction.X * 2)
+        self._export_and_validate(obj16, expDir, "obj16", min_volume=100)
         obj17 = self.sphere(5) * (Direction.Y * 2)
+        self._export_and_validate(obj17, expDir, "obj17", min_volume=100)
         obj18 = self.sphere(5) * (Direction.Z * 2)
+        self._export_and_validate(obj18, expDir, "obj18", min_volume=100)
         obj19 = self.sphere(5) * (1,2,3)
+        self._export_and_validate(obj19, expDir, "obj19", min_volume=100)
 
         self._export_and_validate(joined, expDir, "all", min_volume=10000)
 
