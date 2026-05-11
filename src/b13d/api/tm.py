@@ -25,7 +25,7 @@ from b13d.api.utils import (
     radians,
     textToGlyphsPaths,
 )
-from b13d.conversion.svg2dxf import svg2dxf_wrapper
+from b13d.conversion.svg2dxf import svg2dxf_wrapper, SVG2DXF_AVAILABLE
 
 
 """
@@ -728,6 +728,11 @@ class TMImport(TMShape):
         if fext in [".stl",".glb",".gltf",".obj"]:
             self.solid = tm.load_mesh(infile)
         elif fext in [".svg"]:
+            if not SVG2DXF_AVAILABLE:
+                raise RuntimeError(
+                    "SVG import requires svg2dxf. "
+                    "Install with: pip install pylele[svg2dxf]"
+                )
             outfile = svg2dxf_wrapper(infile)
             self.solid = dxf2mesh(outfile, extrude)
         elif fext in [".dxf"]:

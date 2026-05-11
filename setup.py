@@ -36,8 +36,7 @@ setup(
         # b1scad dependencies
         "sly",
         "svgpathtools",
-        "svg2dxf @ git+https://github.com/multigcs/svg2dxf@main"
-      ],
+        ],
     extras_require={
         "blender": [
             "bpy==4.0.0; python_version < '3.11'",
@@ -60,6 +59,9 @@ setup(
             "vtk>=9.2.0",
             "lxml",
         ],
+        "svg2dxf": [
+            "svg2dxf @ git+https://github.com/multigcs/svg2dxf@main",
+        ],
     },
     entry_points={
         "console_scripts": [
@@ -73,9 +75,8 @@ setup(
             "b1scad=b1scad.scad2py:b1scad",
         ],
     },
+    project_urls={
+        "Source": "https://github.com/bguan/pylele",
+        "Tracker": "https://github.com/bguan/pylele/issues"
+    }
 )
-
-project_urls={
-    "Source": "https://github.com/bguan/pylele",
-    "Tracker": "https://github.com/bguan/pylele/issues"
-}

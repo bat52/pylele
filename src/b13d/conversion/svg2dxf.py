@@ -6,9 +6,23 @@ Converts a .svg file to .dxf
 
 import sys
 import os
+import shutil
+
+# Check availability at module load time
+SVG2DXF_AVAILABLE = shutil.which('svg2dxf') is not None
+
+def _check_svg2dxf_available():
+    """Check if svg2dxf CLI is available. Uses cached result."""
+    return SVG2DXF_AVAILABLE
 
 def svg2dxf_wrapper(infile, outfile='') -> str:
-    """ Converts an  into a binary """
+    """ Converts an SVG file to a DXF file """
+    if not _check_svg2dxf_available():
+        raise RuntimeError(
+            "svg2dxf CLI tool not available. "
+            "Install the svg2dxf extra with: pip install pylele[svg2dxf]"
+        )
+    
     assert os.path.isfile(infile), f"ERROR: Input File {infile} does not exist!"
 
     if outfile=='':

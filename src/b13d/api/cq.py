@@ -25,7 +25,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.core import ShapeAPI, Shape, test_api
 from b13d.api.utils import file_ensure_extension, lineSplineXY
-from b13d.conversion.svg2dxf import svg2dxf_wrapper
+from b13d.conversion.svg2dxf import svg2dxf_wrapper, SVG2DXF_AVAILABLE
 
 
 """
@@ -580,9 +580,14 @@ class CQImport(CQShape):
         ), f"ERROR: file extension {fext} not supported!"
 
         if fext == ".svg":
+            if not SVG2DXF_AVAILABLE:
+                raise RuntimeError(
+                    "SVG import requires svg2dxf. "
+                    "Install with: pip install pylele[svg2dxf]"
+                )
             outfile = svg2dxf_wrapper(infile)
             self.solid = cq.importers.importDXF(outfile).wires().toPending().extrude(extrude)
-        elif fext == ".dxf" or fext == ".svg":
+        elif fext == ".dxf":
             self.solid = cq.importers.importDXF(infile).wires().toPending().extrude(extrude)
         elif fext == ".step":
             self.solid = cq.importers.importStep(infile).toPending()

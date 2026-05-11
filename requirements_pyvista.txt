@@ -17,8 +17,7 @@ prettytable
 # b1scad
 sly
 svgpathtools
-# Use local svg2dxf conversion utility
-# svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
+# svg2dxf — install with: pip install pylele[svg2dxf]
 
 # PyVista backend (pv)
 pyvista>=0.43.0
