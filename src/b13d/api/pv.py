@@ -98,6 +98,32 @@ class PVShapeAPI(ShapeAPI):
     ) -> PVShape:
         return PVCirclePolySweep(rad, path, self)
 
+    def rounded_edge_mask(self, l, rad, direction: Direction = Direction.Z, rot=0, tol = 0.1) -> Shape:
+        """ Generate a mask to round an edge - PyVista-specific override to avoid boolean crash """
+        from b13d.api.core import Direction as CoreDirection
+        
+        radi = rad + tol
+        # Use low-resolution polygon (15 sides) instead of high-res cylinder
+        # to avoid PyVista boolean_difference crash with translated box geometry
+        sides = 15
+        
+        if direction.upper() == CoreDirection.X:
+            mask = self.regpoly_extrusion_x(l, radi, sides).mv(0, radi/2, radi/2)
+            cyl = self.cylinder(l, rad=radi, sides=sides, direction=direction)
+        elif direction.upper() == CoreDirection.Y:
+            mask = self.regpoly_extrusion_y(l, radi, sides).mv(radi/2, 0, radi/2)
+            cyl = self.cylinder(l, rad=radi, sides=sides, direction=direction)
+        elif direction.upper() == CoreDirection.Z:
+            mask = self.regpoly_extrusion_z(l, radi, sides).mv(radi/2, radi/2, 0)
+            cyl = self.cylinder(l, rad=radi, sides=sides, direction=direction)
+        else:
+            assert False
+
+        mask -= cyl
+        mask = mask.rotate(rot, direction=direction)
+
+        return mask
+
     def text(self, txt: str, fontSize: float, tck: float, font: str) -> PVShape:
         return PVTextZ(txt, fontSize, tck, font, self)
 

@@ -868,6 +868,42 @@ class ShapeAPI(ABC):
         edgez = self.rounded_edge_mask(direction='z',l=30, rad = 10)
         self._export_and_validate(edgez, expDir, "edgez", min_volume=100)
 
+        # test join
+        box = self.box(10, 20, 30).mv(0,7,0)
+        xRod = self.cylinder_x(30, 5)
+        jout = xRod.join(box)
+        name = self._numbered_name(self._test_counter, "bop-join")
+        self.export_stl(jout, expDir / name)
+        self._test_counter += 1
+
+        # test cut
+        box = self.box(10, 20, 30).mv(0,7,0)
+        xRod = self.cylinder_x(30, 5)
+        jout = xRod.cut(box)
+        name = self._numbered_name(self._test_counter, "bop-cut")
+        self.export_stl(jout, expDir / name)
+        self._test_counter += 1
+
+        # test intersection
+        box = self.box(10, 20, 30).mv(0,7,0)
+        xRod = self.cylinder_x(30, 5)
+        iout = xRod.intersection(box)
+        name = self._numbered_name(self._test_counter, "bop-intersect")
+        self.export_stl(iout, expDir / name)
+        self._test_counter += 1
+        iout = xRod & box
+
+        # test hull
+        if self.implementation.has_hull():
+            box = self.box(10, 20, 30).mv(0,7,0)
+            xrod = self.cylinder_x(30, 5)
+            jout = box + xrod
+            jout.hull()
+            name = self._numbered_name(self._test_counter, "hull")
+            self.export_stl(jout, expDir / name)
+            self._test_counter += 1
+
+
         # More complex tests
 
         box = self.box(10, 10, 2).mv(0, 0, -10)
@@ -973,37 +1009,4 @@ class ShapeAPI(ABC):
 
         self._export_and_validate(joined, expDir, "all", min_volume=10000)
 
-        # test join
-        box = self.box(10, 20, 30).mv(0,7,0)
-        xRod = self.cylinder_x(30, 5)
-        jout = xRod.join(box)
-        name = self._numbered_name(self._test_counter, "bop-join")
-        self.export_stl(jout, expDir / name)
-        self._test_counter += 1
-
-        # test cut
-        box = self.box(10, 20, 30).mv(0,7,0)
-        xRod = self.cylinder_x(30, 5)
-        jout = xRod.cut(box)
-        name = self._numbered_name(self._test_counter, "bop-cut")
-        self.export_stl(jout, expDir / name)
-        self._test_counter += 1
-
-        # test intersection
-        box = self.box(10, 20, 30).mv(0,7,0)
-        xRod = self.cylinder_x(30, 5)
-        iout = xRod.intersection(box)
-        name = self._numbered_name(self._test_counter, "bop-intersect")
-        self.export_stl(iout, expDir / name)
-        self._test_counter += 1
-        iout = xRod & box
-
-        # test hull
-        if self.implementation.has_hull():
-            box = self.box(10, 20, 30).mv(0,7,0)
-            xrod = self.cylinder_x(30, 5)
-            jout = box + xrod
-            jout.hull()
-            name = self._numbered_name(self._test_counter, "hull")
-            self.export_stl(jout, expDir / name)
-            self._test_counter += 1
+        
