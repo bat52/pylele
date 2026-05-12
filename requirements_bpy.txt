@@ -1,4 +1,4 @@
-numpy>=2,<3
+numpy==1.26.4
 nlopt==2.7.1
 trimesh==4.4.8
 # manifold seems compatible with build123d
