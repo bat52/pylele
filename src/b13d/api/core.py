@@ -117,14 +117,14 @@ class Implementation(StringEnum):
         return APIS_INFO[self]["hull"]
 
 APIS_INFO = {
-    Implementation.MOCK      : {"module": "b13d.api.mock", "class": "MockShapeAPI", "fillet": False, "hull" : True},
-    Implementation.CADQUERY  : {"module": "b13d.api.cq", "class": "CQShapeAPI", "fillet": True, "hull" : False},
-    Implementation.BLENDER   : {"module": "b13d.api.bpy", "class": "BlenderShapeAPI", "fillet": True, "hull" : False},
-    Implementation.TRIMESH   : {"module": "b13d.api.tm", "class": "TMShapeAPI", "fillet": False, "hull" : True},
-    Implementation.SOLID2    : {"module": "b13d.api.sp2", "class": "Sp2ShapeAPI", "fillet": False, "hull" : True},
-    Implementation.MANIFOLD  : {"module": "b13d.api.mf", "class": "MFShapeAPI", "fillet": False, "hull" : True},
-    Implementation.BUILD123D : {"module": "b13d.api.bd", "class": "BDShapeAPI", "fillet": True, "hull" : True},
-    Implementation.PYVISTA : {"module": "b13d.api.pv", "class": "PVShapeAPI", "fillet": False, "hull" : True},
+    Implementation.MOCK      : {"module": "b13d.api.mock", "class": "MockShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
+    Implementation.CADQUERY  : {"module": "b13d.api.cq", "class": "CQShapeAPI", "fillet": True, "hull" : False, "linear_extrude": True, "rotate_extrude": True, "offset": True, "projection": True, "minkowski": False},
+    Implementation.BLENDER   : {"module": "b13d.api.bpy", "class": "BlenderShapeAPI", "fillet": True, "hull" : False, "linear_extrude": True, "rotate_extrude": True, "offset": True, "projection": True, "minkowski": False},
+    Implementation.TRIMESH   : {"module": "b13d.api.tm", "class": "TMShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
+    Implementation.SOLID2    : {"module": "b13d.api.sp2", "class": "Sp2ShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": True},
+    Implementation.MANIFOLD  : {"module": "b13d.api.mf", "class": "MFShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
+    Implementation.BUILD123D : {"module": "b13d.api.bd", "class": "BDShapeAPI", "fillet": True, "hull" : True, "linear_extrude": True, "rotate_extrude": True, "offset": True, "projection": True, "minkowski": True},
+    Implementation.PYVISTA   : {"module": "b13d.api.pv", "class": "PVShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
 }
 
 def supported_apis() -> list:
@@ -494,7 +494,7 @@ class ShapeAPI(ABC):
     def box(self, l: float, wth: float, ht: float, center: bool) -> Shape: ...
 
     def cube(self, l: float) -> Shape:
-        return self.box(l=l,wth=l,ht=l)
+        return self.box(ln=l, wth=l, ht=l, center=True)
 
     @abstractmethod
     def cone_x(self, h: float, r1: float, r2: float) -> Shape: ...
@@ -1037,6 +1037,47 @@ class ShapeAPI(ABC):
         self._export_and_validate(obj18, expDir, "obj18", min_volume=100)
         obj19 = self.sphere(5) * (1,2,3)
         self._export_and_validate(obj19, expDir, "obj19", min_volume=100)
+
+        # Test Shape methods
+        box = self.box(10, 20, 30)
+        
+        # Test dup
+        dup_box = box.dup()
+        self._export_and_validate(dup_box, expDir, "dup-box", min_volume=5000)
+        
+        # Test mirror_and_join
+        mir_box = box.mirror_and_join()
+        self._export_and_validate(mir_box, expDir, "mir-box", min_volume=10000)
+        
+        # Test set_color, set_name, show
+        box.set_color((255, 0, 0))
+        box.set_name("RedBox")
+        box.show()
+        self._export_and_validate(box, expDir, "props-box", min_volume=5000)
+
+        # Test cube (default wrapper)
+        cube = self.cube(10)
+        self._export_and_validate(cube, expDir, "cube", min_volume=1000)
+        
+        # Test getFontPath
+        font = self.getFontPath(None)
+        print(f"[{implCode}] Default font path: {font}")
+        
+        # Test bbox properties
+        print(f"[{implCode}] Bbox tests: top={box.top()}, bottom={box.bottom()}, left={box.left()}, right={box.right()}, center={box.center()}, len={box.length()}, w={box.width()}, h={box.height()}")
+
+        # Test remaining ShapeAPI methods
+        info = APIS_INFO[self.implementation]
+        if info.get("linear_extrude"):
+            box.linear_extrude(height=10)
+        if info.get("rotate_extrude"):
+            box.rotate_extrude(angle=90)
+        if info.get("offset"):
+            box.offset(r=1)
+        if info.get("projection"):
+            box.projection(cut=True)
+        if info.get("minkowski"):
+            box.minkowski(box)
 
         self._export_and_validate(joined, expDir, "all", min_volume=10000)
 
