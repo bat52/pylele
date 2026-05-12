@@ -267,7 +267,7 @@ class Shape(ABC):
         """mirror midR and joins the two parts"""
         joinTol = self.api.tolerance()
         midL = self.mirror()
-        return midL.mv(0, joinTol / 2, 0).join(self.mv(0, -joinTol / 2, 0))
+        return midL.mv(0, joinTol / 2, 0).join(self.dup().mv(0, -joinTol / 2, 0))
 
     @abstractmethod
     def mv(self, x: float, y: float, z: float) -> Shape: ...
@@ -916,6 +916,90 @@ class ShapeAPI(ABC):
         mout = mirrored.join(box)
         self._export_and_validate(mout, expDir, "mirror", min_volume=100)
 
+        # scale operator shortcut
+        obj16 = self.sphere(5) * (Direction.X * 2)
+        self._export_and_validate(obj16, expDir, "obj16", min_volume=100)
+        obj17 = self.sphere(5) * (Direction.Y * 2)
+        self._export_and_validate(obj17, expDir, "obj17", min_volume=100)
+        obj18 = self.sphere(5) * (Direction.Z * 2)
+        self._export_and_validate(obj18, expDir, "obj18", min_volume=100)
+        obj19 = self.sphere(5) * (1,2,3)
+        self._export_and_validate(obj19, expDir, "obj19", min_volume=100)
+
+        # Test scale method
+        scale_tol = self.fidelity.tolerance()
+        scale_box = self.box(10, 20, 30)
+        scale_box.scale(2, 3, 4)
+        print(f"[{implCode}] Scale tests: len={scale_box.length()}, w={scale_box.width()}, h={scale_box.height()}, center={scale_box.center()}")
+        assert fabs(scale_box.length() - 20) < scale_tol
+        assert fabs(scale_box.width()  - 60) < scale_tol
+        assert fabs(scale_box.height() - 120) < scale_tol
+        assert all(fabs(c - e) < scale_tol for c, e in zip(scale_box.center(), (0, 0, 0)))
+        self._export_and_validate(scale_box, expDir, "scale-box", min_volume=10000)
+       
+        # Test dup
+        box = self.box(10, 20, 30)
+        dup_box = box.dup()
+        self._export_and_validate(dup_box, expDir, "dup-box", min_volume=5000)
+        
+        # Test mirror_and_join
+        box = self.box(10, 20, 30)
+        mir_box = box.mirror_and_join()
+        self._export_and_validate(mir_box, expDir, "mir-box", min_volume=10000)
+        
+        # Test set_color, set_name, show
+        box = self.box(10, 20, 30)
+        box.set_color((255, 0, 0))
+        box.set_name("RedBox")
+        box.show()
+        self._export_and_validate(box, expDir, "props-box", min_volume=5000)
+
+        # Test cube (default wrapper)
+        cube = self.cube(10)
+        self._export_and_validate(cube, expDir, "cube", min_volume=1000)
+        
+        # Test getFontPath
+        font = self.getFontPath(None)
+        print(f"[{implCode}] Default font path: {font}")
+        
+        # Test bbox properties
+        # Use fidelity tolerance for numerical comparisons;
+        # implementation.tolerance() is for join overlap and may be 0 (e.g. CADQUERY).
+        box = self.box(10, 20, 30)
+        bbox_tol = self.fidelity.tolerance()
+        print(f"[{implCode}] Bbox tests: top={box.top()}, bottom={box.bottom()}, left={box.left()}, right={box.right()}, center={box.center()}, len={box.length()}, w={box.width()}, h={box.height()}")
+        assert fabs(box.top()    - 15) < bbox_tol
+        assert fabs(box.bottom() + 15) < bbox_tol
+        assert fabs(box.left()   + 5) < bbox_tol
+        assert fabs(box.right()  - 5) < bbox_tol
+        assert all(fabs(c - e) < bbox_tol for c, e in zip(box.center(), (0, 0, 0)))
+        assert fabs(box.length() - 10) < bbox_tol
+        assert fabs(box.width()  - 20) < bbox_tol
+        assert fabs(box.height() - 30) < bbox_tol
+
+        # Test remaining ShapeAPI methods
+        info = APIS_INFO[self.implementation]
+        if info.get("linear_extrude"):
+            box = self.box(10, 20, 30)
+            box.linear_extrude(height=10)
+            self._export_and_validate(box, expDir, "linear-extrude", min_volume=5000)
+        if info.get("rotate_extrude"):
+            box = self.box(10, 20, 30)
+            box.rotate_extrude(angle=90)
+            self._export_and_validate(box, expDir, "rotate-extrude", min_volume=5000)
+        if info.get("offset"):
+            box = self.box(10, 20, 30)
+            box.offset(r=1)
+            self._export_and_validate(box, expDir, "offset", min_volume=5000)
+        if info.get("projection"):
+            box = self.box(10, 20, 30)
+            box.projection(cut=True)
+            self._export_and_validate(box, expDir, "projection", min_volume=100)
+        if info.get("minkowski"):
+            box = self.box(10, 20, 30)
+            box.minkowski(box)
+            self._export_and_validate(box, expDir, "minkowski", min_volume=5000)
+
         # More complex tests
 
         box = self.box(10, 10, 2).mv(0, 0, -10)
@@ -958,6 +1042,7 @@ class ShapeAPI(ABC):
         self._export_and_validate(obj5, expDir, "obj5", min_volume=1000)
         joined += obj5
 
+        # fillet testy
         if self.implementation.has_fillet():
             rndBox = self.box(10, 10, 10).fillet([(5, 0, 5)], 1)
             obj6 = rndBox.mv(-10, -10, 5)
@@ -1027,68 +1112,6 @@ class ShapeAPI(ABC):
         self._export_and_validate(obj14, expDir, "obj14", min_volume=100)
         obj15 = self.sphere(5) << (0,1,2)
         self._export_and_validate(obj15, expDir, "obj15", min_volume=100)
-
-        # scale operator shortcut
-        obj16 = self.sphere(5) * (Direction.X * 2)
-        self._export_and_validate(obj16, expDir, "obj16", min_volume=100)
-        obj17 = self.sphere(5) * (Direction.Y * 2)
-        self._export_and_validate(obj17, expDir, "obj17", min_volume=100)
-        obj18 = self.sphere(5) * (Direction.Z * 2)
-        self._export_and_validate(obj18, expDir, "obj18", min_volume=100)
-        obj19 = self.sphere(5) * (1,2,3)
-        self._export_and_validate(obj19, expDir, "obj19", min_volume=100)
-
-        # Test Shape methods
-        box = self.box(10, 20, 30)
-        
-        # Test dup
-        dup_box = box.dup()
-        self._export_and_validate(dup_box, expDir, "dup-box", min_volume=5000)
-        
-        # Test mirror_and_join
-        mir_box = box.mirror_and_join()
-        self._export_and_validate(mir_box, expDir, "mir-box", min_volume=10000)
-        
-        # Test set_color, set_name, show
-        box.set_color((255, 0, 0))
-        box.set_name("RedBox")
-        box.show()
-        self._export_and_validate(box, expDir, "props-box", min_volume=5000)
-
-        # Test cube (default wrapper)
-        cube = self.cube(10)
-        self._export_and_validate(cube, expDir, "cube", min_volume=1000)
-        
-        # Test getFontPath
-        font = self.getFontPath(None)
-        print(f"[{implCode}] Default font path: {font}")
-        
-        # Test bbox properties
-        # Use fidelity tolerance for numerical comparisons;
-        # implementation.tolerance() is for join overlap and may be 0 (e.g. CADQUERY).
-        bbox_tol = self.fidelity.tolerance()
-        print(f"[{implCode}] Bbox tests: top={box.top()}, bottom={box.bottom()}, left={box.left()}, right={box.right()}, center={box.center()}, len={box.length()}, w={box.width()}, h={box.height()}")
-        assert fabs(box.top()    - 15) < bbox_tol
-        assert fabs(box.bottom() + 15) < bbox_tol
-        assert fabs(box.left()   + 5) < bbox_tol
-        assert fabs(box.right()  - 5) < bbox_tol
-        assert all(fabs(c - e) < bbox_tol for c, e in zip(box.center(), (0, 0, 0)))
-        assert fabs(box.length() - 10) < bbox_tol
-        assert fabs(box.width()  - 20) < bbox_tol
-        assert fabs(box.height() - 30) < bbox_tol
-
-        # Test remaining ShapeAPI methods
-        info = APIS_INFO[self.implementation]
-        if info.get("linear_extrude"):
-            box.linear_extrude(height=10)
-        if info.get("rotate_extrude"):
-            box.rotate_extrude(angle=90)
-        if info.get("offset"):
-            box.offset(r=1)
-        if info.get("projection"):
-            box.projection(cut=True)
-        if info.get("minkowski"):
-            box.minkowski(box)
 
         self._export_and_validate(joined, expDir, "all", min_volume=10000)
 
