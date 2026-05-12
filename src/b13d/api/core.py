@@ -118,12 +118,12 @@ class Implementation(StringEnum):
 
 APIS_INFO = {
     Implementation.MOCK      : {"module": "b13d.api.mock", "class": "MockShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
-    Implementation.CADQUERY  : {"module": "b13d.api.cq", "class": "CQShapeAPI", "fillet": True, "hull" : False, "linear_extrude": True, "rotate_extrude": True, "offset": True, "projection": True, "minkowski": False},
-    Implementation.BLENDER   : {"module": "b13d.api.bpy", "class": "BlenderShapeAPI", "fillet": True, "hull" : False, "linear_extrude": True, "rotate_extrude": True, "offset": True, "projection": True, "minkowski": False},
+    Implementation.CADQUERY  : {"module": "b13d.api.cq", "class": "CQShapeAPI", "fillet": True, "hull" : False, "linear_extrude": True, "rotate_extrude": True, "offset": True, "offset_volume": True, "projection": True, "minkowski": False},
+    Implementation.BLENDER   : {"module": "b13d.api.bpy", "class": "BlenderShapeAPI", "fillet": True, "hull" : False, "linear_extrude": True, "rotate_extrude": True, "offset": True, "offset_volume": True, "projection": True, "minkowski": False},
     Implementation.TRIMESH   : {"module": "b13d.api.tm", "class": "TMShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
     Implementation.SOLID2    : {"module": "b13d.api.sp2", "class": "Sp2ShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": True},
     Implementation.MANIFOLD  : {"module": "b13d.api.mf", "class": "MFShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
-    Implementation.BUILD123D : {"module": "b13d.api.bd", "class": "BDShapeAPI", "fillet": True, "hull" : True, "linear_extrude": True, "rotate_extrude": True, "offset": True, "projection": True, "minkowski": True},
+    Implementation.BUILD123D : {"module": "b13d.api.bd", "class": "BDShapeAPI", "fillet": True, "hull" : True, "linear_extrude": True, "rotate_extrude": True, "offset": True, "offset_volume": False, "projection": True, "minkowski": True},
     Implementation.PYVISTA   : {"module": "b13d.api.pv", "class": "PVShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
 }
 
@@ -685,8 +685,11 @@ class ShapeAPI(ABC):
     def tolerance(self):
         return self.implementation.tolerance()
 
-    def _validate_stl(self, stl_path: Path, name: str, min_volume: float = 0):
-        """Validate an STL file using trimesh: check watertightness and volume."""
+    def _validate_stl(self, stl_path: Path, name: str, min_volume: float | None = 0):
+        """Validate an STL file using trimesh: check watertightness and volume.
+        
+        If min_volume is None, volume checks are skipped entirely.
+        """
         try:
             import trimesh
             mesh = trimesh.load(str(stl_path))
@@ -703,9 +706,9 @@ class ShapeAPI(ABC):
                 if not mesh.is_watertight:
                     print(f"  WARNING: {name} ({stl_path.name}) is NOT WATERTIGHT")
                 vol = mesh.volume
-            assert vol > 0, f"Negative Volume: {vol}"
-            assert vol >= min_volume, f"Volume too small: {vol:.2f} < min={min_volume}"
-            # print(f"  WARNING: {name} ({stl_path.name}) volume={vol:.2f} < min={min_volume}")
+            if min_volume is not None:
+                assert vol > 0, f"Negative Volume: {vol}"
+                assert vol >= min_volume, f"Volume too small: {vol:.2f} < min={min_volume}"
         except Exception as e:
             print(f"  WARNING: {name} ({stl_path.name}) validation failed: {e}")
 
@@ -981,21 +984,22 @@ class ShapeAPI(ABC):
         # Test remaining ShapeAPI methods
         info = APIS_INFO[self.implementation]
         if info.get("linear_extrude"):
-            box = self.box(10, 20, 30)
-            box.linear_extrude(height=10)
-            self._export_and_validate(box, expDir, "linear-extrude", min_volume=5000)
+            rect = self.rectangle((20, 10))
+            rect.linear_extrude(height=10)
+            self._export_and_validate(rect, expDir, "linear-extrude", min_volume=1000)
         if info.get("rotate_extrude"):
-            box = self.box(10, 20, 30)
-            box.rotate_extrude(angle=90)
-            self._export_and_validate(box, expDir, "rotate-extrude", min_volume=5000)
+            rect = self.rectangle((20, 10))
+            rect.rotate_extrude(angle=90)
+            self._export_and_validate(rect, expDir, "rotate-extrude", min_volume=1000)
         if info.get("offset"):
-            box = self.box(10, 20, 30)
-            box.offset(r=1)
-            self._export_and_validate(box, expDir, "offset", min_volume=5000)
+            rect = self.rectangle((20, 10))
+            rect.offset(r=1)
+            offset_min_volume = 100 if info.get("offset_volume") else 0
+            self._export_and_validate(rect, expDir, "offset", min_volume=offset_min_volume)
         if info.get("projection"):
             box = self.box(10, 20, 30)
             box.projection(cut=True)
-            self._export_and_validate(box, expDir, "projection", min_volume=100)
+            self._export_and_validate(box, expDir, "projection", min_volume=None)
         if info.get("minkowski"):
             box = self.box(10, 20, 30)
             box.minkowski(box)

@@ -10,6 +10,7 @@ from pathlib import Path
 from shapely.geometry import Polygon
 import sys
 import trimesh as tm
+from trimesh.boolean import difference as _tm_difference, union as _tm_union, intersection as _tm_intersection
 from typing import Union
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
@@ -26,6 +27,36 @@ from b13d.api.utils import (
     textToGlyphsPaths,
 )
 from b13d.conversion.svg2dxf import svg2dxf_wrapper, SVG2DXF_AVAILABLE
+
+# Check if manifold3d is available for boolean operations
+try:
+    import manifold3d  # noqa: F401
+    MANIFOLD3D_AVAILABLE = True
+except ImportError:
+    MANIFOLD3D_AVAILABLE = False
+
+_MANIFOLD3D_INSTALL_HINT = (
+    "Boolean operations (cut, join, intersection) in the trimesh API "
+    "require the manifold3d package. "
+    "Install with: pip install manifold3d  or  pip install pylele[manifold]"
+)
+
+
+_BOOL_OPS = {
+    "difference": _tm_difference,
+    "union": _tm_union,
+    "intersection": _tm_intersection,
+}
+
+
+def _boolean_op(op_name: str, meshes: list, **kwargs):
+    """Run a trimesh boolean operation with a clear error if manifold3d is missing."""
+    if not MANIFOLD3D_AVAILABLE:
+        raise ModuleNotFoundError(_MANIFOLD3D_INSTALL_HINT)
+    op = _BOOL_OPS.get(op_name)
+    if op is None:
+        raise ValueError(f"Unknown boolean operation: {op_name}")
+    return op(meshes, **kwargs)
 
 
 """
@@ -241,7 +272,7 @@ class TMShape(Shape):
             return self
         self.ensureVolume()
         cutter.ensureVolume()
-        self.solid = tm.boolean.difference([self.solid, cutter.solid])
+        self.solid = _boolean_op("difference", [self.solid, cutter.solid])
         return self
 
     def intersection(self, intersector: TMShape) -> TMShape:
@@ -249,7 +280,7 @@ class TMShape(Shape):
             return self
         self.ensureVolume()
         intersector.ensureVolume()
-        self.solid = tm.boolean.intersection([self.solid, intersector.solid])
+        self.solid = _boolean_op("intersection", [self.solid, intersector.solid])
         return self
 
     def dup(self) -> TMShape:
@@ -316,7 +347,7 @@ class TMShape(Shape):
 
         self.ensureVolume()
         joiner.ensureVolume()
-        self.solid = tm.boolean.union([self.solid, joiner.solid])
+        self.solid = _boolean_op("union", [self.solid, joiner.solid])
         return self
 
     def mirror(self, normal=(0, 1, 0)) -> TMShape:
@@ -564,14 +595,14 @@ class TMLineSplineRevolveX(TMShape):
                         angle=-radians(180 - deg),
                         direction=(0, 0, 1),
                     )
-                    cut = tm.boolean.union([cut, cut2.apply_transform(rotMat)])
+                    cut = _boolean_op("union", [cut, cut2.apply_transform(rotMat)])
                 elif deg > 180:
                     cut2 = cut.copy().apply_translation((0, 2 * maxDim, 0))
                     rotMat = tm.transformations.rotation_matrix(
                         angle=radians(deg - 180),
                         direction=(0, 0, 1),
                     )
-                    cut = tm.boolean.difference([cut, cut2.apply_transform(rotMat)])
+                    cut = _boolean_op("difference", [cut, cut2.apply_transform(rotMat)])
             else:
                 cut = tm.creation.box(
                     [2 * maxDim, 2 * maxDim, 2 * maxDim]
@@ -582,17 +613,17 @@ class TMLineSplineRevolveX(TMShape):
                         angle=radians(180 - abs(deg)),
                         direction=(0, 0, 1),
                     )
-                    cut = tm.boolean.union([cut, cut2.apply_transform(rotMat)])
+                    cut = _boolean_op("union", [cut, cut2.apply_transform(rotMat)])
                 elif abs(deg) > 180:
                     cut2 = cut.copy().apply_translation((0, -2 * maxDim, 0))
                     rotMat = tm.transformations.rotation_matrix(
                         angle=-radians(abs(deg) - 180),
                         direction=(0, 0, 1),
                     )
-                    cut = tm.boolean.difference([cut, cut2.apply_transform(rotMat)])
+                    cut = _boolean_op("difference", [cut, cut2.apply_transform(rotMat)])
 
             self.ensureVolume()
-            self.solid = tm.boolean.difference([self.solid, cut])
+            self.solid = _boolean_op("difference", [self.solid, cut])
 
         self.rotate_z(90).rotate_y(90)
 
@@ -673,9 +704,9 @@ class TMTextZ(TMShape):
                     glyph3d = extruded
                 else:
                     if isCut:
-                        glyph3d = tm.boolean.difference([glyph3d, extruded])
+                        glyph3d = _boolean_op("difference", [glyph3d, extruded])
                     else:
-                        glyph3d = tm.boolean.union([glyph3d, extruded])
+                        glyph3d = _boolean_op("union", [glyph3d, extruded])
 
             if glyph3d is not None:
                 text3d = glyph3d if text3d is None else text3d + glyph3d

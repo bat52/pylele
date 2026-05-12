@@ -397,21 +397,15 @@ class BDShape(Shape):
     def projection(self, cut=False) -> BDShape:
         if self.solid is None:
             raise NotImplementedError("projection requires a 3D shape")
-        # Project faces to XY plane
-        faces = self.solid.faces()
-        projected = []
-        for f in faces:
-            try:
-                # Get the plane of the face and project to XY
-                proj_face = f.project_faces(
-                    bd.Plane.XY, bd.Vector(0, 0, 1)
-                )
-                projected.extend(proj_face)
-            except Exception:
-                pass
-        if projected:
-            self.cross_section = bd.Sketch(projected)
-        self.solid = None
+        # Flatten the shape onto the XY plane by scaling Z to near-zero
+        # This is more reliable than build123d's project_faces API which
+        # has an incompatible signature across versions.
+        bbox = self.bbox()
+        cur_h = bbox[5] - bbox[4]  # maxz - minz
+        if cur_h > 0:
+            self.scale(1, 1, 0.001 / cur_h)
+        bbox2 = self.bbox()
+        self.mv(0, 0, -bbox2[4])  # move min z to 0
         return self
 
     def minkowski(self, other: BDShape = None) -> BDShape:
