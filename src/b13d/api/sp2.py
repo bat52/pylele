@@ -426,9 +426,12 @@ class Sp2Shape(Shape):
         if self.solid is None:
             raise NotImplementedError("minkowski requires a solid")
         # solid2 does not have minkowski directly; fallback to hull
-        self.hull()
-        if self._check_backup_solid():
-            self.backup_solid = self.backup_solid.minkowski(other=other)
+        try :
+            self.solid = self.solid.minkowski(other=other.solid)
+        except Exception:
+            self.hull()
+            if self._check_backup_solid():
+                self.backup_solid = self.backup_solid.minkowski(other=other.backup_solid)
         return self
 
 class Sp2Ball(Sp2Shape):

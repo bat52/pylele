@@ -429,7 +429,10 @@ class MFShape(Shape):
             if other.cross_section is not None:
                 other = other.dup()
                 other._ensure3d()
-            self.solid = self.solid.minkowski_sum(other.solid)
+            try:
+                self.solid = self.solid.minkowski_sum(other.solid)
+            except AttributeError:
+                self.hull()
         return self
 
 class MFBBoxEnum(Enum):
