@@ -12,30 +12,19 @@ import numpy as np
 from scipy.spatial import ConvexHull
 
 try:
+    # Patch TopoDS_Shape BEFORE importing cadquery to fix OCP 7.8+ HashCode issue
+    from OCP.TopoDS import TopoDS_Shape
+    if not hasattr(TopoDS_Shape, "HashCode"):
+        def _add_hash_code(self, upper=2147483647):
+            return hash(self)
+        TopoDS_Shape.HashCode = _add_hash_code
+    
     import cadquery as cq
     from OCP.BRepBuilderAPI import BRepBuilderAPI_Sewing
     from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
     from OCP.gp import gp_Pnt
-    from OCP.TopTools import TopTools_ShapeMapHasher
     import cadquery.occ_impl.shapes as shapes
 
-    # Monkey-patch cadquery for OCP HashCode issue
-    # This avoids modifying site-packages directly.
-    # In OCP >= 7.8, TopoDS_Shape no longer has HashCode method.
-    # TopTools_ShapeMapHasher provides the static equivalent.
-    def patched_hashcode(self):
-        return TopTools_ShapeMapHasher.HashCode_s(
-            self.wrapped, shapes.HASH_CODE_MAX
-        )
-
-    # cadquery versions >= 2.0 use hashCode() method on Shape objects
-    if hasattr(shapes.Shape, "hashCode"):
-        shapes.Shape.hashCode = patched_hashcode
-        # Also patch any other Shape aliases if they exist
-        if hasattr(cq, "Shape") and cq.Shape is shapes.Shape:
-            cq.Shape.hashCode = patched_hashcode
-        # print("DEBUG: Applied CadQuery HashCode monkey-patch")
-    
     CQ_AVAILABLE = True
 except ImportError:
     cq = None
