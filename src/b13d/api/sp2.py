@@ -374,7 +374,7 @@ class Sp2Shape(Shape):
         if not rgb is None:
             self.color = rgb
         if not self.color is None:
-            c = [v/255.0 for v in self.color.value]
+            c = [v/255.0 for v in self.color]
             self.solid = self.solid.color(c)
         return self
     
