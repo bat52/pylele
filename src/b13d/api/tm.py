@@ -357,7 +357,7 @@ class TMShape(Shape):
         if not rgb is None:
             self.color = rgb
         if not self.color is None:
-            c = self.color.value
+            c = self.color
             face_colors = (c[0], c[1], c[2], 255)
             self.solid.visual.face_colors = face_colors
         return self
