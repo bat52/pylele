@@ -1064,15 +1064,18 @@ class ShapeAPI(ABC):
         print(f"[{implCode}] Default font path: {font}")
         
         # Test bbox properties
+        # Use fidelity tolerance for numerical comparisons;
+        # implementation.tolerance() is for join overlap and may be 0 (e.g. CADQUERY).
+        bbox_tol = self.fidelity.tolerance()
         print(f"[{implCode}] Bbox tests: top={box.top()}, bottom={box.bottom()}, left={box.left()}, right={box.right()}, center={box.center()}, len={box.length()}, w={box.width()}, h={box.height()}")
-        assert fabs(box.top()    - 15) < self.tolerance()
-        assert fabs(box.bottom() + 15) < self.tolerance()
-        assert fabs(box.left()   + 5) < self.tolerance()
-        assert fabs(box.right()  - 5) < self.tolerance()
-        assert all(fabs(c - e) < self.tolerance() for c, e in zip(box.center(), (0, 0, 0)))
-        assert fabs(box.length() - 10) < self.tolerance()
-        assert fabs(box.width()  - 20) < self.tolerance()
-        assert fabs(box.height() - 30) < self.tolerance()
+        assert fabs(box.top()    - 15) < bbox_tol
+        assert fabs(box.bottom() + 15) < bbox_tol
+        assert fabs(box.left()   + 5) < bbox_tol
+        assert fabs(box.right()  - 5) < bbox_tol
+        assert all(fabs(c - e) < bbox_tol for c, e in zip(box.center(), (0, 0, 0)))
+        assert fabs(box.length() - 10) < bbox_tol
+        assert fabs(box.width()  - 20) < bbox_tol
+        assert fabs(box.height() - 30) < bbox_tol
 
         # Test remaining ShapeAPI methods
         info = APIS_INFO[self.implementation]
