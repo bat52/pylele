@@ -36,9 +36,9 @@ class B1scadTestMethods(unittest.TestCase):
                 if scadfname == 'model.scad':
                     print('SKIPPING: model.scad (demo file)')
                 elif scadfname == 'model17.scad':
-                    print('SKIPPING: model17.scad (sphere tessellation volume mismatch between OpenSCAD and manifold3d)')
+                    print('SKIPPING: model17.scad (sphere tessellation volume mismatch)')
                 elif scadfname == 'model27.scad':
-                    print('SKIPPING: model27.scad (minkowski not supported by manifold3d)')
+                    print('SKIPPING: model27.scad (minkowski not yet supported)')
                 elif scadfname == 'model28.scad':
                     print('SKIPPING: model28.scad (2D object, cannot export STL)')
                 continue

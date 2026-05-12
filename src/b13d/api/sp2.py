@@ -30,10 +30,21 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.core import ShapeAPI, Shape, test_api, Direction, Implementation
 from b13d.api.utils import dimXY, file_ensure_extension, lineSplineXY
-from b13d.api.mf import MFShapeAPI
 from b13d.conversion.stlascii2stlbin import stlascii2stlbin
 from b13d.conversion.scad2stl import scad2stl, OPENSCAD
 from b13d.conversion.scad2csg import scad2csg
+
+try:
+    from b13d.api.mf import MFShapeAPI, MF_AVAILABLE
+except ImportError:
+    MFShapeAPI = None
+    MF_AVAILABLE = False
+
+try:
+    from b13d.api.tm import TMShapeAPI, TM_AVAILABLE
+except ImportError:
+    TMShapeAPI = None
+    TM_AVAILABLE = False
 
 class Sp2ShapeAPI(ShapeAPI):
     """
@@ -43,7 +54,13 @@ class Sp2ShapeAPI(ShapeAPI):
     command = OPENSCAD
     implicit = False
 
-    backup_api = MFShapeAPI(implementation=Implementation.MANIFOLD) # use backup API to track solid properties for query ie bbox    
+    # Prefer manifold3d as backup API, fall back to trimesh if manifold3d not available
+    if MF_AVAILABLE and MFShapeAPI is not None:
+        backup_api = MFShapeAPI(implementation=Implementation.MANIFOLD)
+    elif TM_AVAILABLE and TMShapeAPI is not None:
+        backup_api = TMShapeAPI(implementation=Implementation.TRIMESH)
+    else:
+        backup_api = None
     tmp_counter = 0
 
     def _gen_tmp_fname(self) -> str:
@@ -224,9 +241,12 @@ class Sp2Shape(Shape):
             self.solid = solid
 
             # backup solid: convert to .stl and import
-            self.backup_solid = self.api.backup_api.genImport(
-                self.api.export_stl(self,self.api._gen_tmp_fname())
-                )
+            if self.api.backup_api is not None:
+                self.backup_solid = self.api.backup_api.genImport(
+                    self.api.export_stl(self,self.api._gen_tmp_fname())
+                    )
+            else:
+                self.backup_solid = None
 
     def _check_backup_solid(self):
         if isinstance(self.backup_solid, Shape):
@@ -236,6 +256,9 @@ class Sp2Shape(Shape):
 
     def _scad_func_eval(self, func):
         """ Evaluate a function and return the result """
+        
+        if self.api.backup_api is None:
+            raise NotImplementedError("Backup API (manifold3d) required for function evaluation")
 
         # generate a fake box embedding the numeric value        
         lbox = Sp2Shape(self.api, solid=cube(func, 1))   
@@ -305,8 +328,8 @@ class Sp2Shape(Shape):
                 yi = self._check_numeric(y)
                 zi = self._check_numeric(z)                
                 self.backup_solid = self.backup_solid.mv(xi, yi, zi)
-            except:
-                print(f"# WARNING: mv() with non-numeric {type(x), type(y), type(z)} is not supported by backup api {self.api.backup_api}")
+            except Exception:
+                pass
         return self
 
     def rotate_x(self, ang: float) -> Sp2Shape:
@@ -413,7 +436,10 @@ class Sp2Ball(Sp2Shape):
         super().__init__(api)
         self.rad = rad
         self.solid = sphere(rad, _fn=self._smoothing_segments(2 * pi * rad))
-        self.backup_solid = self.api.backup_api.sphere(rad)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.sphere(rad)
+        else:
+            self.backup_solid = None
 
 class Sp2Box(Sp2Shape):
     def __init__(self, ln: float, wth: float, ht: float, api: Sp2ShapeAPI, center: bool = True):
@@ -432,7 +458,10 @@ class Sp2Box(Sp2Shape):
         self.solid = cube(ln, wth, ht)
         if center:
             self.solid = self.solid.translate([-ln / 2, -wth / 2, -ht / 2])            
-        self.backup_solid = self.api.backup_api.box(ln, wth, ht)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.box(ln, wth, ht, center=True)
+        else:
+            self.backup_solid = None
 
 class Sp2Cone(Sp2Shape):
     def __init__(
@@ -456,18 +485,27 @@ class Sp2Cone(Sp2Shape):
 
         if direction == "X":
             self.solid = self.solid.rotateY(90)
-            self.backup_solid = self.api.backup_api.cone_x(
-                h=ln, r1=self.r1, r2=self.r2
-            ).mv(-ln/2, 0, 0)
+            if api.backup_api is not None:
+                self.backup_solid = api.backup_api.cone_x(
+                    h=ln, r1=self.r1, r2=self.r2
+                ).mv(-ln/2, 0, 0)
+            else:
+                self.backup_solid = None
         elif direction == "Y":
             self.solid = self.solid.rotateX(90)
-            self.backup_solid = self.api.backup_api.cone_y(
-                h=ln, r1=self.r1, r2=self.r2
-            ).mv(0, -ln/2, 0)
+            if api.backup_api is not None:
+                self.backup_solid = api.backup_api.cone_y(
+                    h=ln, r1=self.r1, r2=self.r2
+                ).mv(0, -ln/2, 0)
+            else:
+                self.backup_solid = None
         elif direction == "Z":
-            self.backup_solid = self.api.backup_api.cone_z(
-                h=ln, r1=self.r1, r2=self.r2
-            ).mv(0, 0, -ln/2)
+            if api.backup_api is not None:
+                self.backup_solid = api.backup_api.cone_z(
+                    h=ln, r1=self.r1, r2=self.r2
+                ).mv(0, 0, -ln/2)
+            else:
+                self.backup_solid = None
 
 class Sp2PolyExtrusionZ(Sp2Shape):
     def __init__(self, path: list[tuple[float, float]], ht: float, api: Sp2ShapeAPI):
@@ -475,7 +513,10 @@ class Sp2PolyExtrusionZ(Sp2Shape):
         self.path = path
         self.ht = ht
         self.solid = polygon(path).linear_extrude(ht)
-        self.backup_solid = self.api.backup_api.polygon_extrusion(path, ht)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.polygon_extrusion(path, ht)
+        else:
+            self.backup_solid = None
 
 # draw mix of straight lines from pt to pt, or draw spline with
 # [(x,y,grad,prev Ctl ratio, post Ctl ratio), ...], then extrude on Z-axis
@@ -493,7 +534,10 @@ class Sp2LineSplineExtrusionZ(Sp2Shape):
         self.solid = polygon(lineSplineXY(start, path, self._smoothing_segments)).linear_extrude(
             ht
         )
-        self.backup_solid = self.api.backup_api.spline_extrusion(start, path, ht)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.spline_extrusion(start, path, ht)
+        else:
+            self.backup_solid = None
 
 # draw mix of straight lines from pt to pt, or draw spline with
 # [(x,y,grad, pre ctrl ratio, post ctl ratio), ...], then revolve on X-axis
@@ -517,7 +561,10 @@ class Sp2LineSplineRevolveX(Sp2Shape):
             .rotateY(90)
             .rotateX(-90)
         )
-        self.backup_solid = self.api.backup_api.spline_revolve(start, path, deg)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.spline_revolve(start, path, deg)
+        else:
+            self.backup_solid = None
 
 
 class Sp2RndRodZ(Sp2Shape):
@@ -543,7 +590,10 @@ class Sp2RndRodZ(Sp2Shape):
             else:
                 rod += ball
         self.solid = rod.hull()
-        self.backup_solid = self.api.backup_api.cylinder_rounded_z(l, rad, domeRatio)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.cylinder_rounded_z(l, rad, domeRatio)
+        else:
+            self.backup_solid = None
 
 class Sp2TextZ(Sp2Shape):
     def __init__(
@@ -563,7 +613,10 @@ class Sp2TextZ(Sp2Shape):
         self.solid = text(
             txt, fontSize / sqrt(2), font=font, halign="center", valign="center"
         ).linear_extrude(tck)
-        self.backup_solid = self.api.backup_api.text(txt, fontSize, tck, font)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.text(txt, fontSize, tck, font)
+        else:
+            self.backup_solid = None
 
 class Sp2Polyhedron(Sp2Shape):
     def __init__(
@@ -575,7 +628,10 @@ class Sp2Polyhedron(Sp2Shape):
     ):
         super().__init__(api)
         self.solid = polyhedron(points=points, faces=faces, convexity=convexity)
-        self.backup_solid = self.api.backup_api.polyhedron(points, faces, convexity)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.polyhedron(points, faces, convexity)
+        else:
+            self.backup_solid = None
 
 class Sp2CirclePolySweep(Sp2Shape):
     def __init__(
@@ -589,7 +645,10 @@ class Sp2CirclePolySweep(Sp2Shape):
         self.rad = rad
         segs = self._smoothing_segments(2 * pi * rad)
         self.solid = circle(r=rad, _fn=segs).path_extrude(path)
-        self.backup_solid = self.api.backup_api.regpoly_sweep(rad, path)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.regpoly_sweep(rad, path)
+        else:
+            self.backup_solid = None
 
 class Sp2Import(Sp2Shape):
     def __init__(
@@ -621,8 +680,11 @@ class Sp2Import(Sp2Shape):
         if isinstance(extrude, float):
             self.solid = self.solid.linear_extrude(extrude)
 
-        self.backup_solid = self.api.backup_api.genImport(os.path.abspath(self.infile)
-                                                          , extrude=extrude)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.genImport(os.path.abspath(self.infile)
+                                                           , extrude=extrude)
+        else:
+            self.backup_solid = None
 
 if __name__ == "__main__":
     test_api("solid2")

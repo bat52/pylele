@@ -21,7 +21,6 @@ setup(
         "numpy==1.26.4",
         "nlopt==2.7.1",
         "trimesh==4.4.8",
-        "manifold3d<=2.5.1",
         "pillow",
         "shapely",
         "scipy",
@@ -58,6 +57,9 @@ setup(
             "pyvista>=0.43.0",
             "vtk>=9.2.0",
             "lxml",
+        ],
+        "manifold": [
+            "manifold3d<=2.5.1",
         ],
         "svg2dxf": [
             "svg2dxf @ git+https://github.com/multigcs/svg2dxf@main",
