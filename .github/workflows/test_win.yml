@@ -36,23 +36,6 @@ jobs:
     - name: Generate timestamp
       id: timestamp
       run: echo "timestamp=$(Get-Date -Format 'yyyyMMdd_HHmmss')" >> $env:GITHUB_ENV
-    #- name: test pylele.sh
-    #  run: |
-    #    source ./src/pylele.sh
-    - name: test pylele2.sh
-      run: |
-        python ./src/pylele/pylele2/all_assembly.py -odoff -i cq
-        if ($LASTEXITCODE -ne 0) {
-          Write-Host "Script failed with exit code: $LASTEXITCODE"
-          exit $LASTEXITCODE
-        }
-    - name: upload demo stl
-      uses: actions/upload-artifact@v4
-      with:
-          # path depends on the tag and the module name
-          name: pylele_stl_out_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
-          path: build/LeleAllAssembly/LeleAllAssembly.stl
-          # compression-level: 0 # no compression
     - name: test_b13d
       run: |
         python3 ./src/b13d/test.py
@@ -71,3 +54,20 @@ jobs:
           # path depends on the tag and the module name
           name: pylele_test_out_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
           path: test/**/**/**/* #find ./test/fretboard_assembly/cadquery/*
+    #- name: test pylele.sh
+    #  run: |
+    #    source ./src/pylele.sh
+    - name: test pylele2.sh
+      run: |
+        python ./src/pylele/pylele2/all_assembly.py -odoff -i cq
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "Script failed with exit code: $LASTEXITCODE"
+          exit $LASTEXITCODE
+        }
+    - name: upload demo stl
+      uses: actions/upload-artifact@v4
+      with:
+          # path depends on the tag and the module name
+          name: pylele_stl_out_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
+          path: build/LeleAllAssembly/LeleAllAssembly.stl
+          # compression-level: 0 # no compression
