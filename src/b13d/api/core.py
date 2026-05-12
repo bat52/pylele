@@ -9,6 +9,8 @@ from pathlib import Path
 from abc import ABC, abstractmethod
 from typing import Union
 
+print(f"DEBUG: core.py imported from {__file__}")
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
 from b13d.api.constants import DEFAULT_TEST_DIR
@@ -732,41 +734,54 @@ class ShapeAPI(ABC):
 
         # Simple Tests
 
+        print(f"[{implCode}] Testing sphere...")
         ball = self.sphere(10)
         self._export_and_validate(ball, expDir, "ball", min_volume=1000)
-        name = self._numbered_name(self._test_counter - 1, "ball")
-        self.export_best(ball, expDir / name)
+        
+        # print(f"[{implCode}] Testing sphere...")
+        # self.export_best(ball, expDir / name)
 
+        print(f"[{implCode}] Testing box...")
         box = self.box(10, 20, 30)
         self._export_and_validate(box, expDir, "box", min_volume=1000)
 
+        print(f"[{implCode}] Testing cylinder_x...")
         xRod = self.cylinder_x(30, 5)
         self._export_and_validate(xRod, expDir, "xrod", min_volume=100)
 
+        print(f"[{implCode}] Testing cylinder_y...")
         yRod = self.cylinder_y(30, 5)
         self._export_and_validate(yRod, expDir, "yrod", min_volume=100)
 
+        print(f"[{implCode}] Testing cylinder_z...")
         zRod = self.cylinder_z(30, 5)
         self._export_and_validate(zRod, expDir, "zrod", min_volume=100)
 
+        print(f"[{implCode}] Testing cone_x...")
         xCone = self.cone_x(30, 5, 2)
         self._export_and_validate(xCone, expDir, "xcone", min_volume=100)
 
+        print(f"[{implCode}] Testing cone...")
         xCone2 = self.cone(30, 5, 2, 'X')
         self._export_and_validate(xCone2, expDir, "xcone2", min_volume=100)
 
+        print(f"[{implCode}] Testing cone_y...")
         yCone = self.cone_y(30, 5, 2)
         self._export_and_validate(yCone, expDir, "ycone", min_volume=100)
 
+        print(f"[{implCode}] Testing cone_z...")
         zCone = self.cone_z(30, 5, 2)
         self._export_and_validate(zCone, expDir, "zcone", min_volume=100)
 
+        print(f"[{implCode}] Testing regpoly_extrusion_x...")
         xSqRod = self.regpoly_extrusion_x(30, 5, 4)
         self._export_and_validate(xSqRod, expDir, "xsqrod", min_volume=100)
 
+        print(f"[{implCode}] Testing regpoly_extrusion_y...")
         ySqRod = self.regpoly_extrusion_y(30, 5, 4)
         self._export_and_validate(ySqRod, expDir, "ysqrod", min_volume=100)
 
+        print(f"[{implCode}] Testing regpoly_extrusion_z...")
         zSqRod = self.regpoly_extrusion_z(30, 5, 4)
         self._export_and_validate(zSqRod, expDir, "zsqrod", min_volume=100)
 
@@ -869,48 +884,37 @@ class ShapeAPI(ABC):
         self._export_and_validate(edgez, expDir, "edgez", min_volume=100)
 
         # test join
-        box = self.box(10, 20, 30).mv(0,7,0)
+        box = self.box(10, 20, 30).mv(0, 7, 0)
         xRod = self.cylinder_x(30, 5)
         jout = xRod.join(box)
-        name = self._numbered_name(self._test_counter, "bop-join")
-        self.export_stl(jout, expDir / name)
-        self._test_counter += 1
+        self._export_and_validate(jout, expDir, "bop-join", min_volume=100)
 
         # test cut
-        box = self.box(10, 20, 30).mv(0,7,0)
+        box = self.box(10, 20, 30).mv(0, 7, 0)
         xRod = self.cylinder_x(30, 5)
         jout = xRod.cut(box)
-        name = self._numbered_name(self._test_counter, "bop-cut")
-        self.export_stl(jout, expDir / name)
-        self._test_counter += 1
+        self._export_and_validate(jout, expDir, "bop-cut", min_volume=100)
 
         # test intersection
-        box = self.box(10, 20, 30).mv(0,7,0)
+        box = self.box(10, 20, 30).mv(0, 7, 0)
         xRod = self.cylinder_x(30, 5)
         iout = xRod.intersection(box)
-        name = self._numbered_name(self._test_counter, "bop-intersect")
-        self.export_stl(iout, expDir / name)
-        self._test_counter += 1
+        self._export_and_validate(iout, expDir, "bop-intersect", min_volume=100)
         iout = xRod & box
 
         # test hull
         if self.implementation.has_hull():
-            box = self.box(10, 20, 30).mv(0,7,0)
+            box = self.box(10, 20, 30).mv(0, 7, 0)
             xrod = self.cylinder_x(30, 5)
             jout = box + xrod
             jout.hull()
-            name = self._numbered_name(self._test_counter, "hull")
-            self.export_stl(jout, expDir / name)
-            self._test_counter += 1
+            self._export_and_validate(jout, expDir, "hull", min_volume=100)
 
-
-# test mirror
+        # test mirror
         box = self.box(10, 20, 30)
         mirrored = box.mirror()
         mout = mirrored.join(box)
-        name = self._numbered_name(self._test_counter, "mirror")
-        self.export_stl(mout, expDir / name)
-        self._test_counter += 1
+        self._export_and_validate(mout, expDir, "mirror", min_volume=100)
 
         # More complex tests
 
