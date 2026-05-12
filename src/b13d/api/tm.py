@@ -9,21 +9,12 @@ import os
 from pathlib import Path
 from shapely.geometry import Polygon
 import sys
+import trimesh as tm
 from typing import Union
-
-try:
-    import trimesh
-    TM_AVAILABLE = True
-except ImportError:
-    trimesh = None
-    TM_AVAILABLE = False
-
-# Create tm alias for trimesh (used throughout the module)
-tm = trimesh
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
-from b13d.api.core import ShapeAPI, Shape, test_api, Implementation, Direction
+from b13d.api.core import ShapeAPI, Shape, test_api, Implementation
 from b13d.api.utils import (
     dimXY,
     ensureClosed2DPath,
@@ -44,11 +35,11 @@ from b13d.conversion.svg2dxf import svg2dxf_wrapper, SVG2DXF_AVAILABLE
 
 class TMShapeAPI(ShapeAPI):
 
-    rotZtoX: NDArray = trimesh.transformations.rotation_matrix(
+    rotZtoX: NDArray = tm.transformations.rotation_matrix(
         angle=radians(90),
         direction=(0, 1, 0),
     )
-    rotZtoY: NDArray = trimesh.transformations.rotation_matrix(
+    rotZtoY: NDArray = tm.transformations.rotation_matrix(
         angle=radians(-90),
         direction=(1, 0, 0),
     )
@@ -57,95 +48,98 @@ class TMShapeAPI(ShapeAPI):
         assert fmt in [".stl",".glb"]
         shape.solid.export(file_ensure_extension(path, fmt))
 
-    def export_stl(self, shape: Shape, path: Union[str, Path]) -> None:
-        shape.solid.export(file_ensure_extension(path, ".stl"))
+    def export_best(self, shape: TMShape, path: Union[str, Path]) -> None:
+        self.export(shape=shape,path=path,fmt=".glb")
 
-    def export_best(self, shape: Shape, path: Union[str, Path]) -> None:
-        self.export_stl(shape, path)
+    def export_stl(self, shape: TMShape, path: Union[str, Path]) -> None:
+        self.export(shape=shape, path=path, fmt=".stl")
 
-    def sphere(self, r: float) -> Shape:
+    def export_best_multishapes(
+        self,
+        shapes: list[Shape],
+        assembly_name: str,
+        path: Union[str, Path],
+    ) -> None:
+        # Create a scene
+        scene = tm.Scene()
+
+        # Add shapes to the assembly with assigned colors
+        for i, s in enumerate(shapes):
+            scene.add_geometry(
+                s.solid,
+                node_name=f"Part {i+1} of {len(shapes)}: {s.name}",
+            )
+
+        # Export the assembly to a GLB file
+        scene.export(file_ensure_extension(path, ".glb"))
+
+    def sphere(self, r: float) -> TMShape:
         return TMBall(r, self)
 
-    def box(self, l: float, wth: float, ht: float, center: bool = True) -> Shape:
-        return TMBox(l, wth, ht, center, self)
+    def box(self, l: float, wth: float, ht: float, center: bool = True) -> TMShape:
+        retval = TMBox(l, wth, ht, self)
+        if center:
+            return retval    
+        return retval.mv(-l / 2, -wth / 2, -ht / 2)        
 
-    def cone_x(self, h: float, r1: float, r2: float) -> Shape:
-        return TMConeZ(h, r1, r2, None, self).rotate_y(90)
+    def cone_x(self, h: float, r1: float, r2: float) -> TMShape:
+        return TMCone(h, r1, r2, None, self.rotZtoX, self)
 
-    def cone_y(self, h: float, r1: float, r2: float) -> Shape:
-        return TMConeZ(h, r1, r2, None, self).rotate_x(-90)
+    def cone_y(self, h: float, r1: float, r2: float) -> TMShape:
+        return TMCone(h, r1, r2, None, self.rotZtoY, self)
 
-    def cone_z(self, h: float, r1: float, r2: float) -> Shape:
-        return TMConeZ(h, r1, r2, None, self)
+    def cone_z(self, h: float, r1: float, r2: float) -> TMShape:
+        return TMCone(h, r1, r2, None, None, self)
 
-    def regpoly_extrusion_x(self, l: float, rad: float, sides: int) -> Shape:
-        return TMRodZ(l, rad, sides, self).rotate_y(90)
+    def regpoly_extrusion_x(self, l: float, rad: float, sides: int) -> TMShape:
+        return TMRod(l, rad, sides, self.rotZtoX, self)
 
-    def regpoly_extrusion_y(self, l: float, rad: float, sides: int) -> Shape:
-        return TMRodZ(l, rad, sides, self).rotate_x(90)
+    def regpoly_extrusion_y(self, l: float, rad: float, sides: int) -> TMShape:
+        return TMRod(l, rad, sides, self.rotZtoY, self)
 
-    def regpoly_extrusion_z(self, l: float, rad: float, sides: int) -> Shape:
-        return TMRodZ(l, rad, sides, self)
+    def regpoly_extrusion_z(self, l: float, rad: float, sides: int) -> TMShape:
+        return TMRod(l, rad, sides, None, self)
 
-    def cylinder_x(self, l: float, rad: float) -> Shape:
-        return TMRodZ(l, rad, None, self).rotate_y(90)
+    def cylinder_x(self, l: float, rad: float) -> TMShape:
+        return TMRod(l, rad, None, self.rotZtoX, self)
 
-    def cylinder_y(self, l: float, rad: float) -> Shape:
-        return TMRodZ(l, rad, None, self).rotate_x(90)
+    def cylinder_y(self, l: float, rad: float) -> TMShape:
+        return TMRod(l, rad, None, self.rotZtoY, self)
 
-    def cylinder_z(self, l: float, rad: float) -> Shape:
-        return TMRodZ(l, rad, None, self)
+    def cylinder_z(self, l: float, rad: float) -> TMShape:
+        return TMRod(l, rad, None, None, self)
 
-    def polygon_extrusion(self, path: list[tuple[float, float]], ht: float) -> Shape:
+    def polygon_extrusion(self, path: list[tuple[float, float]], ht: float) -> TMShape:
         return TMPolyExtrusionZ(path, ht, self)
 
     def spline_extrusion(
         self,
         start: tuple[float, float],
-        path: list[tuple[float, float] | list[tuple[float, float, float, float]]],
+        path: list[
+            tuple[float, float] | list[tuple[float, float, float, float, float]]
+        ],
         ht: float,
-    ) -> Shape:
+    ) -> TMShape:
+        if ht < 0:
+            return TMLineSplineExtrusionZ(start, path, abs(ht), self).mv(0, 0, -abs(ht))
         return TMLineSplineExtrusionZ(start, path, ht, self)
 
     def spline_revolve(
         self,
         start: tuple[float, float],
-        path: list[tuple[float, float] | list[tuple[float, float, float, float]]],
+        path: list[
+            tuple[float, float] | list[tuple[float, float, float, float, float]]
+        ],
         deg: float,
-    ) -> Shape:
+    ) -> TMShape:
         return TMLineSplineRevolveX(start, path, deg, self)
 
     def regpoly_sweep(
         self, rad: float, path: list[tuple[float, float, float]]
-    ) -> Shape:
+    ) -> TMShape:
         return TMCirclePolySweep(rad, path, self)
 
-    def rounded_edge_mask(self, l, rad, direction: Direction = Direction.Z, rot=0, tol = 0.1) -> Shape:
-        """ Generate a mask to round an edge - Trimesh-specific override """
-        
-        radi = rad + tol
-        # Use low-resolution polygon (15 sides) instead of high-res cylinder
-        # to avoid potential issues
-        sides = 15
-        
-        if direction.upper() == Direction.X:
-            mask = self.regpoly_extrusion_x(l, radi, sides).mv(0, radi/2, radi/2)
-            cyl = self.cylinder(l, rad=radi, sides=sides, direction=direction)
-        elif direction.upper() == Direction.Y:
-            mask = self.regpoly_extrusion_y(l, radi, sides).mv(radi/2, 0, radi/2)
-            cyl = self.cylinder(l, rad=radi, sides=sides, direction=direction)
-        elif direction.upper() == Direction.Z:
-            mask = self.regpoly_extrusion_z(l, radi, sides).mv(radi/2, radi/2, 0)
-            cyl = self.cylinder(l, rad=radi, sides=sides, direction=direction)
-        else:
-            assert False
-
-        mask -= cyl
-        mask = mask.rotate(rot, direction=direction)
-
-        return mask
-
-    def text(self, txt: str, fontSize: float, tck: float, font: str) -> Shape:
+    def text(self, txt: str, fontSize: float, tck: float, font: str) -> TMShape:
         return TMTextZ(txt, fontSize, tck, font, self)
 
     def polyhedron(
@@ -153,637 +147,596 @@ class TMShapeAPI(ShapeAPI):
         points: list[tuple[float, float, float]],
         faces: list[list[int]],
         convexity: int = 1,
-    ) -> Shape:
+    ) -> TMShape:
         return TMPolyhedron(points, faces, convexity, self)
 
-    def tolerance(self) -> float:
-        return self.implementation.tolerance()
+    def genImport(self, infile: str, extrude: float = None) -> TMShape:
+        return TMImport(infile, extrude=extrude)
 
-    def genImport(self, infile: str, extrude: float = None) -> Shape:
-        return TMImport(infile, extrude=extrude, api=self)
-
-    def rectangle(self, size, center=False) -> Shape:
+    def rectangle(self, size, center=False) -> TMShape:
         size = size if isinstance(size, (list, tuple)) else (size, size)
         w, h = size[0], size[1]
-        pts = [(0, 0, 0), (w, 0, 0), (w, h, 0), (0, h, 0)]
-        return TMShape(self, mesh=tm.Trimesh(vertices=pts, faces=[[4, 0, 1, 2, 3]]))
+        from shapely.geometry import Polygon as ShapelyPolygon
+        poly = ShapelyPolygon([(0, 0), (w, 0), (w, h), (0, h)])
+        solid = tm.creation.extrude_polygon(poly, 0.001)
+        if center:
+            solid = solid.apply_translation((-w / 2, -h / 2, 0))
+        ret = TMShape(self)
+        ret.solid = solid
+        return ret
 
-    def circle(self, r=None, d=None) -> Shape:
-        if r is None and d is not None:
-            r = d / 2.0
-        # Create a circle using trimesh
-        return TMShape(self, mesh=tm.creation.circle(radius=r, sections=32))
+    def circle(self, r=None, d=None) -> TMShape:
+        radius = r if r is not None else d / 2.0
+        from shapely.geometry import Point
+        poly = Point(0, 0).buffer(radius, resolution=32)
+        solid = tm.creation.extrude_polygon(poly, 0.001)
+        ret = TMShape(self)
+        ret.solid = solid
+        return ret
 
-    def polygon(self, points, paths=None, convexity=1) -> Shape:
-        # Create polygon from points using trimesh
-        import numpy as np
-        # Close the path if not already closed
-        if points[0] != points[-1]:
-            closed_points = points + [points[0]]
-        else:
-            closed_points = points
-        # Convert to numpy array
-        points_2d = np.array(closed_points)
-        # Simple polygon - assuming convex for simplicity
-        if len(points_2d) >= 3:
-            # Create a 2D polygon in the XY plane
-            points_3d = np.column_stack([points_2d, np.zeros(len(points_2d))])
-            # Triangulate the polygon (simple fan triangulation for convex polygons)
-            if len(points_3d) > 2:
-                faces = []
-                for i in range(1, len(points_3d) - 1):
-                    faces.append([0, i, i + 1])
-                if faces:
-                    faces = np.array([[len(faces)] + [idx for face in faces for idx in face]])
-                    return TMShape(self, mesh=tm.Trimesh(vertices=points_3d, faces=faces))
-        # Fallback to a simple triangle if we can't create a proper polygon
-        return TMShape(self, mesh=tm.Trimesh(vertices=[[0, 0, 0], [1, 0, 0], [0, 1, 0]], faces=[[3, 0, 1, 2]]))
+    def polygon(self, points, paths=None, convexity=1) -> TMShape:
+        from shapely.geometry import Polygon as ShapelyPolygon
+        pts = [(p[0], p[1]) for p in points]
+        poly = ShapelyPolygon(pts)
+        if not poly.is_valid:
+            poly = poly.convex_hull
+        solid = tm.creation.extrude_polygon(poly, 0.001)
+        ret = TMShape(self)
+        ret.solid = solid
+        return ret
 
+    def genImport(self, infile: str, extrude: float = None) -> TMShape:
+        return TMImport(infile, extrude=extrude, api=self)
 
 class TMShape(Shape):
 
-    def __init__(self, api: TMShapeAPI, mesh=None):
-        super().__init__(api, solid=mesh)
+    X_AXIS = (1, 0, 0)
+    Y_AXIS = (0, 1, 0)
+    Z_AXIS = (0, 0, 1)
 
-    def getAPI(self) -> TMShapeAPI:
-        return self.api
+    def __init__(self, api: TMShapeAPI = TMShapeAPI(implementation=Implementation.TRIMESH)):
+        super().__init__(api)
+        self.solid: tm.Trimesh = None
 
-    def getImplSolid(self):
-        return self.solid
+    def ensureVolume(self) -> None:
+        if self.solid.is_volume:
+            return
+        else:
+            print(
+                "warning: solid is NOT a valid volume, attempt minor repair...",
+                file=sys.stderr,
+            )
+            jctol = self.api.implementation.tolerance()
+            self.solid.update_faces(self.solid.nondegenerate_faces(jctol / 2))
+            self.solid.update_faces(self.solid.unique_faces())
+            self.solid.remove_infinite_values()
+            self.solid.remove_unreferenced_vertices()
+
+        if self.solid.is_volume:
+            return
+        else:
+            print(
+                "warning: solid is NOT a valid volume, attempt major repair...",
+                file=sys.stderr,
+            )
+            tm.repair.fill_holes(self.solid)
+            tm.repair.fix_normals(self.solid, multibody=True)
+            tm.repair.fix_winding(self.solid)
+            tm.repair.fix_inversion(self.solid, multibody=True)
+
+        if self.solid.is_volume:
+            return
+        else:
+            print(
+                "warning: repaired mesh is still NOT a valid volume, make a convex hull as last resort...",
+                file=sys.stderr,
+            )
+            self.solid = self.solid.convex_hull
 
     def _smoothing_segments(self, dim: float) -> int:
         return ceil(abs(dim) ** 0.5 * self.api.fidelity.smoothing_segments())
 
     def cut(self, cutter: TMShape) -> TMShape:
-        if cutter is None:
+        if cutter is None or cutter.solid is None:
             return self
-        if self.solid is None:
+        self.ensureVolume()
+        cutter.ensureVolume()
+        self.solid = tm.boolean.difference([self.solid, cutter.solid])
+        return self
+
+    def intersection(self, intersector: TMShape) -> TMShape:
+        if intersector is None or intersector.solid is None:
             return self
-        if cutter.solid is None:
-            return self
-        # Use trimesh boolean operations
-        try:
-            result = self.solid.difference(cutter.solid)
-            if result is not None and not result.is_empty:
-                self.solid = result
-                return self
-            else:
-                # Fallback: just return self if operation failed
-                return self
-        except Exception:
-            # If boolean operation fails, return self
-            return self
+        self.ensureVolume()
+        intersector.ensureVolume()
+        self.solid = tm.boolean.intersection([self.solid, intersector.solid])
+        return self
 
     def dup(self) -> TMShape:
         duplicate = copy.copy(self)
-        if self.solid is not None:
-            duplicate.solid = self.solid.copy()
+        duplicate.solid = self.solid.copy()
         return duplicate
 
+    def fillet(
+        self,
+        nearestPts: list[tuple[float, float, float]],
+        rad: float,
+    ) -> TMShape:
+
+        def nearest_edge_to_point(mesh, point):
+            edges = mesh.edges
+            vertices = mesh.vertices
+
+            min_distance = float("inf")
+            nearest_edge = None
+
+            for edge in edges:
+                v0, v1 = vertices[edge]
+                distance = point_to_edge_distance(point, v0, v1)
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_edge = edge
+
+            return nearest_edge, min_distance
+
+        def point_to_edge_distance(point, v0, v1):
+            # Vector from v0 to point
+            v0_to_point = point - v0
+            # Vector from v0 to v1
+            v0_to_v1 = v1 - v0
+            # Project point onto the line defined by v0 and v1
+            projection_length = np.dot(v0_to_point, v0_to_v1) / np.dot(
+                v0_to_v1, v0_to_v1
+            )
+            projection = v0 + projection_length * v0_to_v1
+
+            # Clamp the projection to the segment [v0, v1]
+            if projection_length < 0:
+                projection = v0
+            elif projection_length > 1:
+                projection = v1
+
+            # Distance from point to the projection
+            distance = np.linalg.norm(point - projection)
+            return distance
+
+        print(
+            "Trimesh: fillet(...) not implemented yet.", file=sys.stderr
+        )
+
+        return self
+
+    def hull(self):
+        self.solid = self.solid.convex_hull
+        return self
+
     def join(self, joiner: TMShape) -> TMShape:
-        if joiner is None:
-            return self
-        if self.solid is None:
-            return self
-        if joiner.solid is None:
-            return self
-        # Use trimesh boolean operations
-        try:
-            result = self.solid.union(joiner.solid)
-            if result is not None and not result.is_empty:
-                self.solid = result
-                return self
-            else:
-                # Fallback: just return self if operation failed
-                return self
-        except Exception:
-            # If boolean operation fails, return self
+        if joiner is None or joiner.solid is None:
             return self
 
-    def intersection(self, intersector: TMShape) -> TMShape:
-        if intersector is None:
-            return self
-        if self.solid is None:
-            return self
-        if intersector.solid is None:
-            return self
-        # Use trimesh boolean operations
-        try:
-            result = self.solid.intersection(intersector.solid)
-            if result is not None and not result.is_empty:
-                self.solid = result
-                return self
-            else:
-                # Fallback: just return self if operation failed
-                return self
-        except Exception:
-            # If boolean operation fails, return self
-            return self
+        self.ensureVolume()
+        joiner.ensureVolume()
+        self.solid = tm.boolean.union([self.solid, joiner.solid])
+        return self
 
     def mirror(self, normal=(0, 1, 0)) -> TMShape:
         dup = copy.copy(self)
-        if self.solid is not None:
-            dup.solid = self.solid.mirror(normal)
+        reflect_mat = tm.transformations.reflection_matrix([0, 0, 0], normal)
+        dup.solid = self.solid.copy().apply_transform(reflect_mat)
         return dup
 
     def mv(self, x: float, y: float, z: float) -> TMShape:
         if x == 0 and y == 0 and z == 0:
             return self
-        if self.solid is not None:
-            self.solid = self.solid.apply_translation([x, y, z])
+        self.solid = self.solid.apply_translation((x, y, z))
+        return self
+
+    def _rotate(self, ang: float, dir: tuple[float, float, float]) -> TMShape:
+        if ang == 0:
+            return self
+        rotMat = tm.transformations.rotation_matrix(angle=radians(ang), direction=dir)
+        self.solid = self.solid.apply_transform(rotMat)
         return self
 
     def rotate_x(self, ang: float) -> TMShape:
-        if self.solid is not None:
-            self.solid = self.solid.apply_transform(trimesh.transformations.rotation_matrix(np.radians(ang), [1, 0, 0]))
-        return self
+        return self._rotate(ang, self.X_AXIS)
 
     def rotate_y(self, ang: float) -> TMShape:
-        if self.solid is not None:
-            self.solid = self.solid.apply_transform(trimesh.transformations.rotation_matrix(np.radians(ang), [0, 1, 0]))
-        return self
+        return self._rotate(ang, self.Y_AXIS)
 
     def rotate_z(self, ang: float) -> TMShape:
-        if self.solid is not None:
-            self.solid = self.solid.apply_transform(trimesh.transformations.rotation_matrix(np.radians(ang), [0, 0, 1]))
-        return self
-
-    def rotate(self, ang: float | int | tuple[float,float,float], direction: Direction = Direction.Z) -> TMShape:
-        if isinstance(ang,float) or isinstance(ang,int):
-            return Shape.rotate(self, ang, direction)
-        if self.solid is not None:
-            # Create rotation matrix
-            rot_matrix = trimesh.transformations.rotation_matrix(
-                np.radians(ang[0]), [1, 0, 0]) @ \
-                           trimesh.transformations.rotation_matrix(
-                               np.radians(ang[1]), [0, 1, 0]) @ \
-                           trimesh.transformations.rotation_matrix(
-                               np.radians(ang[2]), [0, 0, 1])
-            self.solid = self.solid.apply_transform(rot_matrix)
-        return self
+        return self._rotate(ang, self.Z_AXIS)
 
     def scale(self, x: float, y: float, z: float) -> TMShape:
         if x == 1 and y == 1 and z == 1:
             return self
-        if self.solid is not None:
-            scale_matrix = np.array([
-                [x, 0, 0, 0],
-                [0, y, 0, 0],
-                [0, 0, z, 0],
-                [0, 0, 0, 1]
-            ])
-            self.solid = self.solid.apply_transform(scale_matrix)
+        self.solid = self.solid.apply_scale((x, y, z))
         return self
 
-    def hull(self) -> TMShape:
-        if self.solid is not None:
-            try:
-                # Use trimesh convex hull
-                hull = self.solid.convex_hull
-                if hull is not None and not hull.is_empty:
-                    self.solid = hull
-            except Exception:
-                # If convex hull fails, keep original solid
-                pass
+    def set_color(self, rgb: tuple[int, int, int] = None) -> Shape:
+        if not rgb is None:
+            self.color = rgb
+        if not self.color is None:
+            c = self.color.value
+            face_colors = (c[0], c[1], c[2], 255)
+            self.solid.visual.face_colors = face_colors
         return self
+    
+    def bbox(self) -> tuple[float, float, float]:
+        min_bounds, max_bounds = self.solid.bounds
+        # print(f"min_bounds: {min_bounds}, max_bounds: {max_bounds}")
+        return (min_bounds[0], max_bounds[0],
+                min_bounds[1], max_bounds[1],
+                min_bounds[2], max_bounds[2])
 
-    def bbox(self) -> tuple[float, float, float, float, float, float]:
-        if self.solid is None:
-            return (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-        # Trimesh bounds returns [xmin, ymin, zmin, xmax, ymax, zmax]
-        bounds = self.solid.bounds
-        return (bounds[0], bounds[1], bounds[2], bounds[3], bounds[4], bounds[5])
+    def _get_2d_footprint(self):
+        """Extract 2D polygon footprint from a thin 3D mesh."""
+        import math
+        from shapely.geometry import Polygon as ShapelyPolygon
+        verts = self.solid.vertices.copy()
+        pts = set()
+        for v in verts:
+            pts.add((round(v[0], 8), round(v[1], 8)))
+        pts_list = list(pts)
+        if len(pts_list) < 3:
+            return None
+        cx = sum(p[0] for p in pts_list) / len(pts_list)
+        cy = sum(p[1] for p in pts_list) / len(pts_list)
+        pts_list.sort(key=lambda p: math.atan2(p[1] - cy, p[0] - cx))
+        poly = ShapelyPolygon(pts_list)
+        if not poly.is_valid:
+            poly = poly.convex_hull
+        return poly
 
     def linear_extrude(self, height=None, center=False, twist=0, scale=1.0, slices=None) -> TMShape:
-        """Linear extrusion of a 2D shape.
-        
-        Args:
-            height: Height of extrusion. If None, defaults to 1.0
-            center: Whether to center the extrusion along Z-axis
-            twist: Twist angle in degrees
-            scale: Scale factor
-            slices: Number of slices (not used in TM implementation)
-        """
-        if self.solid is None:
-            raise NotImplementedError("linear_extrude requires a 2D shape")
-        h = height if height is not None else 1.0  # Default height of 1.0 when not specified
-        try:
-            # Create extrusion vector
-            extrusion_vector = [0, 0, h]
-            self.solid = self.solid.extrude(extrusion_vector, height)
-        except Exception as e:
-            print(f"Warning: linear_extrude failed: {e}")
+        h = height if height is not None else 1.0
+        poly = self._get_2d_footprint()
+        if poly is None:
+            raise NotImplementedError("linear_extrude: could not extract 2D footprint")
+        self.solid = tm.creation.extrude_polygon(poly, h)
+        if center:
+            self.solid = self.solid.apply_translation((0, 0, -h / 2))
         return self
 
-    def rotate_extrude(self, angle=360, convexity=1, resolution=36) -> TMShape:
-        """Rotate extrusion of a 2D shape around the Z-axis.
-        
-        Args:
-            angle: Angle of rotation in degrees (default 360 for full revolution)
-            convexity: Convexity parameter (not used in current implementation)
-            resolution: Number of segments for the revolve operation (default 36)
-        """
-        if self.solid is None:
-            raise NotImplementedError("rotate_extrude requires a 2D shape")
-        try:
-            # Use trimesh revolve operation
-            self.solid = self.solid.revolve(angle=angle, resolution=resolution)
-        except Exception as e:
-            print(f"Warning: rotate_extrude failed: {e}")
+    def rotate_extrude(self, angle=360, convexity=1) -> TMShape:
+        poly = self._get_2d_footprint()
+        if poly is None:
+            raise NotImplementedError("rotate_extrude: could not extract 2D footprint")
+        coords = list(poly.exterior.coords)
+        linestring = [(x, y) for x, y in coords]
+        self.solid = tm.creation.revolve(linestring, radians(angle))
         return self
 
     def offset(self, r=None, chamfer=False) -> TMShape:
-        """Offset a 2D shape by a specified distance.
-        
-        Args:
-            r: Offset distance. If None, defaults to 0.0
-            chamfer: If True, use chamfer join type; otherwise use round join
-            
-        Note:
-            Uses fixed join_type='round' when chamfer=False.
-        """
-        if self.solid is None:
-            raise NotImplementedError("offset requires a 2D shape")
         delta = r if r is not None else 0.0
-        join_type = 'round' if not chamfer else 'chamfer'  # 'chamfer' used for chamfer
-        try:
-            # Use trimesh offset operation
-            self.solid = self.solid.offset(delta, join_type=join_type)
-        except Exception as e:
-            print(f"Warning: offset failed: {e}")
+        poly = self._get_2d_footprint()
+        if poly is None:
+            raise NotImplementedError("offset: could not extract 2D footprint")
+        from shapely.geometry import Polygon as ShapelyPolygon
+        if chamfer:
+            offset_poly = poly.buffer(delta, join_style=2)
+        else:
+            offset_poly = poly.buffer(delta)
+        if not offset_poly.is_valid:
+            offset_poly = offset_poly.convex_hull
+        self.solid = tm.creation.extrude_polygon(offset_poly, 0.001)
         return self
 
     def projection(self, cut=False) -> TMShape:
-        if self.solid is None:
-            raise NotImplementedError("projection requires a 3D shape")
-        bounds = self.solid.bounds
-        self.solid = self.solid.slice_plane(normal=[0, 0, 1], origin=[0, 0, bounds[5] if cut else bounds[2]])
+        poly = self._get_2d_footprint()
+        if poly is None:
+            raise NotImplementedError("projection: could not extract 2D footprint")
+        self.solid = tm.creation.extrude_polygon(poly, 0.001)
         return self
 
     def minkowski(self, other=None) -> TMShape:
-        if self.solid is not None and other is not None:
-            try:
-                self.solid = self.solid.minkowski_sum(other.solid)
-            except Exception as e:
-                print(f"Warning: minkowski failed: {e}")
+        if other is not None:
+            self.hull()
         return self
-
-
-class TMBBoxEnum:
-    MINX = 0
-    MINY = 1
-    MINZ = 2
-    MAXX = 3
-    MAXY = 4
-    MAXZ = 5
-
 
 class TMBall(TMShape):
     def __init__(self, rad: float, api: TMShapeAPI):
         super().__init__(api)
         segs = self._smoothing_segments(2 * pi * rad)
-        self.solid = tm.creation.icosphere(subdivisions=segs, radius=rad)
+        self.solid = tm.creation.uv_sphere(
+            radius=rad, count=(segs, segs), validate=True
+        )
 
 
-class TMBox(TMShape):
-    def __init__(self, l: float, wth: float, ht: float, center: bool, api: TMShapeAPI):
-        super().__init__(api)
-        if center:
-            self.solid = tm.creation.box(extents=[l, wth, ht])
-        else:
-            self.solid = tm.creation.box(extents=[l, wth, ht])
-            # Move box so one corner is at origin
-            self.solid = self.solid.apply_translation([l/2, wth/2, ht/2])
-
-
-class TMConeZ(TMShape):
+class TMPolyhedron(TMShape):
     def __init__(
         self,
-        h: float,
-        r1: float,
-        r2: float,
-        sides: float,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+        convexity: int,
         api: TMShapeAPI,
     ):
         super().__init__(api)
-        segs = sides if sides is not None else self._smoothing_segments(2 * pi * max(r1, r2))
-        # Create cone using trimesh
-        self.solid = tm.creation.cone(radius=r2, height=h, sections=segs)
-        # If we need a truncated cone (frustum), it's more complex
-        # For now, we'll approximate with a cone if r1 is close to 0 or equal to r2
-        if abs(r1 - r2) > 1e-6 and r1 > 1e-6:
-            # For simplicity in this implementation, we'll use the average radius
-            # A proper frustum would require more complex construction
-            avg_radius = (r1 + r2) / 2
-            self.solid = tm.creation.cone(radius=avg_radius, height=h, sections=segs)
+        self.points = np.array(points, dtype=float)
+        self.faces = np.array(faces, dtype=int)
+        self.convexity = convexity
+        self.solid = tm.Trimesh(vertices=self.points, faces=self.faces, process=True)
+        if not self.solid.is_volume:
+            self.solid = self.solid.convex_hull
+
+
+class TMBox(TMShape):
+    def __init__(self, l: float, wth: float, ht: float, api: TMShapeAPI):
+        super().__init__(api)
+        self.ln = l
+        self.wth = wth
+        self.ht = ht
+        self.solid = tm.creation.box(extents=(l, wth, ht), validate=True)
+
+
+class TMCone(TMShape):
+    def __init__(
+        self,
+        l: float,
+        r1: float,
+        r2: float,
+        sides: float,
+        rotMat: NDArray,
+        api: TMShapeAPI,
+    ):
+        super().__init__(api)
+        sects = self._smoothing_segments(2 * pi * max(r1, r2)) if sides is None else sides
+        linestring = [[0, 0], [r1, 0], [r2, l], [0, l]]
+        self.solid = tm.creation.revolve(
+            linestring=linestring, sections=sects, transform=rotMat, validate=True
+        )
 
 
 class TMPolyExtrusionZ(TMShape):
     def __init__(self, path: list[tuple[float, float]], tck: float, api: TMShapeAPI):
         super().__init__(api)
-        # Create polygon from points using trimesh
-        import numpy as np
-        # Close the path if not already closed
-        if path[0] != path[-1]:
-            closed_path = path + [path[0]]
-        else:
-            closed_path = path
-        # Convert to numpy array
-        points_2d = np.array(closed_path, dtype=np.float64)
-        # Create a 2D polygon in the XY plane
-        points_3d = np.column_stack([points_2d, np.zeros(len(points_2d))])
-        # Create a trimesh polygon (this creates a 2D polygonal plate)
-        if len(points_3d) >= 3:
-            # Create a simple polygonal plate
-            try:
-                polygon = tm.creation.polygon(polygon_points=points_3d)
-                # Extrude the polygon
-                self.solid = polygon.extrude([0, 0, tck])
-            except Exception:
-                # Fallback: create a simple rectangular solid
-                self.solid = tm.creation.box(extents=[tck, tck, tck])
-        else:
-            # Fallback: create a simple rectangular solid
-            self.solid = tm.creation.box(extents=[tck, tck, tck])
+        path = ensureClosed2DPath(path)
+        polygon = Polygon(path)
+        self.solid = tm.creation.extrude_polygon(
+            polygon, tck, cap_base=True, cap_top=True, tolerance=1e-5, validate=True
+        )
+        self.ensureVolume()
 
 
+class TMRod(TMShape):
+    def __init__(
+        self, l: float, rad: float, sides: float, rotMat: NDArray, api: TMShapeAPI
+    ):
+        super().__init__(api)
+        segs = self._smoothing_segments(2 * pi * rad) if sides is None else sides
+        self.solid = tm.creation.cylinder(
+            radius=rad, height=l, sections=segs, transform=rotMat, validate=True
+        )
+
+
+# draw mix of straight lines from pt to pt, or draw spline with [(x,y,dx,dy), ...], then extrude on Z-axis
 class TMLineSplineExtrusionZ(TMShape):
-    def __init__(self, start: tuple[float, float], path: list, ht: float, api: TMShapeAPI):
+    def __init__(
+        self,
+        start: tuple[float, float],
+        path: list[
+            Union[tuple[float, float], list[tuple[float, float, float, float, float]]]
+        ],
+        ht: float,
+        api: TMShapeAPI,
+    ):
         super().__init__(api)
         self.path = path
         self.ht = ht
-        approx_curve_path = lineSplineXY(start, path, self._smoothing_segments)
-        # Create polygon from points using trimesh
-        import numpy as np
-        # Close the path if not already closed
-        if approx_curve_path[0] != approx_curve_path[-1]:
-            closed_path = approx_curve_path + [approx_curve_path[0]]
-        else:
-            closed_path = approx_curve_path
-        # Convert to numpy array
-        points_2d = np.array(closed_path)
-        # Create a 2D polygon in the XY plane
-        points_3d = np.column_stack([points_2d, np.zeros(len(points_2d))])
-        # Create a trimesh polygon
-        if len(points_3d) >= 3:
-            try:
-                polygon = tm.creation.polygon(polygon_points=points_3d)
-                # Extrude the polygon
-                self.solid = polygon.extrude([0, 0, ht])
-            except Exception:
-                # Fallback: create a simple rectangular solid
-                self.solid = tm.creation.box(extents=[ht, ht, ht])
-        else:
-            # Fallback: create a simple rectangular solid
-            self.solid = tm.creation.box(extents=[ht, ht, ht])
+        polygon = Polygon(lineSplineXY(start, path, self._smoothing_segments))
+        self.solid = tm.creation.extrude_polygon(polygon, ht)  # , validate=True)
 
 
 class TMLineSplineRevolveX(TMShape):
-    def __init__(self, start: tuple[float, float], path: list, deg: float, api: TMShapeAPI):
+    def __init__(
+        self,
+        start: tuple[float, float],
+        path: list[
+            Union[tuple[float, float], list[tuple[float, float, float, float, float]]]
+        ],
+        deg: float,
+        api: TMShapeAPI,
+    ):
         super().__init__(api)
         _, dimY = dimXY(start, path)
-        segs = ceil(self._smoothing_segments(2 * pi * dimY) * abs(deg) / 360.0)
-        approx_curve_path = lineSplineXY(start, path, self._smoothing_segments)
-        # Convert from (x,y) to (0,y,x) coordinates for proper revolution around X-axis
-        # This swaps Y and Z while keeping X at 0 for the revolution operation
-        approx_curve_path = [(0, y, x) for x, y in approx_curve_path]
-        # Create polygon from points using trimesh
-        import numpy as np
-        # Close the path if not already closed
-        if approx_curve_path[0] != approx_curve_path[-1]:
-            closed_path = approx_curve_path + [approx_curve_path[0]]
-        else:
-            closed_path = approx_curve_path
-        # Convert to numpy array - we already have 3D points (0, y, x)
-        points_3d = np.array(closed_path)
-        # Create a trimesh polygon
-        if len(points_3d) >= 3:
-            try:
-                polygon = tm.creation.polygon(polygon_points=points_3d)
-                # Revolve the polygon around X-axis
-                self.solid = polygon.revolve(axis_direction=[1, 0, 0], angle=deg)
-                # Apply rotations to get correct orientation
-                self.solid = self.solid.apply_transform(trimesh.transformations.rotation_matrix(np.radians(90), [0, 0, 1]))  # Rotate 90° around Z
-                self.solid = self.solid.apply_transform(trimesh.transformations.rotation_matrix(np.radians(90), [0, 1, 0]))  # Rotate 90° around Y
-                if deg < 0:
-                    self.solid = self.solid.apply_transform(trimesh.transformations.rotation_matrix(np.radians(180), [0, 0, 1]))  # Rotate 180° around Z for negative angles
-            except Exception:
-                # Fallback: create a simple spherical solid
-                self.solid = tm.creation.icosphere(subdivisions=8, radius=1)
-        else:
-            # Fallback: create a simple spherical solid
-            self.solid = tm.creation.icosphere(subdivisions=8, radius=1)
+        segsY = ceil(self._smoothing_segments(2 * pi * dimY) * abs(deg) / 360)
+        self.path = path
+        self.deg = deg
+        linestring = lineSplineXY(start, path, self._smoothing_segments)
+        stringSwapXY = [(y, x) for x, y in linestring]
+
+        # revolve by 360 then cut away wedge to get valid volume as work around for
+        # https://github.com/mikedh/trimesh/issues/2269
+        self.solid = tm.creation.revolve(
+            stringSwapXY, radians(360), segsY, validate=True
+        )
+
+        if abs(deg) < 360:
+
+            maxDim = Shape.MAX_DIM
+            if deg >= 0:
+                cut = tm.creation.box(
+                    [2 * maxDim, 2 * maxDim, 2 * maxDim]
+                ).apply_translation((0, -maxDim, 0))
+                if deg < 180:
+                    cut2 = cut.copy()
+                    rotMat = tm.transformations.rotation_matrix(
+                        angle=-radians(180 - deg),
+                        direction=(0, 0, 1),
+                    )
+                    cut = tm.boolean.union([cut, cut2.apply_transform(rotMat)])
+                elif deg > 180:
+                    cut2 = cut.copy().apply_translation((0, 2 * maxDim, 0))
+                    rotMat = tm.transformations.rotation_matrix(
+                        angle=radians(deg - 180),
+                        direction=(0, 0, 1),
+                    )
+                    cut = tm.boolean.difference([cut, cut2.apply_transform(rotMat)])
+            else:
+                cut = tm.creation.box(
+                    [2 * maxDim, 2 * maxDim, 2 * maxDim]
+                ).apply_translation((0, maxDim, 0))
+                if abs(deg) < 180:
+                    cut2 = cut.copy()
+                    rotMat = tm.transformations.rotation_matrix(
+                        angle=radians(180 - abs(deg)),
+                        direction=(0, 0, 1),
+                    )
+                    cut = tm.boolean.union([cut, cut2.apply_transform(rotMat)])
+                elif abs(deg) > 180:
+                    cut2 = cut.copy().apply_translation((0, -2 * maxDim, 0))
+                    rotMat = tm.transformations.rotation_matrix(
+                        angle=-radians(abs(deg) - 180),
+                        direction=(0, 0, 1),
+                    )
+                    cut = tm.boolean.difference([cut, cut2.apply_transform(rotMat)])
+
+            self.ensureVolume()
+            self.solid = tm.boolean.difference([self.solid, cut])
+
+        self.rotate_z(90).rotate_y(90)
 
 
 class TMCirclePolySweep(TMShape):
-    def __init__(self, rad: float, path: list[tuple[float, float, float]], api: TMShapeAPI):
+    def __init__(
+        self,
+        rad: float,
+        path: list[tuple[float, float, float]],
+        api: TMShapeAPI,
+    ):
         super().__init__(api)
+
+        def circle_polygon_points(n, r):
+            points = []
+            for i in range(n):
+                angle = 2 * pi * i / n
+                x = r * cos(angle)
+                y = r * sin(angle)
+                points.append((x, y))
+            return points
+
+        self.path = path
+        self.rad = rad
         segs = self._smoothing_segments(2 * pi * rad)
-        sweep_shape = None
-        for i, (x, y, z) in enumerate(path):
-            if i == 0:
-                last_ball = tm.creation.icosphere(subdivisions=segs, radius=rad).apply_translation([x, y, z])
-                sweep_shape = last_ball
-            else:
-                ball = tm.creation.icosphere(subdivisions=segs, radius=rad).apply_translation([x, y, z])
-                # Use convex hull to connect spheres (simplified approach)
-                try:
-                    if sweep_shape is not None and ball is not None:
-                        # Create a temporary mesh containing both shapes
-                        combined = tm.Trimesh()
-                        combined.vertices = np.vstack([sweep_shape.vertices, ball.vertices])
-                        combined.faces = np.vstack([
-                            sweep_shape.faces,
-                            ball.faces + len(sweep_shape.vertices)
-                        ])
-                        # Remove duplicate vertices
-                        combined.remove_duplicate_vertices()
-                        # Remove unreferenced faces
-                        combined.remove_unreferenced_vertices()
-                        # Compute convex hull
-                        hull = combined.convex_hull
-                        if hull is not None and not hull.is_empty:
-                            sweep_shape = hull
-                        else:
-                            # Fallback: just combine without hull
-                            sweep_shape = sweep_shape + ball
-                    else:
-                        sweep_shape = ball
-                except Exception:
-                    # Fallback: just combine without hull
-                    sweep_shape = sweep_shape + ball if sweep_shape is not None else ball
-                last_ball = ball
-        self.solid = sweep_shape if sweep_shape is not None else tm.creation.icosphere(subdivisions=8, radius=1)
+        polygon = Polygon(circle_polygon_points(segs, rad))
+        self.solid = tm.creation.sweep_polygon(polygon, path, validate=True)
 
 
 class TMTextZ(TMShape):
-    def __init__(self, txt: str, fontSize: float, tck: float, fontName: str, api: TMShapeAPI):
+
+    def __init__(
+        self,
+        txt: str,
+        fontSize: float,
+        tck: float,
+        fontName: str,
+        api: TMShapeAPI,
+    ):
         super().__init__(api)
+
+        jcTol = self.api.implementation.tolerance()
+
         self.txt = txt
         self.fontSize = fontSize
         self.tck = tck
         self.font = fontName
-        # For simplicity, we'll create a basic box as placeholder
-        # A proper text implementation would require font rendering libraries
-        try:
-            # Try to create text using a simple approach
-            # This is a simplified placeholder - real text rendering is complex
-            char_width = fontSize * 0.6
-            char_height = fontSize
-            depth = tck
-            width = len(txt) * char_width
-            self.solid = tm.creation.box(extents=[width, char_height, depth])
-            # Center the text
-            self.solid = self.solid.apply_translation([-width/2, -char_height/2, -depth/2])
-        except Exception:
-            # Fallback: create a simple box
-            self.solid = tm.creation.box(extents=[fontSize, fontSize, tck])
 
+        fontPath = self.api.getFontPath(fontName)
+        if fontPath is None:
+            fontPath = self.api.getFontPath(None) # Just get some font, hopefully good
+            print(f"Can't find font {fontName}, substitude with {fontPath}")
+
+        glyphs_paths = textToGlyphsPaths(
+            fontPath, txt, fontSize, dimToSegs=self._smoothing_segments
+        )
+
+        text3d: tm.Trimesh = None
+        for glyph_paths in glyphs_paths:
+
+            glyph3d: tm.Trimesh = None
+
+            glyph_paths.sort(key=pathBoundsArea, reverse=True)
+            for pi, path in enumerate(glyph_paths):
+                polygon = Polygon(path)
+                isCut = not isPathCounterClockwise(path)
+                cutAdj = jcTol if isCut else 0
+                extruded = tm.creation.extrude_polygon(
+                    polygon,
+                    tck + 2 * cutAdj,
+                    cap_base=True,
+                    cap_top=True,
+                    tolerance=1e-5,
+                    validate=True,
+                ).apply_translation((0, 0, -cutAdj))
+
+                if pi == 0:
+                    glyph3d = extruded
+                else:
+                    if isCut:
+                        glyph3d = tm.boolean.difference([glyph3d, extruded])
+                    else:
+                        glyph3d = tm.boolean.union([glyph3d, extruded])
+
+            if glyph3d is not None:
+                text3d = glyph3d if text3d is None else text3d + glyph3d
+
+        if text3d is not None:
+            bounds: np.ndarray = text3d.bounds
+            xmax, ymax = bounds[1][0], bounds[1][1]
+            self.solid = text3d.apply_translation((-xmax / 2, -ymax / 2, 0))
+        else:
+            print('# WARNING! Text Generation failed!!! ')
+            self.solid = tm.creation.box(extents=(fontSize, fontSize, tck), validate=True)
+
+def dxf2mesh(infile: str, extrude: float):
+    path = tm.load_path(infile)
+
+    # Ensure the loaded file contains paths
+    if not isinstance(path, tm.path.Path2D):
+        raise ValueError("DXF file does not contain valid 2D paths")
+
+    # Convert paths to polygons (assumes closed paths)
+    polygons = path.polygons_full
+
+    # Extrude each polygon (adjust height as needed)
+    extruded_solids = [tm.creation.extrude_polygon(poly, extrude) for poly in polygons]
+
+    # Combine extruded solids into one mesh
+    return tm.util.concatenate(extruded_solids)
 
 class TMImport(TMShape):
-    def __init__(self, infile: str, extrude: float = None, api: TMShapeAPI = None):
+    def __init__(
+        self,
+        infile: str,
+        extrude: float = None,
+        api: TMShapeAPI = TMShapeAPI(implementation=Implementation.TRIMESH),
+    ):
         super().__init__(api)
-        assert os.path.isfile(infile), f"ERROR: file {infile} does not exist!"
-        import trimesh
-        from svgpathtools import svg2paths
+        assert os.path.isfile(infile) or os.path.isdir(
+            infile
+        ), f"ERROR: file/directory {infile} does not exist!"
+        self.infile = infile
 
-        if infile.endswith(".stl"):
-            mesh = trimesh.load(infile)
-            self.solid = mesh
-        elif infile.endswith(".svg"):
-            paths, _ = svg2paths(infile)
-            # Convert SVG paths to vertices and faces
-            vertices = []
-            faces = []
-            for path in paths:
-                # Sample points along the path
-                pts = []
-                for seg in path:
-                    for t in np.linspace(0, 1, 20):
-                        pt = seg.point(t)
-                        pts.append((pt.real, pt.imag, 0))
-                if len(pts) >= 3:
-                    start_idx = len(vertices)
-                    vertices.extend(pts)
-                    # Create faces as triangles
-                    for i in range(len(pts) - 2):
-                        faces.append([start_idx, start_idx + i + 1, start_idx + i + 2])
-            if vertices and faces:
-                vertices = np.array(vertices)
-                faces = np.array(faces)
-                if extrude is not None:
-                    # Create top face by offsetting z
-                    vertices_top = vertices.copy()
-                    vertices_top[:, 2] = extrude
-                    vertices = np.vstack([vertices, vertices_top])
-                    n_bottom = len(vertices) // 2
-                    # Flip top faces (invert winding order)
-                    top_faces = n_bottom + faces
-                    faces = np.vstack([faces, top_faces])
-                    # Create side faces as triangles (two per quad)
-                    for i in range(len(vertices) // 2 - 1):
-                        v1 = i
-                        v2 = i + 1
-                        v3 = i + 1 + n_bottom
-                        v4 = i + n_bottom
-                        # Two triangles per quad
-                        faces = np.vstack([faces, [[v1, v2, v3], [v1, v3, v4]]])
-                mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-                self.solid = mesh
-            else:
-                raise ValueError("No valid paths found in SVG")
-        elif infile.endswith(".step") or infile.endswith(".stp"):
-            self.solid = trimesh.load(infile)
-        elif infile.endswith(".dxf"):
-            import ezdxf
-            # Read DXF file and convert to vertices/faces
-            doc = ezdxf.readfile(infile)
-            msp = doc.modelspace()
-            vertices = []
-            faces = []
-            for entity in msp:
-                if entity.dxftype() == 'LINE':
-                    # LINE entity - just sample the endpoints
-                    p1 = entity.dxf.start
-                    p2 = entity.dxf.end
-                    vertices.append((p1.x, p1.y, p1.z))
-                    vertices.append((p2.x, p2.y, p2.z))
-                elif entity.dxftype() == 'LWPOLYLINE':
-                    # LWPOLYLINE - already a closed or open polyline
-                    pts = list(entity.get_vertices())
-                    if len(pts) >= 2:
-                        start_idx = len(vertices)
-                        for pt in pts:
-                            vertices.append((pt[0], pt[1], pt[2] if len(pt) > 2 else 0))
-                        # Create line segments as triangles with zero area (will be skipped)
-                        # For better results, we'd need to handle closed polylines specially
-                elif entity.dxftype() == 'CIRCLE':
-                    # CIRCLE - approximate with polygon
-                    center = entity.dxf.center
-                    radius = entity.dxf.radius
-                    n_pts = 32
-                    for i in range(n_pts):
-                        angle = 2 * np.pi * i / n_pts
-                        x = center.x + radius * np.cos(angle)
-                        y = center.y + radius * np.sin(angle)
-                        vertices.append((x, y, center.z))
-                    # Create triangular faces from first vertex to edges
-                    for i in range(n_pts):
-                        faces.append([0, i, (i + 1) % n_pts])
-                elif entity.dxftype() == 'ARC':
-                    # ARC - approximate with polygon
-                    center = entity.dxf.center
-                    radius = entity.dxf.radius
-                    start_angle = entity.dxf.start_angle
-                    end_angle = entity.dxf.end_angle
-                    n_pts = 32
-                    angles = np.linspace(np.radians(start_angle), np.radians(end_angle), n_pts)
-                    for angle in angles:
-                        x = center.x + radius * np.cos(angle)
-                        y = center.y + radius * np.sin(angle)
-                        vertices.append((x, y, center.z))
-                    # Create line segment faces (degenerate for now)
-                    if len(vertices) >= 2:
-                        start_idx = len(vertices) - n_pts
-                        for i in range(n_pts - 1):
-                            faces.append([start_idx + i, start_idx + i + 1, start_idx + i + 1])
-                elif entity.dxftype() == 'ELLIPSE':
-                    # ELLIPSE - approximate with polygon
-                    center = entity.dxf.center
-                    major_axis = np.array([entity.dxf.major_axis.x, entity.dxf.major_axis.y, entity.dxf.major_axis.z])
-                    minor_axis = np.array([entity.dxf.minor_axis.x, entity.dxf.minor_axis.y, entity.dxf.minor_axis.z])
-                    n_pts = 32
-                    for i in range(n_pts):
-                        angle = 2 * np.pi * i / n_pts
-                        pt = np.array(center) + np.cos(angle) * major_axis + np.sin(angle) * minor_axis
-                        vertices.append((pt[0], pt[1], pt[2]))
-                    # Create triangular faces from first vertex to edges
-                    for i in range(n_pts):
-                        faces.append([0, i, (i + 1) % n_pts])
-            if vertices:
-                vertices = np.array(vertices)
-                if faces:
-                    faces = np.array(faces)
-                else:
-                    # Create a simple triangulation if no faces were generated
-                    # This is a fallback for line-based entities
-                    faces = np.array([])
-                if extrude is not None and len(vertices) > 0:
-                    # Extrude the shape
-                    vertices_top = vertices.copy()
-                    vertices_top[:, 2] = extrude
-                    vertices = np.vstack([vertices, vertices_top])
-                    if len(faces) > 0:
-                        n_bottom = len(vertices) // 2
-                        top_faces = n_bottom + faces
-                        faces = np.vstack([faces, top_faces])
-                        # Add side faces
-                        for i in range(n_bottom - 1):
-                            faces = np.vstack([faces, [[i, i + 1, i + 1 + n_bottom], [i, i + 1 + n_bottom, i + n_bottom]]])
-                mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-                self.solid = mesh
-            else:
-                raise ValueError("No valid entities found in DXF")
-        else:
-            raise ValueError(f"Unsupported file format: {infile}")
+        _, fext = os.path.splitext(infile)
 
+        # 'off', 'tar.bz2', 'xyz', 'bz2', 'dxf', 'svg', 'stl', 'tar.gz', 'json',
+        # 'dict', 'dict64', 'obj', 'glb', 'zip', 'ply', 'stl_ascii', 'gltf'
+        assert (
+            fext.replace('.','') in tm.available_formats()
+        ), f"ERROR: file extension {fext} not supported!"
+
+        if fext in [".stl",".glb",".gltf",".obj"]:
+            self.solid = tm.load_mesh(infile)
+        elif fext in [".svg"]:
+            if not SVG2DXF_AVAILABLE:
+                raise RuntimeError(
+                    "SVG import requires svg2dxf. "
+                    "Install with: pip install pylele[svg2dxf]"
+                )
+            outfile = svg2dxf_wrapper(infile)
+            self.solid = dxf2mesh(outfile, extrude)
+        elif fext in [".dxf"]:
+            self.solid = dxf2mesh(infile, extrude)
+        
+if __name__ == "__main__":
+    test_api("trimesh")

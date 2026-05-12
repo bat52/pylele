@@ -213,7 +213,9 @@ class B13DTestMethods(unittest.TestCase):
 
     def test_trimesh_api(self):
         """Test Trimesh API"""
+        print("DEBUG: Starting test_trimesh_api")
         test_api(api=Implementation.TRIMESH)
+        print("DEBUG: Finished test_trimesh_api")
 
     def test_solid2_api(self):
         """Test SolidPython2 API"""
