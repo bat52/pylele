@@ -88,7 +88,9 @@ class Sp2ShapeAPI(ShapeAPI):
         """ Export .stl mesh """
         basefname, _ = os.path.splitext(path)
         scad_file = self.export_scad(shape=shape, path=basefname)
-        return scad2stl(scad_file, command=self.command, implicit=self.implicit)
+        stl_file = scad2stl(scad_file, command=self.command, implicit=self.implicit)
+        _ensure_outward_stl(stl_file)
+        return stl_file
 
     def export_csg(self, shape: Sp2Shape, path: str) -> None:
         """ Export .csg mesh """
@@ -620,6 +622,28 @@ class Sp2TextZ(Sp2Shape):
             self.backup_solid = api.backup_api.text(txt, fontSize, tck, font)
         else:
             self.backup_solid = None
+
+def _ensure_outward_stl(stl_path: str) -> None:
+    """Post-process an STL file to ensure outward-pointing face normals.
+    
+    OpenSCAD's CGAL engine can produce STL files with inward-facing normals
+    for polyhedron definitions whose winding order is ambiguous. This function
+    detects such cases and flips the face winding to produce outward normals.
+    """
+    try:
+        import numpy as np
+        import trimesh
+
+        mesh = trimesh.load(stl_path)
+        if mesh.volume < 0:
+            # Flip all face windings to make normals point outward
+            mesh.faces = np.fliplr(mesh.faces)
+            mesh._cache.clear()
+            mesh.face_normals = -mesh.face_normals
+            mesh.export(stl_path, file_type="stl")
+    except Exception:
+        pass
+
 
 class Sp2Polyhedron(Sp2Shape):
     def __init__(
