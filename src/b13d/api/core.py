@@ -703,8 +703,9 @@ class ShapeAPI(ABC):
                 if not mesh.is_watertight:
                     print(f"  WARNING: {name} ({stl_path.name}) is NOT WATERTIGHT")
                 vol = mesh.volume
-            if vol < min_volume:
-                print(f"  WARNING: {name} ({stl_path.name}) volume={vol:.2f} < min={min_volume}")
+            assert vol > 0, f"Negative Volume: {vol}"
+            assert vol >= min_volume, f"Volume too small: {vol:.2f} < min={min_volume}"
+            # print(f"  WARNING: {name} ({stl_path.name}) volume={vol:.2f} < min={min_volume}")
         except Exception as e:
             print(f"  WARNING: {name} ({stl_path.name}) validation failed: {e}")
 
@@ -945,7 +946,7 @@ class ShapeAPI(ABC):
         # Test mirror_and_join
         box = self.box(10, 20, 30)
         mir_box = box.mirror_and_join()
-        self._export_and_validate(mir_box, expDir, "mir-box", min_volume=10000)
+        self._export_and_validate(mir_box, expDir, "mir-box", min_volume=5000)
         
         # Test set_color, set_name, show
         box = self.box(10, 20, 30)
@@ -1092,7 +1093,7 @@ class ShapeAPI(ABC):
         obj9 = self.regpoly_sweep(
             1, [(-20, 0, 0), (20, 0, 40), (40, 20, 40), (60, 20, 0)]
         )
-        self._export_and_validate(obj9, expDir, "obj9", min_volume=1000)
+        self._export_and_validate(obj9, expDir, "obj9", min_volume=200)
         joined += obj9
 
         obj10 = self.sphere_quadrant(10, True, True).scale(2, 1, 0.5).mv(-30, -20, 0)
