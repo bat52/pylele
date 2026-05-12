@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 import importlib
-from math import inf
+from math import inf, fabs
 from enum import Enum
 from pathlib import Path
 from abc import ABC, abstractmethod
@@ -1065,6 +1065,14 @@ class ShapeAPI(ABC):
         
         # Test bbox properties
         print(f"[{implCode}] Bbox tests: top={box.top()}, bottom={box.bottom()}, left={box.left()}, right={box.right()}, center={box.center()}, len={box.length()}, w={box.width()}, h={box.height()}")
+        assert fabs(box.top()    - 15) < self.tolerance()
+        assert fabs(box.bottom() + 15) < self.tolerance()
+        assert fabs(box.left()   + 5) < self.tolerance()
+        assert fabs(box.right()  - 5) < self.tolerance()
+        assert all(fabs(c - e) < self.tolerance() for c, e in zip(box.center(), (0, 0, 0)))
+        assert fabs(box.length() - 10) < self.tolerance()
+        assert fabs(box.width()  - 20) < self.tolerance()
+        assert fabs(box.height() - 30) < self.tolerance()
 
         # Test remaining ShapeAPI methods
         info = APIS_INFO[self.implementation]
