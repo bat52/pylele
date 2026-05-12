@@ -30,7 +30,11 @@ class MockShapeAPI(ShapeAPI):
         return MockShape(self)
 
     def box(self, l: float, wth: float, ht: float, center: bool = True) -> MockShape:
-        return MockShape(self)
+        if center:
+            bbox = (-l/2, l/2, -wth/2, wth/2, -ht/2, ht/2)
+        else:
+            bbox = (0, l, 0, wth, 0, ht)
+        return MockShape(self, bbox=bbox)
 
     def cone_x(self, h: float, r1: float, r2: float) -> MockShape:
         return MockShape(self)
@@ -119,23 +123,53 @@ class MockShape(Shape):
     Mock Pylele Shape implementation for test
     """
 
+    def __init__(self, api, bbox=None):
+        """Initialize mock shape with optional bounding box."""
+        solid = object() if bbox is not None else None
+        super().__init__(api, solid=solid)
+        self._bbox = bbox if bbox is not None else (0, 1, 2, 3, 4, 5)
+
+    def bbox(self):
+        return self._bbox
+
     def cut(self, cutter: MockShape) -> MockShape:
         self.solid = None
         return self
 
     def dup(self) -> MockShape:
-        return self
+        return MockShape(self.api, bbox=tuple(self._bbox))
 
     def join(self, joiner: MockShape) -> MockShape:
+        b1 = self._bbox
+        b2 = joiner._bbox
+        self._bbox = (
+            min(b1[0], b2[0]), max(b1[1], b2[1]),
+            min(b1[2], b2[2]), max(b1[3], b2[3]),
+            min(b1[4], b2[4]), max(b1[5], b2[5]),
+        )
         return self
 
     def intersection(self, intersector: MockShape) -> MockShape:
         return self
 
     def mirror(self, normal=(0, 1, 0)) -> MockShape:
-        return self
+        # Create a copy with reflected bbox across the plane through origin.
+        bbox = list(self._bbox)
+        if normal == (0, 1, 0):
+            # Reflect Y: swap and negate MINY/MAXY
+            bbox[2], bbox[3] = -bbox[3], -bbox[2]
+        elif normal == (1, 0, 0):
+            bbox[0], bbox[1] = -bbox[1], -bbox[0]
+        elif normal == (0, 0, 1):
+            bbox[4], bbox[5] = -bbox[5], -bbox[4]
+        return MockShape(self.api, bbox=tuple(bbox))
 
     def mv(self, x: float, y: float, z: float) -> MockShape:
+        self._bbox = (
+            self._bbox[0] + x, self._bbox[1] + x,
+            self._bbox[2] + y, self._bbox[3] + y,
+            self._bbox[4] + z, self._bbox[5] + z,
+        )
         return self
 
     def rotate_x(self, ang: float) -> MockShape:
@@ -148,14 +182,17 @@ class MockShape(Shape):
         return self
 
     def scale(self, x: float, y: float, z: float) -> MockShape:
+        # Scale bbox around origin
+        self._bbox = (
+            self._bbox[0] * x, self._bbox[1] * x,
+            self._bbox[2] * y, self._bbox[3] * y,
+            self._bbox[4] * z, self._bbox[5] * z,
+        )
         return self
         
     def hull(self) -> MockShape:
         return self
     
-    def bbox(self) -> MockShape:
-        return (0,1,2,3,4,5)
-
     def linear_extrude(self, height=None, center=False, twist=0, scale=1.0, slices=None) -> MockShape:
         return self
 
