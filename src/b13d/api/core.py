@@ -710,7 +710,7 @@ class ShapeAPI(ABC):
 
     def _numbered_name(self, counter: int, base_name: str) -> str:
         """Generate a numbered name like P-000-ball"""
-        return f"P-{counter:03d}-{base_name}"
+        return f"{self.implementation.code()}-{counter:03d}-{base_name}"
 
     def _export_and_validate(self, shape: Shape, expDir: Path, base_name: str, min_volume: float = 0):
         """Export and validate a shape, returning the next counter value."""
@@ -736,63 +736,63 @@ class ShapeAPI(ABC):
 
         print(f"[{implCode}] Testing sphere...")
         ball = self.sphere(10)
-        self._export_and_validate(ball, expDir, "ball", min_volume=1000)
+        self._export_and_validate(ball, expDir, "ball", min_volume=3500)
         
         # print(f"[{implCode}] Testing sphere...")
         # self.export_best(ball, expDir / name)
 
         print(f"[{implCode}] Testing box...")
         box = self.box(10, 20, 30)
-        self._export_and_validate(box, expDir, "box", min_volume=1000)
+        self._export_and_validate(box, expDir, "box", min_volume=5000)
 
         print(f"[{implCode}] Testing cylinder_x...")
         xRod = self.cylinder_x(30, 5)
-        self._export_and_validate(xRod, expDir, "xrod", min_volume=100)
+        self._export_and_validate(xRod, expDir, "xrod", min_volume=2000)
 
         print(f"[{implCode}] Testing cylinder_y...")
         yRod = self.cylinder_y(30, 5)
-        self._export_and_validate(yRod, expDir, "yrod", min_volume=100)
+        self._export_and_validate(yRod, expDir, "yrod", min_volume=2000)
 
         print(f"[{implCode}] Testing cylinder_z...")
         zRod = self.cylinder_z(30, 5)
-        self._export_and_validate(zRod, expDir, "zrod", min_volume=100)
+        self._export_and_validate(zRod, expDir, "zrod", min_volume=2000)
 
         print(f"[{implCode}] Testing cone_x...")
         xCone = self.cone_x(30, 5, 2)
-        self._export_and_validate(xCone, expDir, "xcone", min_volume=100)
+        self._export_and_validate(xCone, expDir, "xcone", min_volume=1000)
 
         print(f"[{implCode}] Testing cone...")
         xCone2 = self.cone(30, 5, 2, 'X')
-        self._export_and_validate(xCone2, expDir, "xcone2", min_volume=100)
+        self._export_and_validate(xCone2, expDir, "xcone2", min_volume=1000)
 
         print(f"[{implCode}] Testing cone_y...")
         yCone = self.cone_y(30, 5, 2)
-        self._export_and_validate(yCone, expDir, "ycone", min_volume=100)
+        self._export_and_validate(yCone, expDir, "ycone", min_volume=1000)
 
         print(f"[{implCode}] Testing cone_z...")
         zCone = self.cone_z(30, 5, 2)
-        self._export_and_validate(zCone, expDir, "zcone", min_volume=100)
+        self._export_and_validate(zCone, expDir, "zcone", min_volume=1000)
 
         print(f"[{implCode}] Testing regpoly_extrusion_x...")
         xSqRod = self.regpoly_extrusion_x(30, 5, 4)
-        self._export_and_validate(xSqRod, expDir, "xsqrod", min_volume=100)
+        self._export_and_validate(xSqRod, expDir, "xsqrod", min_volume=1200)
 
         print(f"[{implCode}] Testing regpoly_extrusion_y...")
         ySqRod = self.regpoly_extrusion_y(30, 5, 4)
-        self._export_and_validate(ySqRod, expDir, "ysqrod", min_volume=100)
+        self._export_and_validate(ySqRod, expDir, "ysqrod", min_volume=1200)
 
         print(f"[{implCode}] Testing regpoly_extrusion_z...")
         zSqRod = self.regpoly_extrusion_z(30, 5, 4)
-        self._export_and_validate(zSqRod, expDir, "zsqrod", min_volume=100)
+        self._export_and_validate(zSqRod, expDir, "zsqrod", min_volume=1200)
 
         xRndRod = self.cylinder_rounded_x(30, 5, 1 / 2)
-        self._export_and_validate(xRndRod, expDir, "xrndrod", min_volume=100)
+        self._export_and_validate(xRndRod, expDir, "xrndrod", min_volume=1800)
 
         yRndRod = self.cylinder_rounded_y(30, 5, 1 / 2)
-        self._export_and_validate(yRndRod, expDir, "yrndrod", min_volume=100)
+        self._export_and_validate(yRndRod, expDir, "yrndrod", min_volume=1800)
 
         zRndRod = self.cylinder_rounded_z(30, 5, 1 / 2)
-        self._export_and_validate(zRndRod, expDir, "zrndrod", min_volume=100)
+        self._export_and_validate(zRndRod, expDir, "zrndrod", min_volume=1800)
 
         zPolyExt = self.polygon_extrusion([(0, 0), (10, 0), (0, 10)], 5)
         self._export_and_validate(zPolyExt, expDir, "zpolyext", min_volume=10)
@@ -932,7 +932,7 @@ class ShapeAPI(ABC):
         ry = self.cylinder_y(10, 3)
         rz = self.cylinder_z(10, 3)
         obj2 = rx.join(ry).join(rz).mv(10, -10, 5)
-        self._export_and_validate(obj2, expDir, "obj2", min_volume=1000)
+        self._export_and_validate(obj2, expDir, "obj2", min_volume=500)
         joined += obj2
 
         rr1 = self.cylinder_rounded_x(10, 3).scale(0.5, 1, 1).mv(0, -20, 0)
@@ -940,14 +940,14 @@ class ShapeAPI(ABC):
         rr3 = self.cylinder_rounded_x(10, 3).scale(1, 1, 0.5).mv(0, 20, 0)
         rr4 = self.cylinder_rounded_y(50, 1)
         obj3 = rr1.join(rr2).join(rr3).join(rr4).mv(0, 0, -20)
-        self._export_and_validate(obj3, expDir, "obj3", min_volume=1000)
+        self._export_and_validate(obj3, expDir, "obj3", min_volume=400)
         joined += obj3
 
         rrx = self.cylinder_rounded_x(10, 3, 0.25)
         rry = self.cylinder_rounded_y(10, 3, 0.5)
         rrz = self.cylinder_rounded_z(10, 3)
         obj4 = rrx.join(rry).join(rrz).half().mv(-10, 10, 5)
-        self._export_and_validate(obj4, expDir, "obj4", min_volume=1000)
+        self._export_and_validate(obj4, expDir, "obj4", min_volume=200)
         joined += obj4
 
         pe = self.polygon_extrusion([(-10, 30), (10, 30), (10, -30), (-10, -30)], 10)
@@ -961,7 +961,7 @@ class ShapeAPI(ABC):
         if self.implementation.has_fillet():
             rndBox = self.box(10, 10, 10).fillet([(5, 0, 5)], 1)
             obj6 = rndBox.mv(-10, -10, 5)
-            self._export_and_validate(obj6, expDir, "obj6", min_volume=1000)
+            self._export_and_validate(obj6, expDir, "obj6", min_volume=900)
             joined += obj6
 
         dome = self.spline_extrusion(
@@ -982,7 +982,7 @@ class ShapeAPI(ABC):
             ht=5,
         )
         obj7 = dome.rotate_y(-45).mv(-10, 15, 0)
-        self._export_and_validate(obj7, expDir, "obj7", min_volume=1000)
+        self._export_and_validate(obj7, expDir, "obj7", min_volume=400)
         joined += obj7
 
         donutStart = (60, 0.1)
