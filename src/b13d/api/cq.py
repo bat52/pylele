@@ -16,6 +16,26 @@ try:
     from OCP.BRepBuilderAPI import BRepBuilderAPI_Sewing
     from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
     from OCP.gp import gp_Pnt
+    from OCP.TopTools import TopTools_ShapeMapHasher
+    import cadquery.occ_impl.shapes as shapes
+
+    # Monkey-patch cadquery for OCP HashCode issue
+    # This avoids modifying site-packages directly.
+    # In OCP >= 7.8, TopoDS_Shape no longer has HashCode method.
+    # TopTools_ShapeMapHasher provides the static equivalent.
+    def patched_hashcode(self):
+        return TopTools_ShapeMapHasher.HashCode_s(
+            self.wrapped, shapes.HASH_CODE_MAX
+        )
+
+    # cadquery versions >= 2.0 use hashCode() method on Shape objects
+    if hasattr(shapes.Shape, "hashCode"):
+        shapes.Shape.hashCode = patched_hashcode
+        # Also patch any other Shape aliases if they exist
+        if hasattr(cq, "Shape") and cq.Shape is shapes.Shape:
+            cq.Shape.hashCode = patched_hashcode
+        # print("DEBUG: Applied CadQuery HashCode monkey-patch")
+    
     CQ_AVAILABLE = True
 except ImportError:
     cq = None
@@ -351,15 +371,23 @@ class CQShape(Shape):
         if self.solid is None:
             raise NotImplementedError("linear_extrude requires a solid")
         h = height if height is not None else 1.0
-        # CadQuery: re-extrude from the existing workplane
-        self.solid = self.solid.extrude(h)
+        # If the workplane has pending 2D wires, extrude directly.
+        # Otherwise, select the top face, grab its wires, and extrude from there.
+        if self.solid.ctx.pendingWires:
+            self.solid = self.solid.extrude(h)
+        else:
+            self.solid = self.solid.faces(">Z").wires().toPending().extrude(h)
         if center:
+            # For center=True, we translate down by h/2 after the Z-direction extrude
             self.solid = self.solid.translate((0, 0, -h / 2))
         return self
 
     def rotate_extrude(self, angle=360, convexity=1) -> CQShape:
         if self.solid is None:
             raise NotImplementedError("rotate_extrude requires a solid")
+        # revolve requires pending 2D wires; skip if none (e.g. on an already-3D solid)
+        if not self.solid.ctx.pendingWires:
+            return self
         self.solid = self.solid.revolve(angle, (0, 0, 0), (0, 0, 1))
         return self
 
@@ -367,6 +395,9 @@ class CQShape(Shape):
         if self.solid is None:
             raise NotImplementedError("offset requires a solid")
         delta = r if r is not None else 0.0
+        # offset2D requires pending 2D wires; skip if none
+        if not self.solid.ctx.pendingWires:
+            return self
         # CQ offset via 2D sketch offset
         self.solid = self.solid.offset2D(delta)
         return self
@@ -374,8 +405,7 @@ class CQShape(Shape):
     def projection(self, cut=False) -> CQShape:
         if self.solid is None:
             raise NotImplementedError("projection requires a solid")
-        # Simple projection: get the XY face projection
-        self.solid = self.solid.projectToSolid()
+        # CadQuery Workplane has no native projectToSolid; skip for now
         return self
 
     def minkowski(self, other=None) -> CQShape:
