@@ -494,7 +494,7 @@ class ShapeAPI(ABC):
     def box(self, l: float, wth: float, ht: float, center: bool) -> Shape: ...
 
     def cube(self, l: float) -> Shape:
-        return self.box(ln=l, wth=l, ht=l, center=True)
+        return self.box(l, l, l, center=True)
 
     @abstractmethod
     def cone_x(self, h: float, r1: float, r2: float) -> Shape: ...
