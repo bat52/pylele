@@ -294,7 +294,10 @@ class Sp2Shape(Shape):
         return self
 
     def dup(self) -> Sp2Shape:
-        return copy.copy(self)
+        dup = copy.copy(self)
+        if self._check_backup_solid():
+            dup.backup_solid = self.backup_solid.dup()
+        return dup
 
     def join(self, joiner: Sp2Shape) -> Sp2Shape:
         if joiner is None:
