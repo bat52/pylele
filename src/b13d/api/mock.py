@@ -66,7 +66,10 @@ class MockShapeAPI(ShapeAPI):
     def polygon_extrusion(
         self, path: list[tuple[float, float]], ht: float
     ) -> MockShape:
-        return MockShape(self)
+        xs = [p[0] for p in path]
+        ys = [p[1] for p in path]
+        bbox = (min(xs), max(xs), min(ys), max(ys), 0, ht)
+        return MockShape(self, bbox=bbox)
 
     def spline_extrusion(
         self,
