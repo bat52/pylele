@@ -28,3 +28,6 @@ svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
 
 # Build123d backend (bd)
 build123d==0.10.0
+
+# test
+pytest

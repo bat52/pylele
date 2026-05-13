@@ -37,3 +37,6 @@ cadquery<=2.4.0
 
 # Optional Build123d backend (bd) — install with: pip install pylele[build123d]
 # build123d==0.10.0
+
+# test
+pytest
