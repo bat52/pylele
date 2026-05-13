@@ -19,20 +19,29 @@ from typing import Union
 import numpy as np
 from scipy.spatial import ConvexHull
 
+bd = None
+Solid = None
+Face = None
+Wire = None
+Edge = None
+Shell = None
+Compound = None
+ShapeList = None
+BD_AVAILABLE = False
 try:
-    import build123d as bd
-    from build123d.topology import Solid, Face, Wire, Edge, Shell, Compound, ShapeList
+    import build123d as _bd
+    from build123d.topology import Solid as _Solid, Face as _Face, Wire as _Wire, Edge as _Edge, Shell as _Shell, Compound as _Compound, ShapeList as _ShapeList
+    bd = _bd
+    Solid = _Solid
+    Face = _Face
+    Wire = _Wire
+    Edge = _Edge
+    Shell = _Shell
+    Compound = _Compound
+    ShapeList = _ShapeList
     BD_AVAILABLE = True
 except ImportError:
-    bd = None
-    Solid = None
-    Face = None
-    Wire = None
-    Edge = None
-    Shell = None
-    Compound = None
-    ShapeList = None
-    BD_AVAILABLE = False
+    pass
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 

@@ -4,14 +4,15 @@ from __future__ import annotations
 import copy
 from math import pi, ceil
 import tempfile
+pv = None
+PV_AVAILABLE = False
 try:
-    import pyvista as pv
+    import pyvista as _pv
     import numpy as np
+    pv = _pv
     PV_AVAILABLE = True
 except ImportError:
-    pv = None
-    np = None
-    PV_AVAILABLE = False
+    pass
 import os
 from pathlib import Path
 import sys

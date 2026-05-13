@@ -13,7 +13,7 @@ print(f"DEBUG: core.py imported from {__file__}")
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
-from b13d.api.constants import DEFAULT_TEST_DIR
+from b13d.api.constants import DEFAULT_TEST_DIR, ColorEnum
 from b13d.api.utils import getFontname2FilepathMap
 
 # consider update to StrEnum for python 3.11 and above
@@ -951,12 +951,17 @@ class ShapeAPI(ABC):
         mir_box = box.mirror_and_join()
         self._export_and_validate(mir_box, expDir, "mir-box", min_volume=5000)
         
-        # Test set_color, set_name, show
+         # Test set_color with tuple
         box = self.box(10, 20, 30)
         box.set_color((255, 0, 0))
         box.set_name("RedBox")
         box.show()
-        self._export_and_validate(box, expDir, "props-box", min_volume=5000)
+        self._export_and_validate(box, expDir, "props-box-tuple", min_volume=5000)
+
+        # Test set_color with ColorEnum (covers Enum handling in backends)
+        box2 = self.box(10, 20, 30)
+        box2.set_color(ColorEnum.ORANGE)
+        self._export_and_validate(box2, expDir, "props-box-enum", min_volume=5000)
 
         # Test cube (default wrapper)
         cube = self.cube(10)

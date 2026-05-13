@@ -11,6 +11,8 @@ from typing import Union
 import numpy as np
 from scipy.spatial import ConvexHull
 
+cq = None
+CQ_AVAILABLE = False
 try:
     # Patch TopoDS_Shape BEFORE importing cadquery to fix OCP 7.8+ HashCode issue
     from OCP.TopoDS import TopoDS_Shape
@@ -19,16 +21,16 @@ try:
             return hash(self)
         TopoDS_Shape.HashCode = _add_hash_code
     
-    import cadquery as cq
+    import cadquery as _cq
     from OCP.BRepBuilderAPI import BRepBuilderAPI_Sewing
     from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
     from OCP.gp import gp_Pnt
     import cadquery.occ_impl.shapes as shapes
 
+    cq = _cq
     CQ_AVAILABLE = True
 except ImportError:
-    cq = None
-    CQ_AVAILABLE = False
+    pass
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 

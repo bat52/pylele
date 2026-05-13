@@ -8,18 +8,24 @@ from pathlib import Path
 import sys
 from typing import Union
 
+bpy = None
+bmesh = None
+Vector = None
+Quaternion = None
+Matrix = None
+BPY_AVAILABLE = False
 try:
-    import bpy
-    import bmesh
-    from mathutils import Vector, Quaternion, Matrix
+    import bpy as _bpy
+    import bmesh as _bmesh
+    from mathutils import Vector as _Vector, Quaternion as _Quaternion, Matrix as _Matrix
+    bpy = _bpy
+    bmesh = _bmesh
+    Vector = _Vector
+    Quaternion = _Quaternion
+    Matrix = _Matrix
     BPY_AVAILABLE = True
 except ImportError:
-    bpy = None
-    bmesh = None
-    Vector = None
-    Quaternion = None
-    Matrix = None
-    BPY_AVAILABLE = False
+    pass
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 

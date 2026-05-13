@@ -3,6 +3,7 @@
 from __future__ import annotations
 import copy
 from math import pi, cos, sin, ceil
+from enum import Enum
 import numpy as np
 NDArray = np.ndarray
 import os
@@ -384,11 +385,11 @@ class TMShape(Shape):
         self.solid = self.solid.apply_scale((x, y, z))
         return self
 
-    def set_color(self, rgb: tuple[int, int, int] = None) -> Shape:
+    def set_color(self, rgb: tuple[int, int, int] | Enum = None) -> Shape:
         if not rgb is None:
             self.color = rgb
         if not self.color is None:
-            c = self.color
+            c = self.color.value if hasattr(self.color, 'value') else self.color
             face_colors = (c[0], c[1], c[2], 255)
             self.solid.visual.face_colors = face_colors
         return self

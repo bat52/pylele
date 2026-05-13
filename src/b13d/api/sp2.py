@@ -2,29 +2,42 @@
 
 from __future__ import annotations
 import copy
+from enum import Enum
 from math import pi, sqrt, ceil
 import os
 from pathlib import Path
 import sys
 from typing import Union
 
+cube = None
+sphere = None
+polygon = None
+text = None
+cylinder = None
+polyhedron = None
+import_ = None
+scad_render = None
+render = None
+square = None
+circle = None
+SP2_AVAILABLE = False
 try:
-    from solid2 import cube, sphere, polygon, text, cylinder, polyhedron, import_, scad_render, render, square
-    from solid2.extensions.bosl2 import circle
+    from solid2 import cube as _cube, sphere as _sphere, polygon as _polygon, text as _text, cylinder as _cylinder, polyhedron as _polyhedron, import_ as _import_, scad_render as _scad_render, render as _render, square as _square
+    from solid2.extensions.bosl2 import circle as _circle
+    cube = _cube
+    sphere = _sphere
+    polygon = _polygon
+    text = _text
+    cylinder = _cylinder
+    polyhedron = _polyhedron
+    import_ = _import_
+    scad_render = _scad_render
+    render = _render
+    square = _square
+    circle = _circle
     SP2_AVAILABLE = True
 except ImportError:
-    cube = None
-    sphere = None
-    polygon = None
-    text = None
-    cylinder = None
-    polyhedron = None
-    import_ = None
-    scad_render = None
-    render = None
-    square = None
-    circle = None
-    SP2_AVAILABLE = False
+    pass
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
@@ -375,11 +388,12 @@ class Sp2Shape(Shape):
             self.backup_solid = self.backup_solid.hull()
         return self
     
-    def set_color(self, rgb: tuple[int, int, int] = None) -> Shape:
+    def set_color(self, rgb: tuple[int, int, int] | Enum = None) -> Shape:
         if not rgb is None:
             self.color = rgb
         if not self.color is None:
-            c = [v/255.0 for v in self.color]
+            c = self.color.value if hasattr(self.color, 'value') else self.color
+            c = [v/255.0 for v in c]
             self.solid = self.solid.color(c)
         return self
     
