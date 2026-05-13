@@ -8,7 +8,7 @@ import argparse
 import os
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.solid import Solid, export_dict2text
 from pylele.pylele2.config import LeleConfig, pylele_config_parser, CONFIGURATIONS

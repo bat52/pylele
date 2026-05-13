@@ -11,7 +11,7 @@ from typing import Union
 
 print(f"DEBUG: core.py imported from {__file__}")
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
 
 from b13d.api.constants import DEFAULT_TEST_DIR, ColorEnum
 from b13d.api.utils import getFontname2FilepathMap
@@ -798,8 +798,18 @@ class ShapeAPI(ABC):
         zRndRod = self.cylinder_rounded_z(30, 5, 1 / 2)
         self._export_and_validate(zRndRod, expDir, "zrndrod", min_volume=1800)
 
-        zPolyExt = self.polygon_extrusion([(0, 0), (10, 0), (0, 10)], 5)
-        self._export_and_validate(zPolyExt, expDir, "zpolyext", min_volume=10)
+        # Use non-origin points to catch auto-centering bugs (e.g. missing align=None in bd.Polygon)
+        # Points (1,1),(11,1),(1,11) → right triangle with legs of 10, area=50, expected volume=50*5=250
+        zPolyExt = self.polygon_extrusion([(1, 1), (11, 1), (1, 11)], 5)
+        self._export_and_validate(zPolyExt, expDir, "zpolyext", min_volume=200)
+        bbox_tol = self.fidelity.tolerance()
+        # Verify non-origin coordinates are preserved (catches auto-centering bug)
+        assert fabs(zPolyExt.left() - 1) < bbox_tol, f"polygon_extrusion left={zPolyExt.left()} != 1"
+        assert fabs(zPolyExt.front() - 1) < bbox_tol, f"polygon_extrusion front={zPolyExt.front()} != 1"
+        # Verify extrusion is in +Z direction (catches CW winding → -Z extrusion bug)
+        assert fabs(zPolyExt.top() - 5) < bbox_tol, f"polygon_extrusion top={zPolyExt.top()} != 5"
+        assert fabs(zPolyExt.bottom()) < bbox_tol, f"polygon_extrusion bottom={zPolyExt.bottom()} != 0"
+        print(f"[{implCode}] Polygon extrusion bbox: left={zPolyExt.left()}, right={zPolyExt.right()}, front={zPolyExt.front()}, back={zPolyExt.back()}, bottom={zPolyExt.bottom()}, top={zPolyExt.top()}")
 
         zPolyhedron = self.polyhedron(
             points=[(0, 0, 0), (10, 0, 0), (0, 10, 0), (0, 0, 10)],

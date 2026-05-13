@@ -14,7 +14,7 @@ import trimesh as tm
 from trimesh.boolean import difference as _tm_difference, union as _tm_union, intersection as _tm_intersection
 from typing import Union
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.core import ShapeAPI, Shape, test_api, Implementation
 from b13d.api.utils import (

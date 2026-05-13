@@ -23,7 +23,7 @@ from typing import get_type_hints, Type
 
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
                 
 from b13d.api.core import ShapeAPI, Shape, Fidelity, Implementation, StringEnum, supported_apis
 from b13d.api.constants import ColorEnum, FIT_TOL, FILLET_RAD, DEFAULT_BUILD_DIR, DEFAULT_TEST_DIR, ColorEnum

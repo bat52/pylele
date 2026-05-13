@@ -43,7 +43,7 @@ try:
 except ImportError:
     pass
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.core import ShapeAPI, Shape, Direction, Implementation
 from b13d.api.utils import (
@@ -172,7 +172,7 @@ class BDShapeAPI(ShapeAPI):
         return BDShape(self, cross_section=circ)
 
     def polygon(self, points, paths=None, convexity=1) -> BDShape:
-        poly = bd.Polygon(*points)
+        poly = bd.Polygon(*points, align=None)
         return BDShape(self, cross_section=poly)
 
     def genImport(self, infile: str, extrude: float = None) -> BDShape:
@@ -210,6 +210,17 @@ class BDShape(Shape):
             self.cross_section = None
         return self
 
+    def _resolve_solid(self, shape) -> bd.Solid | bd.Part | bd.Compound:
+        """Extract the underlying solid from a Part/Compound wrapper.
+        
+        build123d's Part class may return empty Compounds when used in boolean
+        operations. Extract the inner Solid for reliable boolean results.
+        """
+        if isinstance(shape, bd.Part):
+            solids = shape.solids()
+            return solids[0] if solids else shape
+        return shape
+
     def cut(self, cutter: BDShape) -> BDShape:
         if self.cross_section is not None and cutter is not None and cutter.cross_section is not None:
             self.cross_section = self.cross_section - cutter.cross_section
@@ -220,7 +231,7 @@ class BDShape(Shape):
         cutter._ensure3d()
         if cutter.solid is None:
             return self
-        self.solid = self.solid - cutter.solid
+        self.solid = self._resolve_solid(self.solid) - self._resolve_solid(cutter.solid)
         return self
 
     def dup(self) -> BDShape:
@@ -238,7 +249,7 @@ class BDShape(Shape):
         self._ensure3d()
         if joiner is None or joiner.solid is None:
             return self
-        result = self.solid + joiner.solid
+        result = self._resolve_solid(self.solid) + self._resolve_solid(joiner.solid)
         # build123d returns ShapeList for disjoint solids; convert to Compound for export
         if isinstance(result, ShapeList):
             if len(result) == 0:
@@ -256,7 +267,7 @@ class BDShape(Shape):
         self._ensure3d()
         if intersector is None or intersector.solid is None:
             return self
-        self.solid = self.solid & intersector.solid
+        self.solid = self._resolve_solid(self.solid) & self._resolve_solid(intersector.solid)
         return self
 
     def mirror(self, normal: tuple[float, float, float] = (0, 1, 0)) -> BDShape:
@@ -339,7 +350,7 @@ class BDShape(Shape):
             if len(verts) >= 3:
                 hull = ConvexHull(verts)
                 pts = [tuple(verts[i]) for i in hull.vertices]
-                self.cross_section = bd.Polygon(*pts)
+                self.cross_section = bd.Polygon(*pts, align=None)
             return self
         if self.solid is not None:
             # Sample points along edges to capture curved surfaces
@@ -504,7 +515,9 @@ class BDPolyExtrusionZ(BDShape):
         self, path: list[tuple[float, float]], tck: float, api: BDShapeAPI
     ):
         super().__init__(api)
-        polygon = bd.Polygon(*path)
+        # Ensure counterclockwise winding so extrude goes in +Z
+        ccw_path = _ensure_ccw(path)
+        polygon = bd.Polygon(*ccw_path, align=None)
         self.solid = bd.extrude(polygon, tck)
 
 
@@ -521,7 +534,7 @@ class BDRodZ(BDShape):
             for i in range(sides):
                 a = 2 * pi * i / sides
                 pts.append((rad * cos(a), rad * sin(a)))
-            poly = bd.Polygon(*pts)
+            poly = bd.Polygon(*pts, align=None)
             self.solid = bd.extrude(poly, l)
         else:
             self.solid = bd.Cylinder(rad, l)
@@ -674,6 +687,26 @@ def _clean_polygon_path(path, tol=1e-6):
             cleaned[-1] = cleaned[0]  # snap last to first
         return cleaned
     return None
+
+
+def _ensure_ccw(path):
+    """Ensure polygon path has counterclockwise winding (positive signed area).
+    
+    build123d's extrude follows the face normal: CCW winding extrudes in +Z,
+    CW winding extrudes in -Z. This function reverses the point order when
+    the signed area is negative (clockwise).
+    """
+    if not path or len(path) < 3:
+        return path
+    # Compute signed area (shoelace formula)
+    area = 0.0
+    n = len(path)
+    for i in range(n):
+        x1, y1 = path[i]
+        x2, y2 = path[(i + 1) % n]
+        area += x1 * y2 - x2 * y1
+    # Negative area = clockwise = reverse
+    return list(reversed(path)) if area < 0 else path
 
 
 class BDTextZ(BDShape):

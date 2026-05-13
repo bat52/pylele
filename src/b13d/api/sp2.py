@@ -39,7 +39,7 @@ try:
 except ImportError:
     pass
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.core import ShapeAPI, Shape, test_api, Direction, Implementation
 from b13d.api.utils import dimXY, file_ensure_extension, lineSplineXY
