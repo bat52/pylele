@@ -49,7 +49,10 @@ class BDShapeAPI(ShapeAPI):
     """build123d implementation of ShapeAPI."""
 
     def export_stl(self, shape: BDShape, path: Union[str, Path]) -> None:
-        bd.export_stl(shape.getImplSolid(), file_ensure_extension(path, ".stl"))
+        solid = shape.getImplSolid()
+        if isinstance(solid, bd.Compound) and len(solid.solids()) == 0:
+            raise ValueError("Cannot export empty Compound (no solids to export)")
+        bd.export_stl(solid, file_ensure_extension(path, ".stl"))
 
     def export_best(self, shape: BDShape, path: Union[str, Path]) -> None:
         self.export_stl(shape, path)
@@ -229,6 +232,10 @@ class BDShape(Shape):
         result = self.solid + joiner.solid
         # build123d returns ShapeList for disjoint solids; convert to Compound for export
         if isinstance(result, ShapeList):
+            if len(result) == 0:
+                # Empty ShapeList means the operation produced no geometry;
+                # keep the original solid unchanged.
+                return self
             result = Compound(result)
         self.solid = result
         return self
