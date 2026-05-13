@@ -469,6 +469,7 @@ class Solid(ABC):
     api          : ShapeAPI = None
     shape        : Shape = None
     parts        : list = None
+    _out_path    : str = None       # cached computed output path, computed once
 
     def __init__(
         self,
@@ -487,6 +488,7 @@ class Solid(ABC):
         self.fileNameBase = self.__class__.__name__
         if self.isCut:
             self.fileNameBase += '_cut'
+        self._out_path = None  # computed on first use by _make_out_path
 
     @abstractmethod
     def gen(self) -> Shape:
@@ -626,7 +628,9 @@ class Solid(ABC):
         return self
 
     def _make_out_path(self):
-        """Generate an output directory"""
+        """Generate an output directory (computed once per Solid instance)"""
+        if self._out_path is not None:
+            return self._out_path
         main_out_path = os.path.join(Path.cwd(), self.outdir)
         make_or_exist_path(main_out_path)
 
@@ -639,6 +643,7 @@ class Solid(ABC):
             )
         out_path = os.path.join(main_out_path, outfname)
         make_or_exist_path(out_path)
+        self._out_path = out_path
         return out_path
 
     def export_args(self):
