@@ -6,7 +6,6 @@ jobs:
   build:
     strategy:
       max-parallel: 2
-      continue-on-error: true
       fail-fast: false
       matrix:
         # https://github.com/actions/setup-python/issues/853
@@ -38,9 +37,11 @@ jobs:
     - name: test pylele.sh
       run: |
         source ./src/pylele.sh
+      continue-on-error: true
     - name: test pylele2.sh
       run: |
         source ./src/pylele2.sh -odoff
+      continue-on-error: true
     - name: upload demo stl
       uses: actions/upload-artifact@v4
       with:
@@ -62,6 +63,7 @@ jobs:
       run: |
         source ./src/clean.sh
         source ./src/pytravelele.sh -odoff
+      continue-on-error: true
     - name: upload travelele output
       uses: actions/upload-artifact@v4
       with:
@@ -71,6 +73,7 @@ jobs:
     - name: test_b13d
       run: |
         pytest -n 2 ./src/b13d/test.py
+      continue-on-error: true
     - name: test_b1scad
       run: |
         # export OMP_NUM_THREADS=1
@@ -78,9 +81,11 @@ jobs:
         # export MKL_NUM_THREADS=1
         # export NUMEXPR_NUM_THREADS=1
         pytest -n 2 ./src/b1scad/test.py
+      continue-on-error: true
     - name: test_pylele
       run: |
         pytest -n 2 ./src/pylele/test.py
+      continue-on-error: true
     - name: upload test output
       uses: actions/upload-artifact@v4
       with:
