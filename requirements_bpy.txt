@@ -40,3 +40,4 @@ svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
 
 # test
 pytest
+pytest-xdist

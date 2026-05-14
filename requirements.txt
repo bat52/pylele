@@ -40,3 +40,4 @@ cadquery<=2.4.0
 
 # test
 pytest
+pytest-xdist

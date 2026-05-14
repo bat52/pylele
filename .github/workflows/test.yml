@@ -72,7 +72,7 @@ jobs:
           path: build/*
     - name: test_b13d
       run: |
-        pytest ./src/b13d/test.py
+        pytest -n 2 ./src/b13d/test.py
       continue-on-error: true
     - name: test_b1scad
       run: |
@@ -80,11 +80,11 @@ jobs:
         # export OPENBLAS_NUM_THREADS=1
         # export MKL_NUM_THREADS=1
         # export NUMEXPR_NUM_THREADS=1
-        pytest ./src/b1scad/test.py
+        pytest -n 2 ./src/b1scad/test.py
       continue-on-error: true
     - name: test_pylele
       run: |
-        pytest ./src/pylele/test.py
+        pytest -n 2 ./src/pylele/test.py
       continue-on-error: true
     - name: upload test output
       uses: actions/upload-artifact@v4

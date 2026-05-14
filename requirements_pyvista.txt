@@ -25,3 +25,4 @@ lxml
 
 # test
 pytest
+pytest-xdist
