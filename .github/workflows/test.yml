@@ -5,8 +5,8 @@ on: [push]
 jobs:
   build:
     strategy:
-      max-parallel: 1
-
+      max-parallel: 2
+      continue-on-error: true
       fail-fast: false
       matrix:
         # https://github.com/actions/setup-python/issues/853
@@ -70,20 +70,17 @@ jobs:
           path: build/*
     - name: test_b13d
       run: |
-        pytest ./src/b13d/test.py
-      continue-on-error: true          
+        pytest -n 2 ./src/b13d/test.py
     - name: test_b1scad
       run: |
-        export OMP_NUM_THREADS=1
-        export OPENBLAS_NUM_THREADS=1
-        export MKL_NUM_THREADS=1
-        export NUMEXPR_NUM_THREADS=1
-        pytest ./src/b1scad/test.py
-      continue-on-error: true
+        # export OMP_NUM_THREADS=1
+        # export OPENBLAS_NUM_THREADS=1
+        # export MKL_NUM_THREADS=1
+        # export NUMEXPR_NUM_THREADS=1
+        pytest -n 2 ./src/b1scad/test.py
     - name: test_pylele
       run: |
-        pytest ./src/pylele/test.py
-      continue-on-error: true
+        pytest -n 2 ./src/pylele/test.py
     - name: upload test output
       uses: actions/upload-artifact@v4
       with:
