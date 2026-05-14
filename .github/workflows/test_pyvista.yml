@@ -40,7 +40,7 @@ jobs:
         # export OPENBLAS_NUM_THREADS=1
         # export MKL_NUM_THREADS=1
         # export NUMEXPR_NUM_THREADS=1
-        pytest -n 2./src/b13d/test.py
+        pytest -n 2 ./src/b13d/test.py
       continue-on-error: true
     - name: test_b1scad
       run: |
@@ -56,3 +56,26 @@ jobs:
           # path depends on the tag and the module name
           name: pylele_test_out_pv_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
           path: test/**/*/*.py test/**/*/*.txt test/**/*/*.log test/**/*/*.out test/**/*/*.err test/**/*/*.stl test/**/*/*.glb test/**/*/*.scad test/**/*/*.step test/**/*/*.stp
+    - name: test_pylele
+      run: |
+        pytest -n 2 ./src/pylele/test.py
+      continue-on-error: true
+    - name: upload test output
+      uses: actions/upload-artifact@v4
+      with:
+          # path depends on the tag and the module name
+          name: pylele_test_out_pv_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
+          path: test/**/**/**/* #find ./test/fretboard_assembly/blender/*
+    - name: test pylele2.sh
+      run: |
+        source ./src/pylele2.sh -odoff -i pv
+      continue-on-error: true
+    - name: upload demo stl
+      uses: actions/upload-artifact@v4
+      with:
+          # path depends on the tag and the module name
+          name: pylele_stl_out_pv_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
+          path: build/LeleAllAssembly/LeleAllAssembly.stl
+          # compression-level: 0 # no compression
+
+  
