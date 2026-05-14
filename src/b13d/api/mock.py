@@ -8,7 +8,7 @@ from typing import Union
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
-from b13d.api.core import ShapeAPI, Shape, test_api
+from b13d.api.core import ShapeAPI, Shape, run_api_test
 from b13d.api.utils import gen_stl_foo
 
 
@@ -212,4 +212,4 @@ class MockShape(Shape):
         return self
 
 if __name__ == "__main__":
-    test_api("mock")
+    run_api_test("mock")

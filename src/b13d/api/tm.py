@@ -16,7 +16,7 @@ from typing import Union
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
-from b13d.api.core import ShapeAPI, Shape, test_api, Implementation
+from b13d.api.core import ShapeAPI, Shape, run_api_test, Implementation
 from b13d.api.utils import (
     dimXY,
     ensureClosed2DPath,
@@ -771,4 +771,4 @@ class TMImport(TMShape):
             self.solid = dxf2mesh(infile, extrude)
         
 if __name__ == "__main__":
-    test_api("trimesh")
+    run_api_test("trimesh")

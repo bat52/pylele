@@ -23,7 +23,7 @@ PYVISTA_BOOLEAN_OPS_EN = False
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
-from b13d.api.core import ShapeAPI, Shape, test_api, Direction, Implementation
+from b13d.api.core import ShapeAPI, Shape, run_api_test, Direction, Implementation
 from b13d.api.utils import dimXY, file_ensure_extension, lineSplineXY
 
 
@@ -833,4 +833,4 @@ class PVImport(PVShape):
 
 
 if __name__ == "__main__":
-    test_api(Implementation.PYVISTA)
+    run_api_test(Implementation.PYVISTA)

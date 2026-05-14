@@ -34,7 +34,7 @@ except ImportError:
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
-from b13d.api.core import ShapeAPI, Shape, test_api
+from b13d.api.core import ShapeAPI, Shape, run_api_test
 from b13d.api.utils import file_ensure_extension, lineSplineXY
 from b13d.conversion.svg2dxf import svg2dxf_wrapper, SVG2DXF_AVAILABLE
 
@@ -615,4 +615,4 @@ class CQImport(CQShape):
 
 
 if __name__ == "__main__":
-    test_api("cadquery")
+    run_api_test("cadquery")

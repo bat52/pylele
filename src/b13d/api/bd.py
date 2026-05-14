@@ -861,6 +861,6 @@ class BDImport(BDShape):
 
 
 if __name__ == "__main__":
-    from b13d.api.core import test_api
+    from b13d.api.core import run_api_test
 
-    test_api(Implementation.BUILD123D)
+    run_api_test(Implementation.BUILD123D)

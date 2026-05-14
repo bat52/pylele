@@ -25,7 +25,7 @@ from enum import Enum
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
-from b13d.api.core import ShapeAPI, Shape, test_api, Direction, Implementation
+from b13d.api.core import ShapeAPI, Shape, run_api_test, Direction, Implementation
 from b13d.api.utils import dimXY, file_ensure_extension, lineSplineXY, textToGlyphsPaths
 
 def _triangulate_faces(faces: list[list[int]]) -> np.ndarray:
@@ -727,4 +727,4 @@ class MFImport(MFShape):
         
 
 if __name__ == "__main__":
-    test_api(Implementation.MANIFOLD)
+    run_api_test(Implementation.MANIFOLD)

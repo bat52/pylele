@@ -41,7 +41,7 @@ except ImportError:
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
-from b13d.api.core import ShapeAPI, Shape, test_api, Direction, Implementation
+from b13d.api.core import ShapeAPI, Shape, run_api_test, Direction, Implementation
 from b13d.api.utils import dimXY, file_ensure_extension, lineSplineXY
 from b13d.conversion.stlascii2stlbin import stlascii2stlbin
 from b13d.conversion.scad2stl import scad2stl, OPENSCAD
@@ -731,4 +731,4 @@ class Sp2Import(Sp2Shape):
             self.backup_solid = None
 
 if __name__ == "__main__":
-    test_api("solid2")
+    run_api_test("solid2")

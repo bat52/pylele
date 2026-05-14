@@ -11,9 +11,9 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
-from b13d.api.core import test_api, DEFAULT_TEST_DIR, Implementation, supported_apis
+from b13d.api.core import run_api_test, DEFAULT_TEST_DIR, Implementation, supported_apis
 from b13d.api.utils import make_or_exist_path
-from b13d.test import test_report, test_main
+from b13d.test import generate_test_report, run_tests
 
 TEST_NAME="pylele2"
 
@@ -88,7 +88,7 @@ class PyleleTestMethods(unittest.TestCase):
 
     def test_zz_report(self):
         """ Generate Test Report """
-        test_report(name=TEST_NAME)
+        generate_test_report(name=TEST_NAME)
 
 if __name__ == "__main__":
-    test_main(TEST_NAME)
+    run_tests(TEST_NAME)

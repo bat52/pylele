@@ -29,7 +29,7 @@ except ImportError:
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
-from b13d.api.core import Shape, ShapeAPI, test_api
+from b13d.api.core import Shape, ShapeAPI, run_api_test
 from b13d.api.utils import (
     dimXY,
     file_ensure_extension,
@@ -1140,4 +1140,4 @@ class BlenderImport(BlenderShape):
             self.extrudeZ(extrude)
 
 if __name__ == "__main__":
-    test_api("blender")
+    run_api_test("blender")

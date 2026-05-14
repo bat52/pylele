@@ -170,15 +170,13 @@ def make_test_path(api_name,test_path=DEFAULT_TEST_DIR):
 
     return out_path
 
-def test_api(api):
+def run_api_test(api):
     """ Test a Shape API """
     if api in supported_apis()+['mock']:
         impl = Implementation(api)
         sapi = impl.get_api(fidelity = Fidelity.LOW)
         outfname = make_test_path(impl.module_name())
         sapi.test(outfname)
-    else:
-        print(f'WARNING: Skipping test of {api} api, because unsupported with python version {sys.version}!')
 
 def default_or_alternate(def_val, alt_val=None):
     """ Override default value with alternate value, if available"""

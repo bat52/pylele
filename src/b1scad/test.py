@@ -53,9 +53,9 @@ class B1scadTestMethods(unittest.TestCase):
             outstl = os.path.abspath(os.path.join(DEFAULT_BUILD_DIR,modelname,f'{modelname}.stl'))
             stl_compare_volume(refstl, outstl)
 
-def test_main():
+def run_tests():
     """ Launch all tests """
     unittest.main()
 
 if __name__ == "__main__":
-    test_main()
+    run_tests()
