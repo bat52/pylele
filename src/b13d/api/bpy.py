@@ -584,7 +584,7 @@ class BlenderShape(Shape):
         return self.repairMesh()
 
     def show(self):
-        self.updateMesh()
+        self.repairMesh()
         bpy.context.view_layer.objects.active = self.solid
         self.solid.select_set(True)
 
