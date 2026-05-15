@@ -56,16 +56,6 @@ jobs:
           # path depends on the tag and the module name
           name: pylele_test_out_bd_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
           path: test/**/**/**/* #find ./test/fretboard_assembly/cadquery/*
-        - name: test_pylele
-      run: |
-        pytest -n 2 ./src/pylele/test.py
-      continue-on-error: true
-    - name: upload test output
-      uses: actions/upload-artifact@v4
-      with:
-          # path depends on the tag and the module name
-          name: pylele_test_out_bd_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
-          path: test/**/**/**/* #find ./test/fretboard_assembly/blender/*
     - name: test pylele2.sh
       run: |
         source ./src/pylele2.sh -odoff -i bd

@@ -56,7 +56,7 @@ jobs:
           # path depends on the tag and the module name
           name: pylele_test_out_bpy_${{ matrix.python-version }}_${{ matrix.os }}_${{ env.timestamp }}
           path: test/**/**/**/* #find ./test/fretboard_assembly/blender/*
-   - name: test pylele2.sh
+    - name: test pylele2.sh
       run: |
         source ./src/pylele2.sh -odoff -i bpy
       continue-on-error: true
