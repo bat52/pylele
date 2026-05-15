@@ -29,8 +29,17 @@ def svg2dxf_wrapper(infile, outfile='') -> str:
         fname,fext = os.path.splitext(infile)
         outfile = f'{fname}.dxf'
 
+    # Ensure the output directory exists
+    outdir = os.path.dirname(outfile)
+    if outdir and not os.path.isdir(outdir):
+        os.makedirs(outdir, exist_ok=True)
+
     cmdstr = f'svg2dxf {infile} -o {outfile}'
-    os.system(cmdstr)
+    ret = os.system(cmdstr)
+    if ret != 0:
+        raise RuntimeError(
+            f"svg2dxf command failed with exit code {ret}: {cmdstr}"
+        )
     assert os.path.isfile(outfile), f"ERROR: Output File {outfile} does not exist!"
     return outfile
 
