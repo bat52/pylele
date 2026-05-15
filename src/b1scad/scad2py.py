@@ -1813,7 +1813,7 @@ class AstToPython:
         parts = [f"points={points}"]
         if node.paths is not None:
             parts.append(f"paths={self.visit(node.paths)}")
-        conv_str = self.visit(node.convexity) if node.convexity else None
+        conv_str = str(node.convexity) if node.convexity else None
         if conv_str and conv_str != '1':
             parts.append(f"convexity={conv_str}")
         return f"self.api.polygon({', '.join(parts)})"
@@ -1821,7 +1821,8 @@ class AstToPython:
     def _gen_text2d_call(self, node: Text2D, tck_val: str | None = None) -> str:
         """Generate self.api.text(...) call from a Text2D node.
 
-        The API's text() creates a fully 3D shape (extrudes glyphs by tck).
+        The API's text() signature is: text(txt, fontSize, tck, font).
+        All args are positional; missing args get sensible defaults.
         SCAD's text() is 2D and relies on linear_extrude to add the 3rd dimension.
         When a caller knows the extrusion height (e.g. LinearExtrude wrapping text),
         it supplies `tck_val` so the generated call produces the correct 3D shape
@@ -1831,19 +1832,19 @@ class AstToPython:
             text_val = repr(node.text)
         else:
             text_val = self.visit(node.text)
-        parts = [text_val]
-        # Map SCAD 'size' → API 'fontSize'
+        # fontSize: SCAD 'size' param, default 10
         if node.size is not None:
-            parts.append(f"fontSize={self.visit(node.size)}")
-        # Use the caller-supplied tck_val (extrusion height) or a reasonable default.
-        if tck_val is not None:
-            parts.append(f"tck={tck_val}")
+            size_val = self.visit(node.size)
         else:
-            parts.append("tck=1")
-        # Map SCAD 'font' → API 'font'
+            size_val = '10'
+        # tck: caller-supplied extrusion height or default 1
+        tck = tck_val if tck_val is not None else '1'
+        # font: SCAD 'font' param or default "Inter:style=Regular"
         if node.font is not None:
-            parts.append(f"font={self.visit(node.font)}")
-        return f"self.api.text({', '.join(parts)})"
+            font_val = self.visit(node.font)
+        else:
+            font_val = '"Inter:style=Regular"'
+        return f"self.api.text({text_val}, {size_val}, {tck}, {font_val})"
 
     def visit_Text2D(self, node: Text2D) -> str:
         """Standalone text() call — no extrusion context, use default tck."""
@@ -1877,10 +1878,67 @@ class AstToPython:
             parts.append("center=True")
         return f"{body}.linear_extrude({', '.join(parts)})"
 
+    def _unwrap_text2d(self, node: ASTNode) -> Text2D | None:
+        """Recursively unwrap transforms to find a Text2D leaf node."""
+        if isinstance(node, Text2D):
+            return node
+        if isinstance(node, Transform) and node.body is not None:
+            return self._unwrap_text2d(node.body)
+        return None
+
     def visit_RotateExtrude(self, node: RotateExtrude) -> str:
-        body = self.visit(node.body)
-        parts = [f"angle={self.visit(node.angle)}"]
-        return f"{body}.rotate_extrude({', '.join(parts)})"
+        # If the body is (or wraps) a Text2D, generate it with tck=0
+        # because rotate_extrude requires a 2D shape.
+        text2d = self._unwrap_text2d(node.body)
+        if text2d is not None:
+            body = self._gen_text2d_call(text2d, tck_val='0')
+            # Re-apply any transforms wrapping the text
+            body = self._rebody_through_transforms(node.body, text2d, body)
+        else:
+            body = self.visit(node.body)
+        if node.angle is not None:
+            parts = [f"angle={self.visit(node.angle)}"]
+            return f"{body}.rotate_extrude({', '.join(parts)})"
+        return f"{body}.rotate_extrude()"
+
+    def _rebody_through_transforms(self, outer: ASTNode, inner: ASTNode, inner_code: str) -> str:
+        """Rebuild transform chain from `outer` down to `inner`, replacing
+        the inner node's code with `inner_code`."""
+        if outer is inner:
+            return inner_code
+        if isinstance(outer, Transform) and outer.body is not None:
+            sub = self._rebody_through_transforms(outer.body, inner, inner_code)
+            # Re-visit the transform, substituting our sub-code for the body
+            orig_body = outer.body
+            outer.body = None  # temporarily detach
+            # Rebuild the Transform visitor but force the body substitution
+            # by creating a synthetic visit
+            tt = outer.transform_type
+            params = outer.params
+            # Build the wrapped body code
+            wrapped = f"({sub})"
+            if tt == 'translate':
+                raw_vec = params.get('v', params.get(0, VectorLiteral([])))
+                if isinstance(raw_vec, VectorLiteral) and len(raw_vec.elements) == 2:
+                    raw_vec = VectorLiteral(raw_vec.elements + [NumberLiteral(0)])
+                vec = self.visit(raw_vec)
+                result = f"{wrapped}.mv(*{vec})"
+            elif tt == 'rotate':
+                rot_param = params.get('a', params.get(0, None))
+                vec = self.visit(rot_param)
+                result = f"self._guard({wrapped}).rotate({vec})"
+            elif tt == 'scale':
+                param = params.get('v', params.get(0, NumberLiteral(1)))
+                scaled = self.visit(param)
+                result = f"{wrapped}.scale(*{scaled})"
+            elif tt == 'mirror':
+                normal = self.visit(params.get(0))
+                result = f"{wrapped}.mirror({normal})"
+            else:
+                raise NotImplementedError(f"Transform {tt} not supported in rotate_extrude body")
+            outer.body = orig_body
+            return result
+        return inner_code
 
     def visit_Offset(self, node: Offset) -> str:
         body = self.visit(node.body)
@@ -1896,7 +1954,11 @@ class AstToPython:
             body = f"({body})"
         tt = node.transform_type
         if tt == 'translate':
-            vec = self.visit(node.params.get('v', node.params.get(0, VectorLiteral([]))))
+            raw_vec = node.params.get('v', node.params.get(0, VectorLiteral([])))
+            # SCAD translate accepts 2D vectors [x,y]; API mv() requires 3D.
+            if isinstance(raw_vec, VectorLiteral) and len(raw_vec.elements) == 2:
+                raw_vec = VectorLiteral(raw_vec.elements + [NumberLiteral(0)])
+            vec = self.visit(raw_vec)
             return f"{body}.mv(*{vec})"
         elif tt == 'rotate':
             rot_param = node.params.get('a', node.params.get(0, None))
@@ -2284,7 +2346,7 @@ class CodeGenerator:
             "import math",
             "import os",
             "import sys",
-            "sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))",
+            "sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))",
             "",
             "from b13d.api.solid import Solid, test_loop, main_maker",
             "from b13d.api.core import Shape",
