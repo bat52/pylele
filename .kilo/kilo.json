@@ -1,0 +1,15 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "mcp": {
+    "semble-search": {
+      "type": "local",
+      "command": ["npx", "@semble/search"],
+      "enabled": true
+    },
+    "depwire": {
+      "type": "local",
+      "command": ["npx", "-y", "depwire-cli", "mcp"],
+      "enabled": true
+    }
+  }
+}
