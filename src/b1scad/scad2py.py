@@ -1570,7 +1570,12 @@ class AstToPython:
             parts.append(f"twist={self.visit(node.twist)}")
         if node.scale is not None:
             parts.append(f"scale={self.visit(node.scale)}")
-        if node.center:
+        # node.center is a bool (Python) or BooleanLiteral (AST node).
+        # When it's a BooleanLiteral, evaluate its .value attribute.
+        center_val = node.center
+        if isinstance(center_val, BooleanLiteral):
+            center_val = center_val.value
+        if center_val:
             parts.append("center=True")
         return f"{body}.linear_extrude({', '.join(parts)})"
 
@@ -1685,8 +1690,30 @@ class AstToPython:
         if isinstance(node.callee, Identifier) and node.callee.name in self.helper_functions:
             return f"self._{callee}({args_str})"
         # SCAD math builtins → math.<name>
+        # OpenSCAD trig functions use DEGREES; Python's math module uses RADIANS.
+        # Convert accordingly.
         if isinstance(node.callee, Identifier) and node.callee.name in self.SCAD_MATH_FUNCS:
-            return f"math.{callee}({args_str})"
+            name = node.callee.name
+            # Functions whose INPUT is in degrees: wrap each arg with math.radians()
+            DEG_INPUT = {'cos', 'sin', 'tan'}
+            if name in DEG_INPUT:
+                # Wrap each positional argument with math.radians()
+                rad_args = ', '.join(
+                    f"math.radians({self.visit(val)})"
+                    if isinstance(key, int) else f"{key}=math.radians({self.visit(val)})"
+                    for key, val in node.named_arguments.items()
+                )
+                return f"math.{name}({rad_args})"
+            # Functions whose OUTPUT is in degrees: wrap the whole call with math.degrees()
+            DEG_OUTPUT = {'acos', 'asin', 'atan'}
+            if name in DEG_OUTPUT:
+                return f"math.degrees(math.{name}({args_str}))"
+            # atan2: both input and output differ: SCAD atan2(y,x) returns degrees,
+            # Python math.atan2(y,x) takes radians input, returns radians output.
+            if name == 'atan2':
+                return f"math.degrees(math.atan2({args_str}))"
+            # Non-trig functions: direct mapping
+            return f"math.{name}({args_str})"
         return f"{callee}({args_str})"
 
     def visit_ArrayAccess(self, node: ArrayAccess) -> str:
