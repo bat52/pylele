@@ -145,6 +145,12 @@ def test_loop(module, apis=None, tests=None):  # ,component):
 
     if apis is None:
         apis = supported_apis()
+    else:
+        # Filter to only include APIs that are actually available,
+        # so tests don't fail when a backend is not installed.
+        # MOCK is always available for unit testing.
+        supported = set(supported_apis()) | {Implementation.MOCK}
+        apis = [a for a in apis if a in supported]
 
     test_count = 0
     for test,args in tests.items():
@@ -157,8 +163,12 @@ def test_loop(module, apis=None, tests=None):  # ,component):
                             api=api,
                             args=args,
                             )
-            except:
-                assert False, f'module: {module}, test: {test}, api: {api},\nargs:{args}'
+            except Exception as exc:
+                raise AssertionError(
+                    f'module: {module}, test: {test}, api: {api},\n'
+                    f'args:{args}\n'
+                    f'Error: {type(exc).__name__}: {exc}'
+                ) from exc
             
         test_count += 1
 
