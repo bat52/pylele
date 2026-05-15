@@ -8,7 +8,7 @@ import argparse
 import os
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.core import Shape
 from b13d.api.solid import main_maker, test_loop

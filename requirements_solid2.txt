@@ -1,7 +1,7 @@
 numpy==1.26.4
 nlopt==2.7.1
 trimesh==4.4.8
-manifold3d<=2.5.1 # Optional: manifold backend — install with: pip install pylele[manifold]
+# manifold3d<=2.5.1 # Optional: manifold backend — install with: pip install pylele[manifold]
 # NOTE: manifold3d 3.0.0 and 3.0.1 are known to cause segmentation faults in pylele1
 pillow
 shapely
@@ -21,23 +21,19 @@ prettytable
 sly
 svgpathtools
 # svg2dxf
-svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
+#svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
 
 # Optional Blender backend (bpy) — install with: pip install pylele[blender]
-# mathutils==3.3.0; python_version <= '3.11'
+#mathutils==3.3.0; python_version <= '3.11'
 # python 3.10
 #   bpy==4.0.0; python_version < '3.11'
 #   fake-bpy-module-4.0; python_version < '3.11'
 # python 3.11
-# bpy==4.5.1; python_version == '3.11'
-# fake-bpy-module-4.1; python_version == '3.11'
+#bpy==4.5.1; python_version == '3.11'
+#fake-bpy-module-4.1; python_version == '3.11'
 
 # Optional CadQuery backend (cq) — install with: pip install pylele[cadquery]
-cadquery<=2.4.0
+#cadquery<=2.4.0
 
 # Optional Build123d backend (bd) — install with: pip install pylele[build123d]
 # build123d==0.10.0
-
-# test
-pytest
-pytest-xdist

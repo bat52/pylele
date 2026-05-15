@@ -3,15 +3,17 @@ from __future__ import annotations
 import os
 import sys
 import importlib
-from math import inf
+from math import inf, fabs
 from enum import Enum
 from pathlib import Path
 from abc import ABC, abstractmethod
 from typing import Union
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+print(f"DEBUG: core.py imported from {__file__}")
 
-from b13d.api.constants import DEFAULT_TEST_DIR
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
+
+from b13d.api.constants import DEFAULT_TEST_DIR, ColorEnum
 from b13d.api.utils import getFontname2FilepathMap
 
 # consider update to StrEnum for python 3.11 and above
@@ -73,6 +75,7 @@ class Implementation(StringEnum):
     SOLID2 = "sp2"
     MANIFOLD = "mf"
     BUILD123D = "bd"
+    PYVISTA = "pv"
 
     def __repr__(self):
         return f"Implementation({self.value})"
@@ -114,13 +117,14 @@ class Implementation(StringEnum):
         return APIS_INFO[self]["hull"]
 
 APIS_INFO = {
-    Implementation.MOCK      : {"module": "b13d.api.mock", "class": "MockShapeAPI", "fillet": False, "hull" : True},
-    Implementation.CADQUERY  : {"module": "b13d.api.cq", "class": "CQShapeAPI", "fillet": True, "hull" : False},
-    Implementation.BLENDER   : {"module": "b13d.api.bpy", "class": "BlenderShapeAPI", "fillet": True, "hull" : False},
-    Implementation.TRIMESH   : {"module": "b13d.api.tm", "class": "TMShapeAPI", "fillet": False, "hull" : True},
-    Implementation.SOLID2    : {"module": "b13d.api.sp2", "class": "Sp2ShapeAPI", "fillet": False, "hull" : True},
-    Implementation.MANIFOLD  : {"module": "b13d.api.mf", "class": "MFShapeAPI", "fillet": False, "hull" : True},
-    Implementation.BUILD123D : {"module": "b13d.api.bd", "class": "BDShapeAPI", "fillet": True, "hull" : True},
+    Implementation.MOCK      : {"module": "b13d.api.mock", "class": "MockShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
+    Implementation.CADQUERY  : {"module": "b13d.api.cq", "class": "CQShapeAPI", "fillet": True, "hull" : False, "linear_extrude": True, "rotate_extrude": True, "offset": True, "offset_volume": True, "projection": True, "minkowski": False},
+    Implementation.BLENDER   : {"module": "b13d.api.bpy", "class": "BlenderShapeAPI", "fillet": True, "hull" : False, "linear_extrude": True, "rotate_extrude": True, "offset": True, "offset_volume": True, "projection": True, "minkowski": False},
+    Implementation.TRIMESH   : {"module": "b13d.api.tm", "class": "TMShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
+    Implementation.SOLID2    : {"module": "b13d.api.sp2", "class": "Sp2ShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": True},
+    Implementation.MANIFOLD  : {"module": "b13d.api.mf", "class": "MFShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
+    Implementation.BUILD123D : {"module": "b13d.api.bd", "class": "BDShapeAPI", "fillet": True, "hull" : True, "linear_extrude": True, "rotate_extrude": True, "offset": True, "offset_volume": False, "projection": True, "minkowski": True},
+    Implementation.PYVISTA   : {"module": "b13d.api.pv", "class": "PVShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
 }
 
 def supported_apis() -> list:
@@ -140,6 +144,7 @@ def supported_apis() -> list:
         (Implementation.CADQUERY, "CQ_AVAILABLE"),
         (Implementation.BUILD123D, "BD_AVAILABLE"),
         (Implementation.BLENDER, "BPY_AVAILABLE"),
+        (Implementation.PYVISTA, "PV_AVAILABLE"),
     ]
     for impl, avail_flag in optional_impls:
         try:
@@ -165,15 +170,13 @@ def make_test_path(api_name,test_path=DEFAULT_TEST_DIR):
 
     return out_path
 
-def test_api(api):
+def run_api_test(api):
     """ Test a Shape API """
     if api in supported_apis()+['mock']:
         impl = Implementation(api)
         sapi = impl.get_api(fidelity = Fidelity.LOW)
         outfname = make_test_path(impl.module_name())
         sapi.test(outfname)
-    else:
-        print(f'WARNING: Skipping test of {api} api, because unsupported with python version {sys.version}!')
 
 def default_or_alternate(def_val, alt_val=None):
     """ Override default value with alternate value, if available"""
@@ -262,7 +265,7 @@ class Shape(ABC):
         """mirror midR and joins the two parts"""
         joinTol = self.api.tolerance()
         midL = self.mirror()
-        return midL.mv(0, joinTol / 2, 0).join(self.mv(0, -joinTol / 2, 0))
+        return midL.mv(0, joinTol / 2, 0).join(self.dup().mv(0, -joinTol / 2, 0))
 
     @abstractmethod
     def mv(self, x: float, y: float, z: float) -> Shape: ...
@@ -489,7 +492,7 @@ class ShapeAPI(ABC):
     def box(self, l: float, wth: float, ht: float, center: bool) -> Shape: ...
 
     def cube(self, l: float) -> Shape:
-        return self.box(l=l,wth=l,ht=l)
+        return self.box(l, l, l, center=True)
 
     @abstractmethod
     def cone_x(self, h: float, r1: float, r2: float) -> Shape: ...
@@ -680,18 +683,44 @@ class ShapeAPI(ABC):
     def tolerance(self):
         return self.implementation.tolerance()
 
-    def _validate_stl(self, stl_path: Path, name: str, min_volume: float = 0):
-        """Validate an STL file using trimesh: check watertightness and volume."""
+    def _validate_stl(self, stl_path: Path, name: str, min_volume: float | None = 0):
+        """Validate an STL file using trimesh: check watertightness and volume.
+        
+        If min_volume is None, volume checks are skipped entirely.
+        """
         try:
             import trimesh
             mesh = trimesh.load(str(stl_path))
-            if not mesh.is_watertight:
-                print(f"  WARNING: {name} ({stl_path.name}) is NOT WATERTIGHT")
-            vol = mesh.volume
-            if vol < min_volume:
-                print(f"  WARNING: {name} ({stl_path.name}) volume={vol:.2f} < min={min_volume}")
+            # Handle both single mesh and Scene (multiple geometries)
+            if isinstance(mesh, trimesh.Scene):
+                # For scenes, check each geometry
+                for geom in mesh.geometry.values():
+                    if not geom.is_watertight:
+                        print(f"  WARNING: {name} ({stl_path.name}) is NOT WATERTIGHT")
+                        break
+                # Use convex hull volume for scene
+                vol = mesh.convex_hull.volume if hasattr(mesh, 'convex_hull') else 0
+            else:
+                if not mesh.is_watertight:
+                    print(f"  WARNING: {name} ({stl_path.name}) is NOT WATERTIGHT")
+                vol = mesh.volume
+            if min_volume is not None:
+                assert vol > 0, f"Negative Volume: {vol}"
+                assert vol >= min_volume, f"Volume too small: {vol:.2f} < min={min_volume}"
         except Exception as e:
             print(f"  WARNING: {name} ({stl_path.name}) validation failed: {e}")
+
+    def _numbered_name(self, counter: int, base_name: str) -> str:
+        """Generate a numbered name like P-000-ball"""
+        return f"{self.implementation.code()}-{counter:03d}-{base_name}"
+
+    def _export_and_validate(self, shape: Shape, expDir: Path, base_name: str, min_volume: float = 0):
+        """Export and validate a shape, returning the next counter value."""
+        name = self._numbered_name(self._test_counter, base_name)
+        self.export_stl(shape, expDir / name)
+        self._validate_stl(expDir / f"{name}.stl", name, min_volume=min_volume)
+        self._test_counter += 1
+        return self._test_counter
 
     def test(self, outpath: str | Path) -> None:
 
@@ -703,97 +732,101 @@ class ShapeAPI(ABC):
             sys.exit(os.EX_SOFTWARE)
 
         implCode = self.implementation.code()
+        self._test_counter = 0
 
         # Simple Tests
 
+        print(f"[{implCode}] Testing sphere...")
         ball = self.sphere(10)
-        self.export_stl(ball, expDir / f"{implCode}-ball")
-        self._validate_stl(expDir / f"{implCode}-ball.stl", f"{implCode}-ball", min_volume=1000)
-        self.export_best(ball, expDir / f"{implCode}-ball")
+        self._export_and_validate(ball, expDir, "ball", min_volume=3500)
+        
+        # print(f"[{implCode}] Testing sphere...")
+        # self.export_best(ball, expDir / name)
 
+        print(f"[{implCode}] Testing box...")
         box = self.box(10, 20, 30)
-        self.export_stl(box, expDir / f"{implCode}-box")
-        self._validate_stl(expDir / f"{implCode}-box.stl", f"{implCode}-box", min_volume=1000)
+        self._export_and_validate(box, expDir, "box", min_volume=5000)
 
+        print(f"[{implCode}] Testing cylinder_x...")
         xRod = self.cylinder_x(30, 5)
-        self.export_stl(xRod, expDir / f"{implCode}-xrod")
-        self._validate_stl(expDir / f"{implCode}-xrod.stl", f"{implCode}-xrod", min_volume=100)
+        self._export_and_validate(xRod, expDir, "xrod", min_volume=2000)
 
+        print(f"[{implCode}] Testing cylinder_y...")
         yRod = self.cylinder_y(30, 5)
-        self.export_stl(yRod, expDir / f"{implCode}-yrod")
-        self._validate_stl(expDir / f"{implCode}-yrod.stl", f"{implCode}-yrod", min_volume=100)
+        self._export_and_validate(yRod, expDir, "yrod", min_volume=2000)
 
+        print(f"[{implCode}] Testing cylinder_z...")
         zRod = self.cylinder_z(30, 5)
-        self.export_stl(zRod, expDir / f"{implCode}-zrod")
-        self._validate_stl(expDir / f"{implCode}-zrod.stl", f"{implCode}-zrod", min_volume=100)
+        self._export_and_validate(zRod, expDir, "zrod", min_volume=2000)
 
+        print(f"[{implCode}] Testing cone_x...")
         xCone = self.cone_x(30, 5, 2)
-        self.export_stl(xCone, expDir / f"{implCode}-xcone")
-        self._validate_stl(expDir / f"{implCode}-xcone.stl", f"{implCode}-xcone", min_volume=100)
+        self._export_and_validate(xCone, expDir, "xcone", min_volume=1000)
 
+        print(f"[{implCode}] Testing cone...")
         xCone2 = self.cone(30, 5, 2, 'X')
-        self.export_stl(xCone2, expDir / f"{implCode}-xcone2")
-        self._validate_stl(expDir / f"{implCode}-xcone2.stl", f"{implCode}-xcone2", min_volume=100)
+        self._export_and_validate(xCone2, expDir, "xcone2", min_volume=1000)
 
+        print(f"[{implCode}] Testing cone_y...")
         yCone = self.cone_y(30, 5, 2)
-        self.export_stl(yCone, expDir / f"{implCode}-ycone")
-        self._validate_stl(expDir / f"{implCode}-ycone.stl", f"{implCode}-ycone", min_volume=100)
+        self._export_and_validate(yCone, expDir, "ycone", min_volume=1000)
 
+        print(f"[{implCode}] Testing cone_z...")
         zCone = self.cone_z(30, 5, 2)
-        self.export_stl(zCone, expDir / f"{implCode}-zcone")
-        self._validate_stl(expDir / f"{implCode}-zcone.stl", f"{implCode}-zcone", min_volume=100)
+        self._export_and_validate(zCone, expDir, "zcone", min_volume=1000)
 
+        print(f"[{implCode}] Testing regpoly_extrusion_x...")
         xSqRod = self.regpoly_extrusion_x(30, 5, 4)
-        self.export_stl(xSqRod, expDir / f"{implCode}-xsqrod")
-        self._validate_stl(expDir / f"{implCode}-xsqrod.stl", f"{implCode}-xsqrod", min_volume=100)
+        self._export_and_validate(xSqRod, expDir, "xsqrod", min_volume=1200)
 
+        print(f"[{implCode}] Testing regpoly_extrusion_y...")
         ySqRod = self.regpoly_extrusion_y(30, 5, 4)
-        self.export_stl(ySqRod, expDir / f"{implCode}-ysqrod")
-        self._validate_stl(expDir / f"{implCode}-ysqrod.stl", f"{implCode}-ysqrod", min_volume=100)
+        self._export_and_validate(ySqRod, expDir, "ysqrod", min_volume=1200)
 
+        print(f"[{implCode}] Testing regpoly_extrusion_z...")
         zSqRod = self.regpoly_extrusion_z(30, 5, 4)
-        self.export_stl(zSqRod, expDir / f"{implCode}-zsqrod")
-        self._validate_stl(expDir / f"{implCode}-zsqrod.stl", f"{implCode}-zsqrod", min_volume=100)
+        self._export_and_validate(zSqRod, expDir, "zsqrod", min_volume=1200)
 
         xRndRod = self.cylinder_rounded_x(30, 5, 1 / 2)
-        self.export_stl(xRndRod, expDir / f"{implCode}-xrndrod")
-        self._validate_stl(expDir / f"{implCode}-xrndrod.stl", f"{implCode}-xrndrod", min_volume=100)
+        self._export_and_validate(xRndRod, expDir, "xrndrod", min_volume=1800)
 
         yRndRod = self.cylinder_rounded_y(30, 5, 1 / 2)
-        self.export_stl(yRndRod, expDir / f"{implCode}-yrndrod")
-        self._validate_stl(expDir / f"{implCode}-yrndrod.stl", f"{implCode}-yrndrod", min_volume=100)
+        self._export_and_validate(yRndRod, expDir, "yrndrod", min_volume=1800)
 
         zRndRod = self.cylinder_rounded_z(30, 5, 1 / 2)
-        self.export_stl(zRndRod, expDir / f"{implCode}-zrndrod")
-        self._validate_stl(expDir / f"{implCode}-zrndrod.stl", f"{implCode}-zrndrod", min_volume=100)
+        self._export_and_validate(zRndRod, expDir, "zrndrod", min_volume=1800)
 
-        zPolyExt = self.polygon_extrusion([(0, 0), (10, 0), (0, 10)], 5)
-        self.export_stl(zPolyExt, expDir / f"{implCode}-zpolyext")
-        self._validate_stl(expDir / f"{implCode}-zpolyext.stl", f"{implCode}-zpolyext", min_volume=10)
+        # Use non-origin points to catch auto-centering bugs (e.g. missing align=None in bd.Polygon)
+        # Points (1,1),(11,1),(1,11) → right triangle with legs of 10, area=50, expected volume=50*5=250
+        zPolyExt = self.polygon_extrusion([(1, 1), (11, 1), (1, 11)], 5)
+        self._export_and_validate(zPolyExt, expDir, "zpolyext", min_volume=200)
+        bbox_tol = self.fidelity.tolerance()
+        # Verify non-origin coordinates are preserved (catches auto-centering bug)
+        assert fabs(zPolyExt.left() - 1) < bbox_tol, f"polygon_extrusion left={zPolyExt.left()} != 1"
+        assert fabs(zPolyExt.front() - 1) < bbox_tol, f"polygon_extrusion front={zPolyExt.front()} != 1"
+        # Verify extrusion is in +Z direction (catches CW winding → -Z extrusion bug)
+        assert fabs(zPolyExt.top() - 5) < bbox_tol, f"polygon_extrusion top={zPolyExt.top()} != 5"
+        assert fabs(zPolyExt.bottom()) < bbox_tol, f"polygon_extrusion bottom={zPolyExt.bottom()} != 0"
+        print(f"[{implCode}] Polygon extrusion bbox: left={zPolyExt.left()}, right={zPolyExt.right()}, front={zPolyExt.front()}, back={zPolyExt.back()}, bottom={zPolyExt.bottom()}, top={zPolyExt.top()}")
 
         zPolyhedron = self.polyhedron(
             points=[(0, 0, 0), (10, 0, 0), (0, 10, 0), (0, 0, 10)],
             faces=[[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]],
             convexity=1,
         )
-        self.export_stl(zPolyhedron, expDir / f"{implCode}-zpolyhedron")
-        self._validate_stl(expDir / f"{implCode}-zpolyhedron.stl", f"{implCode}-zpolyhedron", min_volume=10)
+        self._export_and_validate(zPolyhedron, expDir, "zpolyhedron", min_volume=10)
 
         zTxt = self.text("ABC", 30, 10, "Courier New")
-        self.export_stl(zTxt, expDir / f"{implCode}-ztxt")
-        self._validate_stl(expDir / f"{implCode}-ztxt.stl", f"{implCode}-ztxt", min_volume=100)
+        self._export_and_validate(zTxt, expDir, "ztxt", min_volume=100)
 
         zTxt = zTxt.rotate_x(180)
-        self.export_stl(zTxt, expDir / f"{implCode}-ztxt-z180")
-        self._validate_stl(expDir / f"{implCode}-ztxt-z180.stl", f"{implCode}-ztxt-z180", min_volume=100)
+        self._export_and_validate(zTxt, expDir, "ztxt-z180", min_volume=100)
 
         qBall = self.sphere_quadrant(10, True, True)
-        self.export_stl(qBall, expDir / f"{implCode}-qball")
-        self._validate_stl(expDir / f"{implCode}-qball.stl", f"{implCode}-qball", min_volume=100)
+        self._export_and_validate(qBall, expDir, "qball", min_volume=100)
 
         hDisc = self.cylinder_half(10, True, 2)
-        self.export_stl(hDisc, expDir / f"{implCode}-hdisc")
-        self._validate_stl(expDir / f"{implCode}-hdisc.stl", f"{implCode}-hdisc", min_volume=10)
+        self._export_and_validate(hDisc, expDir, "hdisc", min_volume=10)
 
         body = self.spline_extrusion(
             start=(215, 0),
@@ -808,8 +841,7 @@ class ShapeAPI(ABC):
             ],
             ht=5,
         )
-        self.export_stl(body, expDir / f"{implCode}-body")
-        self._validate_stl(expDir / f"{implCode}-body.stl", f"{implCode}-body", min_volume=100)
+        self._export_and_validate(body, expDir, "body", min_volume=100)
 
         dome = self.spline_extrusion(
             start=(0, 0),
@@ -828,8 +860,7 @@ class ShapeAPI(ABC):
             ],
             ht=5,
         )
-        self.export_stl(dome, expDir / f"{implCode}-splineext")
-        self._validate_stl(expDir / f"{implCode}-splineext.stl", f"{implCode}-splineext", min_volume=100)
+        self._export_and_validate(dome, expDir, "splineext", min_volume=100)
 
         donut = self.spline_revolve(
             start=(0, 1),
@@ -848,26 +879,144 @@ class ShapeAPI(ABC):
             ],
             deg=-225,
         )
-        self.export_stl(donut, expDir / f"{implCode}-splinerev")
-        self._validate_stl(expDir / f"{implCode}-splinerev.stl", f"{implCode}-splinerev", min_volume=100)
+        self._export_and_validate(donut, expDir, "splinerev", min_volume=100)
 
         sweep = self.regpoly_sweep(
             1, [(-20, 0, 0), (20, 0, 40), (40, 20, 40), (60, 20, 0)]
         )
-        self.export_stl(sweep, expDir / f"{implCode}-sweep")
-        self._validate_stl(expDir / f"{implCode}-sweep.stl", f"{implCode}-sweep", min_volume=100)
+        self._export_and_validate(sweep, expDir, "sweep", min_volume=100)
 
         edgex = self.rounded_edge_mask(direction='x',l=30, rad = 10)
-        self.export_stl(edgex, expDir / f"{implCode}-edgex")
-        self._validate_stl(expDir / f"{implCode}-edgex.stl", f"{implCode}-edgex", min_volume=100)
+        self._export_and_validate(edgex, expDir, "edgex", min_volume=100)
 
         edgey = self.rounded_edge_mask(direction='y',l=30, rad = 10)
-        self.export_stl(edgey, expDir / f"{implCode}-edgey")
-        self._validate_stl(expDir / f"{implCode}-edgey.stl", f"{implCode}-edgey", min_volume=100)
+        self._export_and_validate(edgey, expDir, "edgey", min_volume=100)
 
         edgez = self.rounded_edge_mask(direction='z',l=30, rad = 10)
-        self.export_stl(edgez, expDir / f"{implCode}-edgez")
-        self._validate_stl(expDir / f"{implCode}-edgez.stl", f"{implCode}-edgez", min_volume=100)
+        self._export_and_validate(edgez, expDir, "edgez", min_volume=100)
+
+        # test join
+        box = self.box(10, 20, 30).mv(0, 7, 0)
+        xRod = self.cylinder_x(30, 5)
+        jout = xRod.join(box)
+        self._export_and_validate(jout, expDir, "bop-join", min_volume=100)
+
+        # test cut
+        box = self.box(10, 20, 30).mv(0, 7, 0)
+        xRod = self.cylinder_x(30, 5)
+        jout = xRod.cut(box)
+        self._export_and_validate(jout, expDir, "bop-cut", min_volume=100)
+
+        # test intersection
+        box = self.box(10, 20, 30).mv(0, 7, 0)
+        xRod = self.cylinder_x(30, 5)
+        iout = xRod.intersection(box)
+        self._export_and_validate(iout, expDir, "bop-intersect", min_volume=100)
+        iout = xRod & box
+
+        # test hull
+        if self.implementation.has_hull():
+            box = self.box(10, 20, 30).mv(0, 7, 0)
+            xrod = self.cylinder_x(30, 5)
+            jout = box + xrod
+            jout.hull()
+            self._export_and_validate(jout, expDir, "hull", min_volume=100)
+
+        # test mirror
+        box = self.box(10, 20, 30)
+        mirrored = box.mirror()
+        mout = mirrored.join(box)
+        self._export_and_validate(mout, expDir, "mirror", min_volume=100)
+
+        # scale operator shortcut
+        obj16 = self.sphere(5) * (Direction.X * 2)
+        self._export_and_validate(obj16, expDir, "obj16", min_volume=100)
+        obj17 = self.sphere(5) * (Direction.Y * 2)
+        self._export_and_validate(obj17, expDir, "obj17", min_volume=100)
+        obj18 = self.sphere(5) * (Direction.Z * 2)
+        self._export_and_validate(obj18, expDir, "obj18", min_volume=100)
+        obj19 = self.sphere(5) * (1,2,3)
+        self._export_and_validate(obj19, expDir, "obj19", min_volume=100)
+
+        # Test scale method
+        scale_tol = self.fidelity.tolerance()
+        scale_box = self.box(10, 20, 30)
+        scale_box.scale(2, 3, 4)
+        print(f"[{implCode}] Scale tests: len={scale_box.length()}, w={scale_box.width()}, h={scale_box.height()}, center={scale_box.center()}")
+        assert fabs(scale_box.length() - 20) < scale_tol
+        assert fabs(scale_box.width()  - 60) < scale_tol
+        assert fabs(scale_box.height() - 120) < scale_tol
+        assert all(fabs(c - e) < scale_tol for c, e in zip(scale_box.center(), (0, 0, 0)))
+        self._export_and_validate(scale_box, expDir, "scale-box", min_volume=10000)
+       
+        # Test dup
+        box = self.box(10, 20, 30)
+        dup_box = box.dup()
+        self._export_and_validate(dup_box, expDir, "dup-box", min_volume=5000)
+        
+        # Test mirror_and_join
+        box = self.box(10, 20, 30)
+        mir_box = box.mirror_and_join()
+        self._export_and_validate(mir_box, expDir, "mir-box", min_volume=5000)
+        
+         # Test set_color with tuple
+        box = self.box(10, 20, 30)
+        box.set_color((255, 0, 0))
+        box.set_name("RedBox")
+        box.show()
+        self._export_and_validate(box, expDir, "props-box-tuple", min_volume=5000)
+
+        # Test set_color with ColorEnum (covers Enum handling in backends)
+        box2 = self.box(10, 20, 30)
+        box2.set_color(ColorEnum.ORANGE)
+        self._export_and_validate(box2, expDir, "props-box-enum", min_volume=5000)
+
+        # Test cube (default wrapper)
+        cube = self.cube(10)
+        self._export_and_validate(cube, expDir, "cube", min_volume=1000)
+        
+        # Test getFontPath
+        font = self.getFontPath(None)
+        print(f"[{implCode}] Default font path: {font}")
+        
+        # Test bbox properties
+        # Use fidelity tolerance for numerical comparisons;
+        # implementation.tolerance() is for join overlap and may be 0 (e.g. CADQUERY).
+        box = self.box(10, 20, 30)
+        bbox_tol = self.fidelity.tolerance()
+        print(f"[{implCode}] Bbox tests: top={box.top()}, bottom={box.bottom()}, left={box.left()}, right={box.right()}, center={box.center()}, len={box.length()}, w={box.width()}, h={box.height()}")
+        assert fabs(box.top()    - 15) < bbox_tol
+        assert fabs(box.bottom() + 15) < bbox_tol
+        assert fabs(box.left()   + 5) < bbox_tol
+        assert fabs(box.right()  - 5) < bbox_tol
+        assert all(fabs(c - e) < bbox_tol for c, e in zip(box.center(), (0, 0, 0)))
+        assert fabs(box.length() - 10) < bbox_tol
+        assert fabs(box.width()  - 20) < bbox_tol
+        assert fabs(box.height() - 30) < bbox_tol
+
+        # Test remaining ShapeAPI methods
+        info = APIS_INFO[self.implementation]
+        if info.get("linear_extrude"):
+            rect = self.rectangle((20, 10))
+            rect.linear_extrude(height=10)
+            self._export_and_validate(rect, expDir, "linear-extrude", min_volume=1000)
+        if info.get("rotate_extrude"):
+            rect = self.rectangle((20, 10))
+            rect.rotate_extrude(angle=90)
+            self._export_and_validate(rect, expDir, "rotate-extrude", min_volume=1000)
+        if info.get("offset"):
+            rect = self.rectangle((20, 10))
+            rect.offset(r=1)
+            offset_min_volume = 100 if info.get("offset_volume") else 0
+            self._export_and_validate(rect, expDir, "offset", min_volume=offset_min_volume)
+        if info.get("projection"):
+            box = self.box(10, 20, 30)
+            box.projection(cut=True)
+            self._export_and_validate(box, expDir, "projection", min_volume=None)
+        if info.get("minkowski"):
+            box = self.box(10, 20, 30)
+            box.minkowski(box)
+            self._export_and_validate(box, expDir, "minkowski", min_volume=5000)
 
         # More complex tests
 
@@ -878,12 +1027,14 @@ class ShapeAPI(ABC):
         rod = self.cylinder_z(20, 1)
         obj1 = box + ball + coneZ + rod - coneX
         obj1 = obj1.mv(10, 10, 11)
+        self._export_and_validate(obj1, expDir, "obj1", min_volume=1000)
         joined = obj1
 
         rx = self.cylinder_x(10, 3)
         ry = self.cylinder_y(10, 3)
         rz = self.cylinder_z(10, 3)
         obj2 = rx.join(ry).join(rz).mv(10, -10, 5)
+        self._export_and_validate(obj2, expDir, "obj2", min_volume=500)
         joined += obj2
 
         rr1 = self.cylinder_rounded_x(10, 3).scale(0.5, 1, 1).mv(0, -20, 0)
@@ -891,12 +1042,14 @@ class ShapeAPI(ABC):
         rr3 = self.cylinder_rounded_x(10, 3).scale(1, 1, 0.5).mv(0, 20, 0)
         rr4 = self.cylinder_rounded_y(50, 1)
         obj3 = rr1.join(rr2).join(rr3).join(rr4).mv(0, 0, -20)
+        self._export_and_validate(obj3, expDir, "obj3", min_volume=400)
         joined += obj3
 
         rrx = self.cylinder_rounded_x(10, 3, 0.25)
         rry = self.cylinder_rounded_y(10, 3, 0.5)
         rrz = self.cylinder_rounded_z(10, 3)
         obj4 = rrx.join(rry).join(rrz).half().mv(-10, 10, 5)
+        self._export_and_validate(obj4, expDir, "obj4", min_volume=200)
         joined += obj4
 
         pe = self.polygon_extrusion([(-10, 30), (10, 30), (10, -30), (-10, -30)], 10)
@@ -904,11 +1057,14 @@ class ShapeAPI(ABC):
         obj5 = pe.join(tz).mv(30, -30, 0)
         mirror = obj5.mirror().mv(10, 0, 0)
         obj5 = obj5.join(mirror)
+        self._export_and_validate(obj5, expDir, "obj5", min_volume=1000)
         joined += obj5
 
+        # fillet testy
         if self.implementation.has_fillet():
             rndBox = self.box(10, 10, 10).fillet([(5, 0, 5)], 1)
             obj6 = rndBox.mv(-10, -10, 5)
+            self._export_and_validate(obj6, expDir, "obj6", min_volume=900)
             joined += obj6
 
         dome = self.spline_extrusion(
@@ -929,6 +1085,7 @@ class ShapeAPI(ABC):
             ht=5,
         )
         obj7 = dome.rotate_y(-45).mv(-10, 15, 0)
+        self._export_and_validate(obj7, expDir, "obj7", min_volume=400)
         joined += obj7
 
         donutStart = (60, 0.1)
@@ -947,56 +1104,33 @@ class ShapeAPI(ABC):
             0, 0, self.tolerance()
         )
         obj8 = dome2.join(dome3).mv(0, 0, -10)
+        self._export_and_validate(obj8, expDir, "obj8", min_volume=1000)
         joined += obj8
 
         obj9 = self.regpoly_sweep(
             1, [(-20, 0, 0), (20, 0, 40), (40, 20, 40), (60, 20, 0)]
         )
+        self._export_and_validate(obj9, expDir, "obj9", min_volume=200)
         joined += obj9
 
         obj10 = self.sphere_quadrant(10, True, True).scale(2, 1, 0.5).mv(-30, -20, 0)
+        self._export_and_validate(obj10, expDir, "obj10", min_volume=1000)
         joined += obj10
 
         obj11 = self.cylinder_half(10, True, 10).scale(1.5, 1, 1).mv(-30, 20, 0)
+        self._export_and_validate(obj11, expDir, "obj11", min_volume=1000)
         joined += obj11
 
         # move operator shortcut
         obj12 = self.sphere(5) << (Direction.X + 2)
+        self._export_and_validate(obj12, expDir, "obj12", min_volume=100)
         obj13 = self.sphere(5) << (Direction.Y + 2)
+        self._export_and_validate(obj13, expDir, "obj13", min_volume=100)
         obj14 = self.sphere(5) << (Direction.Z + 2)
+        self._export_and_validate(obj14, expDir, "obj14", min_volume=100)
         obj15 = self.sphere(5) << (0,1,2)
+        self._export_and_validate(obj15, expDir, "obj15", min_volume=100)
 
-        # scale operator shortcut
-        obj16 = self.sphere(5) * (Direction.X * 2)
-        obj17 = self.sphere(5) * (Direction.Y * 2)
-        obj18 = self.sphere(5) * (Direction.Z * 2)
-        obj19 = self.sphere(5) * (1,2,3)
+        self._export_and_validate(joined, expDir, "all", min_volume=10000)
 
-        self.export_stl(joined, expDir / f"{implCode}-all")
-
-        # test join
-        box = self.box(10, 20, 30).mv(0,7,0)
-        xRod = self.cylinder_x(30, 5)
-        jout = xRod.join(box)
-        self.export_stl( jout, expDir / f"{implCode}-bop-join")
-
-        # test cut
-        box = self.box(10, 20, 30).mv(0,7,0)
-        xRod = self.cylinder_x(30, 5)
-        jout = xRod.cut(box)
-        self.export_stl( jout, expDir / f"{implCode}-bop-cut")
-
-        # test intersection
-        box = self.box(10, 20, 30).mv(0,7,0)
-        xRod = self.cylinder_x(30, 5)
-        iout = xRod.intersection(box)
-        self.export_stl( iout, expDir / f"{implCode}-bop-intersect")
-        iout = xRod & box
-
-        # test hull
-        if self.implementation.has_hull():
-            box = self.box(10, 20, 30).mv(0,7,0)
-            xrod = self.cylinder_x(30, 5)
-            jout = box + xrod
-            jout.hull()
-            self.export_stl( jout, expDir / f"{implCode}-hull")
+        

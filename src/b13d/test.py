@@ -17,7 +17,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
-from b13d.api.core import test_api, DEFAULT_TEST_DIR, Implementation, supported_apis
+from b13d.api.core import run_api_test, DEFAULT_TEST_DIR, Implementation, supported_apis
 from b13d.api.utils import make_or_exist_path
 
 TEST_NAME_DEFAULT = "default"
@@ -184,7 +184,7 @@ def csv_to_xls(csv_file, xls_file):
 
     print(f"Data from '{csv_file}' has been saved to '{xls_file}' with default filtering enabled.")
 
-def test_report(name=TEST_NAME_DEFAULT):
+def generate_test_report(name=TEST_NAME_DEFAULT):
     """ Generate Test Report """
     print("# Generate .xlsx Test Report")
 
@@ -201,31 +201,37 @@ class B13DTestMethods(unittest.TestCase):
     ## API
     def test_mock_api(self):
         """Test Mock API"""
-        test_api(api=Implementation.MOCK)
+        run_api_test(api=Implementation.MOCK)
 
     def test_cadquery_api(self):
         """Test Cadquery API"""
-        test_api(api=Implementation.CADQUERY)
+        run_api_test(api=Implementation.CADQUERY)
 
     def test_blender_api(self):
         """Test Blender API"""
-        test_api(api=Implementation.BLENDER)
+        run_api_test(api=Implementation.BLENDER)
 
     def test_trimesh_api(self):
         """Test Trimesh API"""
-        test_api(api=Implementation.TRIMESH)
+        print("DEBUG: Starting test_trimesh_api")
+        run_api_test(api=Implementation.TRIMESH)
+        print("DEBUG: Finished test_trimesh_api")
 
     def test_solid2_api(self):
         """Test SolidPython2 API"""
-        test_api(api=Implementation.SOLID2)
+        run_api_test(api=Implementation.SOLID2)
 
     def test_manifold_api(self):
         """Test Manifold API"""
-        test_api(api=Implementation.MANIFOLD)
+        run_api_test(api=Implementation.MANIFOLD)
 
     def test_build123d_api(self):
         """Test build123d API"""
-        test_api(api=Implementation.BUILD123D)
+        run_api_test(api=Implementation.BUILD123D)
+
+    def test_pyvista_api(self):
+        """Test PyVista API"""
+        run_api_test(api=Implementation.PYVISTA)
 
     ## Solid Parts
     from b13d.parts.tube import test_tube, test_tube_mock
@@ -241,9 +247,9 @@ class B13DTestMethods(unittest.TestCase):
 
     def test_zz_report(self):
         """ Generate Test Report """
-        test_report(name=TEST_NAME_B13D)
+        generate_test_report(name=TEST_NAME_B13D)
 
-def test_main(name=TEST_NAME_DEFAULT):
+def run_tests(name=TEST_NAME_DEFAULT):
     """ Launch all tests """      
     
     if os.getenv("GITHUB_ACTIONS") == "true":
@@ -260,4 +266,4 @@ def test_main(name=TEST_NAME_DEFAULT):
         unittest.main()
 
 if __name__ == "__main__":
-    test_main(TEST_NAME_B13D)
+    run_tests(TEST_NAME_B13D)

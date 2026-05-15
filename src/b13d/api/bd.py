@@ -19,22 +19,31 @@ from typing import Union
 import numpy as np
 from scipy.spatial import ConvexHull
 
+bd = None
+Solid = None
+Face = None
+Wire = None
+Edge = None
+Shell = None
+Compound = None
+ShapeList = None
+BD_AVAILABLE = False
 try:
-    import build123d as bd
-    from build123d.topology import Solid, Face, Wire, Edge, Shell, Compound, ShapeList
+    import build123d as _bd
+    from build123d.topology import Solid as _Solid, Face as _Face, Wire as _Wire, Edge as _Edge, Shell as _Shell, Compound as _Compound, ShapeList as _ShapeList
+    bd = _bd
+    Solid = _Solid
+    Face = _Face
+    Wire = _Wire
+    Edge = _Edge
+    Shell = _Shell
+    Compound = _Compound
+    ShapeList = _ShapeList
     BD_AVAILABLE = True
 except ImportError:
-    bd = None
-    Solid = None
-    Face = None
-    Wire = None
-    Edge = None
-    Shell = None
-    Compound = None
-    ShapeList = None
-    BD_AVAILABLE = False
+    pass
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.core import ShapeAPI, Shape, Direction, Implementation
 from b13d.api.utils import (
@@ -49,7 +58,10 @@ class BDShapeAPI(ShapeAPI):
     """build123d implementation of ShapeAPI."""
 
     def export_stl(self, shape: BDShape, path: Union[str, Path]) -> None:
-        bd.export_stl(shape.getImplSolid(), file_ensure_extension(path, ".stl"))
+        solid = shape.getImplSolid()
+        if isinstance(solid, bd.Compound) and len(solid.solids()) == 0:
+            raise ValueError("Cannot export empty Compound (no solids to export)")
+        bd.export_stl(solid, file_ensure_extension(path, ".stl"))
 
     def export_best(self, shape: BDShape, path: Union[str, Path]) -> None:
         self.export_stl(shape, path)
@@ -160,7 +172,7 @@ class BDShapeAPI(ShapeAPI):
         return BDShape(self, cross_section=circ)
 
     def polygon(self, points, paths=None, convexity=1) -> BDShape:
-        poly = bd.Polygon(*points)
+        poly = bd.Polygon(*points, align=None)
         return BDShape(self, cross_section=poly)
 
     def genImport(self, infile: str, extrude: float = None) -> BDShape:
@@ -198,6 +210,57 @@ class BDShape(Shape):
             self.cross_section = None
         return self
 
+    def _resolve_solid(self, shape) -> bd.Solid | bd.Part | bd.Compound:
+        """Extract the underlying solid from a Part/Compound wrapper.
+        
+        build123d's Part class may return empty Compounds when used in boolean
+        operations. Extract the inner Solid for reliable boolean results.
+        
+        Note: For cut/intersection, prefer using raw Part types since Part.cut()
+        handles complex geometries more reliably than Solid-Solid. For join,
+        Solid+Solid gives better results for disjoint shapes.
+        """
+        if isinstance(shape, bd.Part):
+            solids = shape.solids()
+            return solids[0] if solids else shape
+        return shape
+
+    def _safe_boolean(self, op_name, a, b, use_resolve=False):
+        """Perform a boolean operation with error handling for Null TopoDS_Shape.
+        
+        Args:
+            op_name: 'cut', 'join', or 'intersect'
+            a, b: The two solids to operate on
+            use_resolve: If True, extract Solid from Part before operation
+        """
+        _a = self._resolve_solid(a) if use_resolve else a
+        _b = self._resolve_solid(b) if use_resolve else b
+        
+        _ops = {
+            'cut': lambda x, y: x - y,
+            'join': lambda x, y: x + y,
+            'intersect': lambda x, y: x & y,
+        }
+        op = _ops[op_name]
+        
+        try:
+            return op(_a, _b)
+        except ValueError as e:
+            if "Null TopoDS_Shape" not in str(e):
+                raise
+            # If raw operation failed and we weren't using resolve, try with resolve
+            if not use_resolve:
+                try:
+                    return op(self._resolve_solid(a), self._resolve_solid(b))
+                except ValueError as e2:
+                    if "Null TopoDS_Shape" not in str(e2):
+                        raise
+            raise ValueError(
+                f"build123d boolean {op_name} failed (Null TopoDS_Shape). "
+                "This is a known build123d limitation with complex gourd/curved geometries. "
+                "Try using the 'mf' (Manifold) backend instead."
+            ) from e
+
     def cut(self, cutter: BDShape) -> BDShape:
         if self.cross_section is not None and cutter is not None and cutter.cross_section is not None:
             self.cross_section = self.cross_section - cutter.cross_section
@@ -208,7 +271,9 @@ class BDShape(Shape):
         cutter._ensure3d()
         if cutter.solid is None:
             return self
-        self.solid = self.solid - cutter.solid
+        # Try raw Part types first (more reliable for complex geometries),
+        # fall back to Solid extraction
+        self.solid = self._safe_boolean('cut', self.solid, cutter.solid)
         return self
 
     def dup(self) -> BDShape:
@@ -226,9 +291,14 @@ class BDShape(Shape):
         self._ensure3d()
         if joiner is None or joiner.solid is None:
             return self
-        result = self.solid + joiner.solid
+        # Use Solid+Solid for join (handles disjoint shapes better than Part+Part)
+        result = self._safe_boolean('join', self.solid, joiner.solid, use_resolve=True)
         # build123d returns ShapeList for disjoint solids; convert to Compound for export
         if isinstance(result, ShapeList):
+            if len(result) == 0:
+                # Empty ShapeList means the operation produced no geometry;
+                # keep the original solid unchanged.
+                return self
             result = Compound(result)
         self.solid = result
         return self
@@ -240,7 +310,9 @@ class BDShape(Shape):
         self._ensure3d()
         if intersector is None or intersector.solid is None:
             return self
-        self.solid = self.solid & intersector.solid
+        # Try raw Part types first (more reliable for complex geometries),
+        # fall back to Solid extraction
+        self.solid = self._safe_boolean('intersect', self.solid, intersector.solid)
         return self
 
     def mirror(self, normal: tuple[float, float, float] = (0, 1, 0)) -> BDShape:
@@ -323,7 +395,7 @@ class BDShape(Shape):
             if len(verts) >= 3:
                 hull = ConvexHull(verts)
                 pts = [tuple(verts[i]) for i in hull.vertices]
-                self.cross_section = bd.Polygon(*pts)
+                self.cross_section = bd.Polygon(*pts, align=None)
             return self
         if self.solid is not None:
             # Sample points along edges to capture curved surfaces
@@ -397,21 +469,15 @@ class BDShape(Shape):
     def projection(self, cut=False) -> BDShape:
         if self.solid is None:
             raise NotImplementedError("projection requires a 3D shape")
-        # Project faces to XY plane
-        faces = self.solid.faces()
-        projected = []
-        for f in faces:
-            try:
-                # Get the plane of the face and project to XY
-                proj_face = f.project_faces(
-                    bd.Plane.XY, bd.Vector(0, 0, 1)
-                )
-                projected.extend(proj_face)
-            except Exception:
-                pass
-        if projected:
-            self.cross_section = bd.Sketch(projected)
-        self.solid = None
+        # Flatten the shape onto the XY plane by scaling Z to near-zero
+        # This is more reliable than build123d's project_faces API which
+        # has an incompatible signature across versions.
+        bbox = self.bbox()
+        cur_h = bbox[5] - bbox[4]  # maxz - minz
+        if cur_h > 0:
+            self.scale(1, 1, 0.001 / cur_h)
+        bbox2 = self.bbox()
+        self.mv(0, 0, -bbox2[4])  # move min z to 0
         return self
 
     def minkowski(self, other: BDShape = None) -> BDShape:
@@ -494,7 +560,9 @@ class BDPolyExtrusionZ(BDShape):
         self, path: list[tuple[float, float]], tck: float, api: BDShapeAPI
     ):
         super().__init__(api)
-        polygon = bd.Polygon(*path)
+        # Ensure counterclockwise winding so extrude goes in +Z
+        ccw_path = _ensure_ccw(path)
+        polygon = bd.Polygon(*ccw_path, align=None)
         self.solid = bd.extrude(polygon, tck)
 
 
@@ -511,7 +579,7 @@ class BDRodZ(BDShape):
             for i in range(sides):
                 a = 2 * pi * i / sides
                 pts.append((rad * cos(a), rad * sin(a)))
-            poly = bd.Polygon(*pts)
+            poly = bd.Polygon(*pts, align=None)
             self.solid = bd.extrude(poly, l)
         else:
             self.solid = bd.Cylinder(rad, l)
@@ -666,6 +734,26 @@ def _clean_polygon_path(path, tol=1e-6):
     return None
 
 
+def _ensure_ccw(path):
+    """Ensure polygon path has counterclockwise winding (positive signed area).
+    
+    build123d's extrude follows the face normal: CCW winding extrudes in +Z,
+    CW winding extrudes in -Z. This function reverses the point order when
+    the signed area is negative (clockwise).
+    """
+    if not path or len(path) < 3:
+        return path
+    # Compute signed area (shoelace formula)
+    area = 0.0
+    n = len(path)
+    for i in range(n):
+        x1, y1 = path[i]
+        x2, y2 = path[(i + 1) % n]
+        area += x1 * y2 - x2 * y1
+    # Negative area = clockwise = reverse
+    return list(reversed(path)) if area < 0 else path
+
+
 class BDTextZ(BDShape):
     def __init__(
         self,
@@ -773,6 +861,6 @@ class BDImport(BDShape):
 
 
 if __name__ == "__main__":
-    from b13d.api.core import test_api
+    from b13d.api.core import run_api_test
 
-    test_api(Implementation.BUILD123D)
+    run_api_test(Implementation.BUILD123D)

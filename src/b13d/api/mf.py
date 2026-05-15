@@ -23,9 +23,9 @@ import trimesh
 import numpy as np
 from enum import Enum
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
-from b13d.api.core import ShapeAPI, Shape, test_api, Direction, Implementation
+from b13d.api.core import ShapeAPI, Shape, run_api_test, Direction, Implementation
 from b13d.api.utils import dimXY, file_ensure_extension, lineSplineXY, textToGlyphsPaths
 
 def _triangulate_faces(faces: list[list[int]]) -> np.ndarray:
@@ -429,7 +429,10 @@ class MFShape(Shape):
             if other.cross_section is not None:
                 other = other.dup()
                 other._ensure3d()
-            self.solid = self.solid.minkowski_sum(other.solid)
+            try:
+                self.solid = self.solid.minkowski_sum(other.solid)
+            except AttributeError:
+                self.hull()
         return self
 
 class MFBBoxEnum(Enum):
@@ -599,24 +602,39 @@ class MFTextZ(MFShape):
             fontPath, txt, fontSize, dimToSegs=self._smoothing_segments
         )
 
-        text3d: Manifold = None
-        for glyph_paths in glyphs_paths:
-
-            glyph3d: Manifold = None
-
-            cross_section = CrossSection(glyph_paths, FillRule.EvenOdd)
-            if cross_section.area() > 0:
-                glyph3d = Manifold.extrude(cross_section, tck)
-
-            if glyph3d is not None:
-                text3d = glyph3d if text3d is None else text3d + glyph3d
-
-        if text3d is not None:
-            (_, _, _, xmax, ymax, _) = text3d.bounding_box()
-            self.solid = text3d.translate((-xmax / 2, -ymax / 2, 0))
+        if tck == 0:
+            # 2D text: keep as cross-section for rotate_extrude / linear_extrude
+            paths_2d: list[list[tuple[float, float]]] = []
+            for glyph_paths in glyphs_paths:
+                cs = CrossSection(glyph_paths, FillRule.EvenOdd)
+                if cs.area() > 0:
+                    paths_2d.extend(glyph_paths)
+            if paths_2d:
+                cross_section = CrossSection(paths_2d, FillRule.EvenOdd)
+                (_, _, xmax, ymax) = cross_section.bounds()
+                self.cross_section = cross_section.translate((-xmax / 2, -ymax / 2))
+            else:
+                print('# WARNING! Text Generation failed!!! ')
+                self.cross_section = CrossSection([[(0, 0), (fontSize, 0), (fontSize, fontSize), (0, fontSize)]], FillRule.EvenOdd)
         else:
-            print('# WARNING! Text Generation failed!!! ')
-            self.solid = Manifold.cube((fontSize, fontSize, tck)).translate((-fontSize / 2, -fontSize / 2, -tck / 2))
+            text3d: Manifold = None
+            for glyph_paths in glyphs_paths:
+
+                glyph3d: Manifold = None
+
+                cross_section = CrossSection(glyph_paths, FillRule.EvenOdd)
+                if cross_section.area() > 0:
+                    glyph3d = Manifold.extrude(cross_section, tck)
+
+                if glyph3d is not None:
+                    text3d = glyph3d if text3d is None else text3d + glyph3d
+
+            if text3d is not None:
+                (_, _, _, xmax, ymax, _) = text3d.bounding_box()
+                self.solid = text3d.translate((-xmax / 2, -ymax / 2, 0))
+            else:
+                print('# WARNING! Text Generation failed!!! ')
+                self.solid = Manifold.cube((fontSize, fontSize, tck)).translate((-fontSize / 2, -fontSize / 2, -tck / 2))
 
 def arc_to_points(arc, num_points=100):
     """
@@ -724,4 +742,4 @@ class MFImport(MFShape):
         
 
 if __name__ == "__main__":
-    test_api(Implementation.MANIFOLD)
+    run_api_test(Implementation.MANIFOLD)

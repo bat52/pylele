@@ -8,7 +8,7 @@ import os
 import argparse
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.core import StringEnum, Shape, Direction
 from b13d.api.constants import FIT_TOL

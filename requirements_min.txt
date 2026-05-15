@@ -1,15 +1,14 @@
 numpy==1.26.4
 nlopt==2.7.1
 trimesh==4.4.8
-manifold3d<=2.5.1 # Optional: manifold backend — install with: pip install pylele[manifold]
-# NOTE: manifold3d 3.0.0 and 3.0.1 are known to cause segmentation faults in pylele1
+# manifold3d<=2.5.1 # Optional: manifold backend — install with: pip install pylele[manifold]
 pillow
 shapely
 scipy
 networkx
 pyglet<2
 fonttools
-solidpython2<=2.1.1 # for enveloping worm
+# solidpython2<=2.1.1 # for enveloping worm
 numpy-stl
 packaging
 json-tricks
@@ -33,7 +32,7 @@ svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
 # fake-bpy-module-4.1; python_version == '3.11'
 
 # Optional CadQuery backend (cq) — install with: pip install pylele[cadquery]
-cadquery<=2.4.0
+# cadquery<=2.4.0
 
 # Optional Build123d backend (bd) — install with: pip install pylele[build123d]
 # build123d==0.10.0

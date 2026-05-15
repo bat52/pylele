@@ -28,8 +28,8 @@ class RoundedBox(Solid):
 
         # Main cube
         box = self.api.box(self.cli.x,
-                              self.cli.y,
-                              self.cli.z)
+                               self.cli.y,
+                               self.cli.z)
 
         return box.fillet([], self.cli.r)
 
@@ -77,7 +77,7 @@ class RoundedBox(Solid):
 
         for y in ycoords:
             lbox = self.api.box(self.cli.x - 2*self.cli.r,
-                                                2*self.cli.r,
+                                                 2*self.cli.r,
                                    self.cli.z - 2*self.cli.r)
             lbox <<= (0,y,0)
             box += lbox
@@ -85,7 +85,7 @@ class RoundedBox(Solid):
         for z in zcoords:
             lbox = self.api.box(self.cli.x - 2*self.cli.r,
                                    self.cli.y - 2*self.cli.r,
-                                                2*self.cli.r)
+                                                 2*self.cli.r)
             lbox <<= (0,0,z)
             box += lbox
 
@@ -122,16 +122,14 @@ class RoundedBox(Solid):
                                        Implementation.BUILD123D]:
             # apis that support fillet
             return self.gen_cadquery()
-            # apis that support hull
         elif self.cli.implementation in [ Implementation.SOLID2,
-                                          Implementation.TRIMESH,
-                                          Implementation.MANIFOLD]:
+                                           Implementation.TRIMESH,
+                                           Implementation.MANIFOLD,
+                                           Implementation.PYVISTA]:
             return self.gen_solidpython()
         else:
             # apis not supporting fillet or hull
             return self.gen_default()
-        
-        assert False
 
 def main(args=None):
     """ Generate a Rounded Box """

@@ -8,22 +8,28 @@ from pathlib import Path
 import sys
 from typing import Union
 
+bpy = None
+bmesh = None
+Vector = None
+Quaternion = None
+Matrix = None
+BPY_AVAILABLE = False
 try:
-    import bpy
-    import bmesh
-    from mathutils import Vector, Quaternion, Matrix
+    import bpy as _bpy
+    import bmesh as _bmesh
+    from mathutils import Vector as _Vector, Quaternion as _Quaternion, Matrix as _Matrix
+    bpy = _bpy
+    bmesh = _bmesh
+    Vector = _Vector
+    Quaternion = _Quaternion
+    Matrix = _Matrix
     BPY_AVAILABLE = True
 except ImportError:
-    bpy = None
-    bmesh = None
-    Vector = None
-    Quaternion = None
-    Matrix = None
-    BPY_AVAILABLE = False
+    pass
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
-from b13d.api.core import Shape, ShapeAPI, test_api
+from b13d.api.core import Shape, ShapeAPI, run_api_test
 from b13d.api.utils import (
     dimXY,
     file_ensure_extension,
@@ -578,7 +584,7 @@ class BlenderShape(Shape):
         return self.repairMesh()
 
     def show(self):
-        self.updateMesh()
+        self.repairMesh()
         bpy.context.view_layer.objects.active = self.solid
         self.solid.select_set(True)
 
@@ -1134,4 +1140,4 @@ class BlenderImport(BlenderShape):
             self.extrudeZ(extrude)
 
 if __name__ == "__main__":
-    test_api("blender")
+    run_api_test("blender")

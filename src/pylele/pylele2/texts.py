@@ -111,10 +111,18 @@ class LeleTexts(LeleBase):
             logo = logo.scale(self.cli.text_logo_scale, self.cli.text_logo_scale, 1)
             logo <<= (self.cfg.neckLen, self.cli.text_logo_y, txtZ - txtTck/2)
             ls += logo
-        
-        botCut = LeleBody(cli=self.cli, isCut=True).mv(0, 0, cutTol)
 
-        txtCut = ls.cut(botCut.shape).mv(0, 0, dep)
+        # Use the revolved gourd bottom as a cutter.  Building the full
+        # LeleBody triggers an expensive boolean union (revolved gourd +
+        # flat extrusion) which is very slow on build123d (~50s).  The
+        # gourd bottom alone provides the curved outline needed to trim
+        # text to the body shape.
+        botCutter = LeleBody(cli=self.cli, isCut=True)
+        botCutter.configure()
+        botCutter.api = self.api
+        botCut = botCutter.gourd_shape(top=False).mv(0, 0, cutTol)
+
+        txtCut = ls.cut(botCut).mv(0, 0, dep)
 
         return txtCut
 

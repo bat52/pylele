@@ -10,7 +10,7 @@ from math import tan, inf
 import os
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
 from b13d.api.utils import radians
 from b13d.api.core import Shape

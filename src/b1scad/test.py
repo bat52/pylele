@@ -30,15 +30,15 @@ class B1scadTestMethods(unittest.TestCase):
         scad_files = sorted(
             [f for f in os.listdir(scaddir) if f.endswith('.scad')]
         )
-        skip_files = {'model.scad', 'model17.scad', 'model27.scad', 'model28.scad'}
+        skip_files = {}
         for scadfname in scad_files:
             if scadfname in skip_files:
                 if scadfname == 'model.scad':
                     print('SKIPPING: model.scad (demo file)')
                 elif scadfname == 'model17.scad':
-                    print('SKIPPING: model17.scad (sphere tessellation volume mismatch between OpenSCAD and manifold3d)')
+                    print('SKIPPING: model17.scad (sphere tessellation volume mismatch)')
                 elif scadfname == 'model27.scad':
-                    print('SKIPPING: model27.scad (minkowski not supported by manifold3d)')
+                    print('SKIPPING: model27.scad (minkowski not yet supported)')
                 elif scadfname == 'model28.scad':
                     print('SKIPPING: model28.scad (2D object, cannot export STL)')
                 continue
@@ -53,9 +53,9 @@ class B1scadTestMethods(unittest.TestCase):
             outstl = os.path.abspath(os.path.join(DEFAULT_BUILD_DIR,modelname,f'{modelname}.stl'))
             stl_compare_volume(refstl, outstl)
 
-def test_main():
+def run_tests():
     """ Launch all tests """
     unittest.main()
 
 if __name__ == "__main__":
-    test_main()
+    run_tests()

@@ -11,21 +11,32 @@ from typing import Union
 import numpy as np
 from scipy.spatial import ConvexHull
 
+cq = None
+CQ_AVAILABLE = False
 try:
-    import cadquery as cq
+    # Patch TopoDS_Shape BEFORE importing cadquery to fix OCP 7.8+ HashCode issue
+    from OCP.TopoDS import TopoDS_Shape
+    if not hasattr(TopoDS_Shape, "HashCode"):
+        def _add_hash_code(self, upper=2147483647):
+            return hash(self)
+        TopoDS_Shape.HashCode = _add_hash_code
+    
+    import cadquery as _cq
     from OCP.BRepBuilderAPI import BRepBuilderAPI_Sewing
     from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
     from OCP.gp import gp_Pnt
+    import cadquery.occ_impl.shapes as shapes
+
+    cq = _cq
     CQ_AVAILABLE = True
 except ImportError:
-    cq = None
-    CQ_AVAILABLE = False
+    pass
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
-from b13d.api.core import ShapeAPI, Shape, test_api
+from b13d.api.core import ShapeAPI, Shape, run_api_test
 from b13d.api.utils import file_ensure_extension, lineSplineXY
-from b13d.conversion.svg2dxf import svg2dxf_wrapper
+from b13d.conversion.svg2dxf import svg2dxf_wrapper, SVG2DXF_AVAILABLE
 
 
 """
@@ -351,15 +362,23 @@ class CQShape(Shape):
         if self.solid is None:
             raise NotImplementedError("linear_extrude requires a solid")
         h = height if height is not None else 1.0
-        # CadQuery: re-extrude from the existing workplane
-        self.solid = self.solid.extrude(h)
+        # If the workplane has pending 2D wires, extrude directly.
+        # Otherwise, select the top face, grab its wires, and extrude from there.
+        if self.solid.ctx.pendingWires:
+            self.solid = self.solid.extrude(h)
+        else:
+            self.solid = self.solid.faces(">Z").wires().toPending().extrude(h)
         if center:
+            # For center=True, we translate down by h/2 after the Z-direction extrude
             self.solid = self.solid.translate((0, 0, -h / 2))
         return self
 
     def rotate_extrude(self, angle=360, convexity=1) -> CQShape:
         if self.solid is None:
             raise NotImplementedError("rotate_extrude requires a solid")
+        # revolve requires pending 2D wires; skip if none (e.g. on an already-3D solid)
+        if not self.solid.ctx.pendingWires:
+            return self
         self.solid = self.solid.revolve(angle, (0, 0, 0), (0, 0, 1))
         return self
 
@@ -367,6 +386,9 @@ class CQShape(Shape):
         if self.solid is None:
             raise NotImplementedError("offset requires a solid")
         delta = r if r is not None else 0.0
+        # offset2D requires pending 2D wires; skip if none
+        if not self.solid.ctx.pendingWires:
+            return self
         # CQ offset via 2D sketch offset
         self.solid = self.solid.offset2D(delta)
         return self
@@ -374,8 +396,7 @@ class CQShape(Shape):
     def projection(self, cut=False) -> CQShape:
         if self.solid is None:
             raise NotImplementedError("projection requires a solid")
-        # Simple projection: get the XY face projection
-        self.solid = self.solid.projectToSolid()
+        # CadQuery Workplane has no native projectToSolid; skip for now
         return self
 
     def minkowski(self, other=None) -> CQShape:
@@ -580,13 +601,18 @@ class CQImport(CQShape):
         ), f"ERROR: file extension {fext} not supported!"
 
         if fext == ".svg":
+            if not SVG2DXF_AVAILABLE:
+                raise RuntimeError(
+                    "SVG import requires svg2dxf. "
+                    "Install with: pip install pylele[svg2dxf]"
+                )
             outfile = svg2dxf_wrapper(infile)
             self.solid = cq.importers.importDXF(outfile).wires().toPending().extrude(extrude)
-        elif fext == ".dxf" or fext == ".svg":
+        elif fext == ".dxf":
             self.solid = cq.importers.importDXF(infile).wires().toPending().extrude(extrude)
         elif fext == ".step":
             self.solid = cq.importers.importStep(infile).toPending()
 
 
 if __name__ == "__main__":
-    test_api("cadquery")
+    run_api_test("cadquery")

@@ -7,7 +7,7 @@ from __future__ import annotations
 from sly import Lexer
 
 import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../"))
 from b13d.api.utils import gen_scad_foo
 
 class OpenSCADLexer(Lexer):
@@ -32,11 +32,11 @@ class OpenSCADLexer(Lexer):
         'NUMBER', 'STRING', 'TRUE', 'FALSE', 'UNDEF',
         
         # Identifiers and special vars
-        'IDENTIFIER', 'SFN', 'SFA', 'SFS',
+        'IDENTIFIER', 'SFN', 'SFA', 'SFS', 'DOLLAR_ID',
         
         # Structural
         'LBRACE', 'RBRACE', 'LPAREN', 'RPAREN', 'LSQUARE', 'RSQUARE', 'COMMA', 'SEMICOLON',
-        'EQU', 'COLON', 'DOT', 'QUESTION', 'PIPE',
+        'EQU', 'COLON', 'DOT', 'QUESTION',
         
         # Arithmetic operators
         'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'MOD', 'CARET',
@@ -48,69 +48,82 @@ class OpenSCADLexer(Lexer):
         'AND', 'OR', 'NOT',
     )
     
-    ignore = ' \t\n'
-
-    # --- New transforms/operations (Order matters! Longest first) ---
-    LINEAR_EXTRUDE = r'linear_extrude'
-    ROTATE_EXTRUDE = r'rotate_extrude'
-    INTERSECTION_FOR = r'intersection_for'
-
-    # --- Existing shape/transform tokens ---
-    CUBE = r'cube'
-    SPHERE = r'sphere'
-    CYLINDER = r'cylinder'
-    POLYHEDRON = r'polyhedron'
-    UNION = r'union'
-    DIFFERENCE = r'difference'
-    INTERSECTION = r'intersection'
-    TRANSLATE = r'translate'
-    ROTATE = r'rotate'
-    SCALE = r'scale'
-    HULL = r'hull'
-
-    # --- New 2D primitives ---
-    SQUARE = r'square'
-    CIRCLE = r'circle'
-    POLYGON = r'polygon'
-    TEXT = r'text'
-
-    # --- New transforms/operations (Others) ---
-    MIRROR = r'mirror'
-    MULTMATRIX = r'multmatrix'
-    RESIZE = r'resize'
-    COLOR = r'color'
-    PROJECTION = r'projection'
-    MINKOWSKI = r'minkowski'
-    OFFSET = r'offset'
-
-    # --- New keywords ---
-    MODULE = r'module'
-    FUNCTION = r'function'
-    IF = r'if'
-    ELSE = r'else'
-    FOR = r'for'
-    LET = r'let'
-    EACH = r'each'
-    INCLUDE = r'include'
-    USE = r'use'
-    ASSERT = r'assert'
-    ECHO = r'echo'
-    CHILDREN = r'children'
-
-
-    # --- Literals ---
-    TRUE = r'true'
-    FALSE = r'false'
-    UNDEF = r'undef'
+    ignore = ' \t\n#'
 
     # --- Identifiers and special vars ---
+    # IDENTIFIER MUST be defined before all keyword tokens in the lexer class.
+    # SLY builds a single regex alternation from all token patterns in the order
+    # they are defined.  Since Python's re.match returns the FIRST matching
+    # alternative (not the longest), having a standalone pattern like
+    # cylinder=r'cylinder' before IDENTIFIER causes 'cylinderHeight' to be
+    # tokenized as CYLINDER('cylinder') + IDENTIFIER('Height').
+    # Placing IDENTIFIER first ensures it always wins, and the token function
+    # below remaps specific values to keyword types.
     IDENTIFIER = r'[a-zA-Z_][a-zA-Z0-9_]*'
+
+    # All keyword-like tokens (shapes, transforms, control flow, literals) are
+    # handled by the IDENTIFIER token function below — NO separate regex patterns
+    # are defined for them.  The tokens tuple still declares them so the parser
+    # can reference them.
+    _keywords = {
+        # Shapes
+        'cube': 'CUBE',
+        'sphere': 'SPHERE',
+        'cylinder': 'CYLINDER',
+        'polyhedron': 'POLYHEDRON',
+        'square': 'SQUARE',
+        'circle': 'CIRCLE',
+        'polygon': 'POLYGON',
+        'text': 'TEXT',
+        # Transforms / operations
+        'translate': 'TRANSLATE',
+        'rotate': 'ROTATE',
+        'scale': 'SCALE',
+        'union': 'UNION',
+        'difference': 'DIFFERENCE',
+        'intersection': 'INTERSECTION',
+        'hull': 'HULL',
+        'mirror': 'MIRROR',
+        'multmatrix': 'MULTMATRIX',
+        'resize': 'RESIZE',
+        'color': 'COLOR',
+        'projection': 'PROJECTION',
+        'minkowski': 'MINKOWSKI',
+        'offset': 'OFFSET',
+        'linear_extrude': 'LINEAR_EXTRUDE',
+        'rotate_extrude': 'ROTATE_EXTRUDE',
+        'intersection_for': 'INTERSECTION_FOR',
+        # Control flow / module keywords
+        'module': 'MODULE',
+        'function': 'FUNCTION',
+        'if': 'IF',
+        'else': 'ELSE',
+        'for': 'FOR',
+        'let': 'LET',
+        'each': 'EACH',
+        'include': 'INCLUDE',
+        'use': 'USE',
+        'assert': 'ASSERT',
+        'echo': 'ECHO',
+        'children': 'CHILDREN',
+        # Literals
+        'true': 'TRUE',
+        'false': 'FALSE',
+        'undef': 'UNDEF',
+    }
+
+    def IDENTIFIER(self, t):
+        t.type = self._keywords.get(t.value, 'IDENTIFIER')
+        return t
+
     SFN = r'\$fn'
     SFA = r'\$fa'
     SFS = r'\$fs'
+    # General $-prefixed special variable (e.g. $vpr, $vpt, $vpd, $t, $children)
+    DOLLAR_ID = r'\$[a-zA-Z_][a-zA-Z0-9_]*'
 
     # --- Number ---
-    NUMBER = r'[+-]?\d+(\.\d+)?([eE][+-]?\d+)?'
+    NUMBER = r'(?:\d+\.?\d*|\.\d+)([eE][+-]?\d+)?'
 
     # --- String literal ---
     STRING = r'"(?:[^"\\]|\\.)*"'
@@ -124,11 +137,19 @@ class OpenSCADLexer(Lexer):
     RSQUARE = r'\]'
     COMMA = r','
     SEMICOLON = r';'
+    EQ = r'=='
+    NEQ = r'!='
+    LE = r'<='
+    GE = r'>='
     EQU = r'='
+    LESS = r'<'
+    GREATER = r'>'
     COLON = r':'
     DOT = r'\.'
     QUESTION = r'\?'
-    PIPE = r'\|'
+    AND = r'&&'
+    OR = r'\|\|'
+    NOT = r'!'
 
     # --- Arithmetic operators ---
     PLUS = r'\+'
@@ -137,19 +158,6 @@ class OpenSCADLexer(Lexer):
     DIVIDE = r'/'
     MOD = r'%'
     CARET = r'\^'
-
-    # --- Comparison operators ---
-    LE = r'<='
-    GE = r'>='
-    EQ = r'=='
-    NEQ = r'!='
-    LESS = r'<'
-    GREATER = r'>'
-
-    # --- Logical operators ---
-    AND = r'&&'
-    OR = r'\|\|'
-    NOT = r'!'
 
     # --- Comments ---
     # Note: comments are handled in scad2ast() by preprocessing the source
@@ -177,11 +185,16 @@ def _strip_comments(code: str) -> str:
     """Strip // line comments and /* */ block comments from SCAD source code.
     Also transforms include/use <path> into include/use "path" to avoid
     lexer conflicts with comparison operators < and >.
+    Also strips SCAD debug modifier characters (# % !) that appear before
+    shape calls (these are visual-only modifiers in OpenSCAD and would
+    otherwise cause lexer errors).
     
     Handles:
     - Line comments: // ... until end of line
     - Block comments: /* ... */ (can span multiple lines)
-    - Preserves string literals (doesn't strip // or /* inside strings)
+    - Preserves string literals (doesn't strip //, /*, or modifiers inside strings)
+    - Does NOT strip * (multiplication operator, also a SCAD modifier but
+      impossible to distinguish from multiplication without a parser).
     """
     # Transform include/use <path> to "path"
     code = re.sub(r'(include|use)\s*<([^>]+)>', r'\1 "\2"', code)
@@ -216,6 +229,22 @@ def _strip_comments(code: str) -> str:
                         i += 2
                         break
                     i += 1
+                continue
+            
+            # Strip SCAD debug modifier characters (# %).
+            # These are NOT comments — they are visual-only modifiers in
+            # OpenSCAD that prefix shape calls. They do not affect geometry
+            # and must be removed to avoid lexer errors (# in particular
+            # causes SLY's ignore mechanism to misbehave).
+            # Do NOT strip '!' — it is the logical NOT operator in
+            # expressions (e.g. x!=y).  The reference lexer returns '!' as
+            # a character token and the parser distinguishes NOT from the
+            # debug-modifier prefix by context.
+            # Do NOT strip '*' here — it is both a modifier and the
+            # multiplication operator, and cannot be safely distinguished
+            # without a full parser.
+            if c in '#%':
+                i += 1
                 continue
         
         result.append(c)
@@ -256,3 +285,5 @@ if __name__ == "__main__":
         infname = sys.argv[1]
     
     ast = scad2ast(infname)
+
+

@@ -9,7 +9,7 @@ import textwrap
 from sly import Parser
 
 import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../"))
 
 from b13d.api.utils import gen_scad_foo, snake2camel, file_replace_extension
 from b1scad.scad2ast import scad2ast, OpenSCADLexer
@@ -27,6 +27,169 @@ from b1scad.ast_nodes import (
     IfStatement, ForLoop, LetBinding, FunctionDef, ModuleDef,
 )
 from b1scad.symbol_table import SymbolTable
+
+# CSS named colors mapped to (R, G, B) tuples (0-255 range).
+# Based on the CSS/SVG named color palette used by OpenSCAD.
+_CSS_COLORS: dict[str, tuple[int, int, int]] = {
+    'aliceblue': (240, 248, 255),
+    'antiquewhite': (250, 235, 215),
+    'aqua': (0, 255, 255),
+    'aquamarine': (127, 255, 212),
+    'azure': (240, 255, 255),
+    'beige': (245, 245, 220),
+    'bisque': (255, 228, 196),
+    'black': (0, 0, 0),
+    'blanchedalmond': (255, 235, 205),
+    'blue': (0, 0, 255),
+    'blueviolet': (138, 43, 226),
+    'brown': (165, 42, 42),
+    'burlywood': (222, 184, 135),
+    'cadetblue': (95, 158, 160),
+    'chartreuse': (127, 255, 0),
+    'chocolate': (210, 105, 30),
+    'coral': (255, 127, 80),
+    'cornflowerblue': (100, 149, 237),
+    'cornsilk': (255, 248, 220),
+    'crimson': (220, 20, 60),
+    'cyan': (0, 255, 255),
+    'darkblue': (0, 0, 139),
+    'darkcyan': (0, 139, 139),
+    'darkgoldenrod': (184, 134, 11),
+    'darkgray': (169, 169, 169),
+    'darkgreen': (0, 100, 0),
+    'darkkhaki': (189, 183, 107),
+    'darkmagenta': (139, 0, 139),
+    'darkolivegreen': (85, 107, 47),
+    'darkorange': (255, 140, 0),
+    'darkorchid': (153, 50, 204),
+    'darkred': (139, 0, 0),
+    'darksalmon': (233, 150, 122),
+    'darkseagreen': (143, 188, 143),
+    'darkslateblue': (72, 61, 139),
+    'darkslategray': (47, 79, 79),
+    'darkturquoise': (0, 206, 209),
+    'darkviolet': (148, 0, 211),
+    'deeppink': (255, 20, 147),
+    'deepskyblue': (0, 191, 255),
+    'dimgray': (105, 105, 105),
+    'dodgerblue': (30, 144, 255),
+    'firebrick': (178, 34, 34),
+    'floralwhite': (255, 250, 240),
+    'forestgreen': (34, 139, 34),
+    'fuchsia': (255, 0, 255),
+    'gainsboro': (220, 220, 220),
+    'ghostwhite': (248, 248, 255),
+    'gold': (255, 215, 0),
+    'goldenrod': (218, 165, 32),
+    'gray': (128, 128, 128),
+    'green': (0, 128, 0),
+    'greenyellow': (173, 255, 47),
+    'honeydew': (240, 255, 240),
+    'hotpink': (255, 105, 180),
+    'indianred': (205, 92, 92),
+    'indigo': (75, 0, 130),
+    'ivory': (255, 255, 240),
+    'khaki': (240, 230, 140),
+    'lavender': (230, 230, 250),
+    'lavenderblush': (255, 240, 245),
+    'lawngreen': (124, 252, 0),
+    'lemonchiffon': (255, 250, 205),
+    'lightblue': (173, 216, 230),
+    'lightcoral': (240, 128, 128),
+    'lightcyan': (224, 255, 255),
+    'lightgoldenrodyellow': (250, 250, 210),
+    'lightgray': (211, 211, 211),
+    'lightgreen': (144, 238, 144),
+    'lightpink': (255, 182, 193),
+    'lightsalmon': (255, 160, 122),
+    'lightseagreen': (32, 178, 170),
+    'lightskyblue': (135, 206, 250),
+    'lightslategray': (119, 136, 153),
+    'lightsteelblue': (176, 196, 222),
+    'lightyellow': (255, 255, 224),
+    'lime': (0, 255, 0),
+    'limegreen': (50, 205, 50),
+    'linen': (250, 240, 230),
+    'magenta': (255, 0, 255),
+    'maroon': (128, 0, 0),
+    'mediumaquamarine': (102, 205, 170),
+    'mediumblue': (0, 0, 205),
+    'mediumorchid': (186, 85, 211),
+    'mediumpurple': (147, 112, 219),
+    'mediumseagreen': (60, 179, 113),
+    'mediumslateblue': (123, 104, 238),
+    'mediumspringgreen': (0, 250, 154),
+    'mediumturquoise': (72, 209, 204),
+    'mediumvioletred': (199, 21, 133),
+    'midnightblue': (25, 25, 112),
+    'mintcream': (245, 255, 250),
+    'mistyrose': (255, 228, 225),
+    'moccasin': (255, 228, 181),
+    'navajowhite': (255, 222, 173),
+    'navy': (0, 0, 128),
+    'oldlace': (253, 245, 230),
+    'olive': (128, 128, 0),
+    'olivedrab': (107, 142, 35),
+    'orange': (255, 165, 0),
+    'orangered': (255, 69, 0),
+    'orchid': (218, 112, 214),
+    'palegoldenrod': (238, 232, 170),
+    'palegreen': (152, 251, 152),
+    'paleturquoise': (175, 238, 238),
+    'palevioletred': (219, 112, 147),
+    'papayawhip': (255, 239, 213),
+    'peachpuff': (255, 218, 185),
+    'peru': (205, 133, 63),
+    'pink': (255, 192, 203),
+    'plum': (221, 160, 221),
+    'powderblue': (176, 224, 230),
+    'purple': (128, 0, 128),
+    'rebeccapurple': (102, 51, 153),
+    'red': (255, 0, 0),
+    'rosybrown': (188, 143, 143),
+    'royalblue': (65, 105, 225),
+    'saddlebrown': (139, 69, 19),
+    'salmon': (250, 128, 114),
+    'sandybrown': (244, 164, 96),
+    'seagreen': (46, 139, 87),
+    'seashell': (255, 245, 238),
+    'sienna': (160, 82, 45),
+    'silver': (192, 192, 192),
+    'skyblue': (135, 206, 235),
+    'slateblue': (106, 90, 205),
+    'slategray': (112, 128, 144),
+    'snow': (255, 250, 250),
+    'springgreen': (0, 255, 127),
+    'steelblue': (70, 130, 180),
+    'tan': (210, 180, 140),
+    'teal': (0, 128, 128),
+    'thistle': (216, 191, 216),
+    'tomato': (255, 99, 71),
+    'turquoise': (64, 224, 208),
+    'violet': (238, 130, 238),
+    'wheat': (245, 222, 179),
+    'white': (255, 255, 255),
+    'whitesmoke': (245, 245, 245),
+    'yellow': (255, 255, 0),
+    'yellowgreen': (154, 205, 50),
+}
+
+def _resolve_color_arg(arg_node):
+    """Convert an OpenSCAD color argument to a Python expression string.
+    
+    Handles:
+      - String literals ("Blue" → (0, 0, 255))
+      - Vector literals ([r,g,b] → passed through as tuple)
+      - Expressions (passed through as-is)
+    """
+    if isinstance(arg_node, StringLiteral):
+        name = arg_node.value.strip()
+        rgb = _CSS_COLORS.get(name.lower())
+        if rgb is not None:
+            return str(rgb)
+        # Unknown color name — emit repr so the user can see the problematic value
+        return repr(arg_node.value)
+    return None  # caller should visit normally
 
 
 
@@ -65,11 +228,26 @@ class OpenSCADParser(Parser):
         return t.statements + [t.statement]
 
     # ============================================================
+    # Block (brace-enclosed statement list)
+    # ============================================================
+    @_('LBRACE statements RBRACE')
+    def block(self, p):
+        return Block(p.statements)
+
+    @_('LBRACE RBRACE')
+    def block(self, p):
+        return Block([])
+
+    # ============================================================
     # Statements
     # ============================================================
     @_("shape_statement")
     def statement(self, t):
         return t.shape_statement
+
+    @_('SEMICOLON')
+    def statement(self, p):
+        return Block([])
 
     @_("assignment_statement")
     def statement(self, t):
@@ -130,13 +308,9 @@ class OpenSCADParser(Parser):
     def shape_statement(self, p):
         return FunctionCall(p.IDENTIFIER, [], _args_to_dict(p.args))
 
-    @_('IDENTIFIER LPAREN args RPAREN LBRACE statements RBRACE')
+    @_('IDENTIFIER LPAREN args RPAREN block')
     def shape_statement(self, p):
         return FunctionCall(p.IDENTIFIER, [], _args_to_dict(p.args))
-
-    @_('IDENTIFIER LPAREN args RPAREN shape_call SEMICOLON')
-    def shape_statement(self, p):
-        return FunctionCall(p.IDENTIFIER, [p.shape_call], _args_to_dict(p.args))
 
     @_('IDENTIFIER LPAREN args RPAREN shape_statement')
     def shape_statement(self, p):
@@ -146,7 +320,7 @@ class OpenSCADParser(Parser):
     def shape_statement(self, p):
         return ChildrenRef(_args_to_dict(p.args))
 
-    @_('CHILDREN LPAREN args RPAREN LBRACE statements RBRACE')
+    @_('CHILDREN LPAREN args RPAREN block')
     def shape_statement(self, p):
         return ChildrenRef(_args_to_dict(p.args))
 
@@ -198,8 +372,9 @@ class OpenSCADParser(Parser):
     def shape_call(self, p):
         args = _args_to_dict(p.args)
         text_val = args.get(0, args.get('text', ''))
-        if not isinstance(text_val, str):
-            text_val = str(text_val)
+        # Keep AST nodes as-is for variable inlining; convert StringLiteral to str.
+        if isinstance(text_val, StringLiteral):
+            text_val = text_val.value
         return Text2D(
             text=text_val,
             size=args.get('size'),
@@ -215,94 +390,173 @@ class OpenSCADParser(Parser):
     # ============================================================
     # Transform operations (with body)
     # ============================================================
-    @_('TRANSLATE LPAREN named_vector RPAREN LBRACE statements RBRACE')
+    @_('TRANSLATE LPAREN named_vector RPAREN block')
     def transform_op(self, p):
-        return Transform('translate', {'v': p.named_vector}, Block(p.statements))
+        return Transform('translate', {'v': p.named_vector}, p.block)
 
-    @_('ROTATE LPAREN named_vector RPAREN LBRACE statements RBRACE')
-    def transform_op(self, p):
-        return Transform('rotate', {'a': p.named_vector}, Block(p.statements))
+    @_('TRANSLATE LPAREN named_vector RPAREN shape_statement')
+    def shape_statement(self, p):
+        return Transform('translate', {'v': p.named_vector}, p.shape_statement)
 
-    @_('SCALE LPAREN named_vector RPAREN LBRACE statements RBRACE')
+    @_('ROTATE LPAREN args RPAREN block')
     def transform_op(self, p):
-        return Transform('scale', {'v': p.named_vector}, Block(p.statements))
+        return Transform('rotate', _args_to_dict(p.args), p.block)
 
-    @_('MIRROR LPAREN args RPAREN LBRACE statements RBRACE')
-    def transform_op(self, p):
-        return Transform('mirror', _args_to_dict(p.args), Block(p.statements))
+    @_('ROTATE LPAREN args RPAREN shape_statement')
+    def shape_statement(self, p):
+        return Transform('rotate', _args_to_dict(p.args), p.shape_statement)
 
-    @_('COLOR LPAREN args RPAREN LBRACE statements RBRACE')
+    @_('SCALE LPAREN named_vector RPAREN block')
     def transform_op(self, p):
-        return Transform('color', _args_to_dict(p.args), Block(p.statements))
+        return Transform('scale', {'v': p.named_vector}, p.block)
 
-    @_('RESIZE LPAREN args RPAREN LBRACE statements RBRACE')
-    def transform_op(self, p):
-        return Transform('resize', _args_to_dict(p.args), Block(p.statements))
+    @_('SCALE LPAREN named_vector RPAREN shape_statement')
+    def shape_statement(self, p):
+        return Transform('scale', {'v': p.named_vector}, p.shape_statement)
 
-    @_('MULTMATRIX LPAREN args RPAREN LBRACE statements RBRACE')
+    @_('MIRROR LPAREN args RPAREN block')
     def transform_op(self, p):
-        return Transform('multmatrix', _args_to_dict(p.args), Block(p.statements))
+        return Transform('mirror', _args_to_dict(p.args), p.block)
+
+    @_('MIRROR LPAREN args RPAREN shape_statement')
+    def shape_statement(self, p):
+        return Transform('mirror', _args_to_dict(p.args), p.shape_statement)
+
+    @_('COLOR LPAREN args RPAREN block')
+    def transform_op(self, p):
+        return Transform('color', _args_to_dict(p.args), p.block)
+
+    @_('COLOR LPAREN args RPAREN shape_statement')
+    def shape_statement(self, p):
+        return Transform('color', _args_to_dict(p.args), p.shape_statement)
+
+    @_('RESIZE LPAREN args RPAREN block')
+    def transform_op(self, p):
+        return Transform('resize', _args_to_dict(p.args), p.block)
+
+    @_('RESIZE LPAREN args RPAREN shape_statement')
+    def shape_statement(self, p):
+        return Transform('resize', _args_to_dict(p.args), p.shape_statement)
+
+    @_('MULTMATRIX LPAREN args RPAREN block')
+    def transform_op(self, p):
+        return Transform('multmatrix', _args_to_dict(p.args), p.block)
+
+    @_('MULTMATRIX LPAREN args RPAREN shape_statement')
+    def shape_statement(self, p):
+        return Transform('multmatrix', _args_to_dict(p.args), p.shape_statement)
 
     # ============================================================
     # Boolean operations
     # ============================================================
-    @_('UNION LPAREN RPAREN LBRACE statements RBRACE')
+    @_('UNION LPAREN RPAREN block')
     def boolean_op(self, p):
-        return BooleanOp('union', p.statements)
+        return BooleanOp('union', p.block.statements)
 
-    @_('DIFFERENCE LPAREN RPAREN LBRACE statements RBRACE')
-    def boolean_op(self, p):
-        return BooleanOp('difference', p.statements)
+    @_('UNION LPAREN RPAREN shape_statement')
+    def shape_statement(self, p):
+        return BooleanOp('union', [p.shape_statement])
 
-    @_('INTERSECTION LPAREN RPAREN LBRACE statements RBRACE')
+    @_('DIFFERENCE LPAREN RPAREN block')
     def boolean_op(self, p):
-        return BooleanOp('intersection', p.statements)
+        return BooleanOp('difference', p.block.statements)
 
-    @_('HULL LPAREN RPAREN LBRACE statements RBRACE')
-    def boolean_op(self, p):
-        return Hull(p.statements)
+    @_('DIFFERENCE LPAREN RPAREN shape_statement')
+    def shape_statement(self, p):
+        return BooleanOp('difference', [p.shape_statement])
 
-    @_('INTERSECTION_FOR LPAREN for_init RPAREN LBRACE statements RBRACE')
+    @_('INTERSECTION LPAREN RPAREN block')
     def boolean_op(self, p):
-        return IntersectionFor(p.for_init[0], p.for_init[1], Block(p.statements))
+        return BooleanOp('intersection', p.block.statements)
+
+    @_('INTERSECTION LPAREN RPAREN shape_statement')
+    def shape_statement(self, p):
+        return BooleanOp('intersection', [p.shape_statement])
+
+    @_('HULL LPAREN RPAREN block')
+    def boolean_op(self, p):
+        return Hull(p.block.statements)
+
+    @_('HULL LPAREN RPAREN shape_statement')
+    def shape_statement(self, p):
+        return Hull([p.shape_statement])
+
+    @_('INTERSECTION_FOR LPAREN for_init RPAREN block')
+    def boolean_op(self, p):
+        return IntersectionFor(p.for_init[0], p.for_init[1], p.block)
 
     # ============================================================
     # Extrude operations
     # ============================================================
-    @_('LINEAR_EXTRUDE LPAREN args RPAREN LBRACE statements RBRACE')
+    @_('LINEAR_EXTRUDE LPAREN args RPAREN block')
     def transform_op(self, p):
         args = _args_to_dict(p.args)
         return LinearExtrude(
             height=args.get('height', args.get(0, NumberLiteral(100))),
-            body=Block(p.statements),
+            body=p.block,
             twist=args.get('twist'),
             scale=args.get('scale'),
             center=args.get('center', False)
         )
 
-    @_('ROTATE_EXTRUDE LPAREN args RPAREN LBRACE statements RBRACE')
+    @_('LINEAR_EXTRUDE LPAREN args RPAREN shape_statement')
+    def shape_statement(self, p):
+        args = _args_to_dict(p.args)
+        return LinearExtrude(
+            height=args.get('height', args.get(0, NumberLiteral(100))),
+            body=p.shape_statement,
+            twist=args.get('twist'),
+            scale=args.get('scale'),
+            center=args.get('center', False)
+        )
+
+    @_('ROTATE_EXTRUDE LPAREN args RPAREN block')
     def transform_op(self, p):
         args = _args_to_dict(p.args)
         return RotateExtrude(
             angle=args.get('angle', args.get(0)),
-            body=Block(p.statements)
+            body=p.block
         )
 
-    @_('OFFSET LPAREN args RPAREN LBRACE statements RBRACE')
+    @_('ROTATE_EXTRUDE LPAREN args RPAREN shape_statement')
+    def shape_statement(self, p):
+        args = _args_to_dict(p.args)
+        return RotateExtrude(
+            angle=args.get('angle', args.get(0)),
+            body=p.shape_statement
+        )
+
+    @_('OFFSET LPAREN args RPAREN block')
     def transform_op(self, p):
         args = _args_to_dict(p.args)
         return Offset(
             radius=args.get('r', args.get('delta', args.get(0))),
-            body=Block(p.statements)
+            body=p.block
         )
 
-    @_('PROJECTION LPAREN args RPAREN LBRACE statements RBRACE')
-    def transform_op(self, p):
-        return Transform('projection', _args_to_dict(p.args), Block(p.statements))
+    @_('OFFSET LPAREN args RPAREN shape_statement')
+    def shape_statement(self, p):
+        args = _args_to_dict(p.args)
+        return Offset(
+            radius=args.get('r', args.get('delta', args.get(0))),
+            body=p.shape_statement
+        )
 
-    @_('MINKOWSKI LPAREN RPAREN LBRACE statements RBRACE')
+    @_('PROJECTION LPAREN args RPAREN block')
     def transform_op(self, p):
-        return Minkowski(p.statements)
+        return Transform('projection', _args_to_dict(p.args), p.block)
+
+    @_('PROJECTION LPAREN args RPAREN shape_statement')
+    def shape_statement(self, p):
+        return Transform('projection', _args_to_dict(p.args), p.shape_statement)
+
+    @_('MINKOWSKI LPAREN RPAREN block')
+    def transform_op(self, p):
+        return Minkowski(p.block.statements)
+
+    @_('MINKOWSKI LPAREN RPAREN shape_statement')
+    def shape_statement(self, p):
+        return Minkowski([p.shape_statement])
 
     # (Module call rules moved to shape_statement above)
     
@@ -313,16 +567,40 @@ class OpenSCADParser(Parser):
     def assignment_statement(self, p):
         return Assignment(p.IDENTIFIER, p.expr)
 
+    @_('SFS EQU expr SEMICOLON')
+    def assignment_statement(self, p):
+        return Assignment('$fs', p.expr)
+
+    @_('SFA EQU expr SEMICOLON')
+    def assignment_statement(self, p):
+        return Assignment('$fa', p.expr)
+
+    @_('SFN EQU expr SEMICOLON')
+    def assignment_statement(self, p):
+        return Assignment('$fn', p.expr)
+
+    @_('DOLLAR_ID EQU expr SEMICOLON')
+    def assignment_statement(self, p):
+        return Assignment(p.DOLLAR_ID, p.expr)
+
     # ============================================================
     # Module definition
     # ============================================================
-    @_('MODULE IDENTIFIER LPAREN RPAREN LBRACE statements RBRACE')
+    @_('MODULE IDENTIFIER LPAREN RPAREN block')
     def module_def_statement(self, p):
-        return ModuleDef(p.IDENTIFIER, [], Block(p.statements))
+        return ModuleDef(p.IDENTIFIER, [], p.block)
 
-    @_('MODULE IDENTIFIER LPAREN param_list RPAREN LBRACE statements RBRACE')
+    @_('MODULE IDENTIFIER LPAREN param_list RPAREN block')
     def module_def_statement(self, p):
-        return ModuleDef(p.IDENTIFIER, p.param_list, Block(p.statements))
+        return ModuleDef(p.IDENTIFIER, p.param_list, p.block)
+
+    @_('MODULE IDENTIFIER LPAREN RPAREN statement')
+    def module_def_statement(self, p):
+        return ModuleDef(p.IDENTIFIER, [], p.statement)
+
+    @_('MODULE IDENTIFIER LPAREN param_list RPAREN statement')
+    def module_def_statement(self, p):
+        return ModuleDef(p.IDENTIFIER, p.param_list, p.statement)
 
     # ============================================================
     # Function definition
@@ -354,27 +632,55 @@ class OpenSCADParser(Parser):
     def param(self, p):
         return (p.IDENTIFIER, p.expr)
 
+    @_('SFN EQU expr')
+    def param(self, p):
+        return ('$fn', p.expr)
+
+    @_('SFA EQU expr')
+    def param(self, p):
+        return ('$fa', p.expr)
+
+    @_('SFS EQU expr')
+    def param(self, p):
+        return ('$fs', p.expr)
+
+    @_('DOLLAR_ID EQU expr')
+    def param(self, p):
+        return (p.DOLLAR_ID, p.expr)
+
+    @_('DOLLAR_ID')
+    def param(self, p):
+        return (p.DOLLAR_ID, None)
+
     # ============================================================
     # If/else statement
     # ============================================================
-    @_('IF LPAREN expr RPAREN LBRACE statements RBRACE')
+    @_('IF LPAREN expr RPAREN block')
     def if_else_statement(self, p):
-        return IfStatement(p.expr, Block(p.statements), None)
+        return IfStatement(p.expr, p.block, None)
 
-    @_('IF LPAREN expr RPAREN LBRACE statements RBRACE ELSE LBRACE statements RBRACE')
+    @_('IF LPAREN expr RPAREN statement')
     def if_else_statement(self, p):
-        return IfStatement(p.expr, Block(p.statements0), Block(p.statements1))
+        return IfStatement(p.expr, p.statement, None)
 
-    @_('IF LPAREN expr RPAREN LBRACE statements RBRACE ELSE if_else_statement')
+    @_('IF LPAREN expr RPAREN block ELSE block')
     def if_else_statement(self, p):
-        return IfStatement(p.expr, Block(p.statements), p.if_else_statement)
+        return IfStatement(p.expr, p.block0, p.block1)
+
+    @_('IF LPAREN expr RPAREN block ELSE if_else_statement')
+    def if_else_statement(self, p):
+        return IfStatement(p.expr, p.block, p.if_else_statement)
+
+    @_('IF LPAREN expr RPAREN statement ELSE statement')
+    def if_else_statement(self, p):
+        return IfStatement(p.expr, p.statement0, p.statement1)
 
     # ============================================================
     # For loop
     # ============================================================
-    @_('FOR LPAREN for_init RPAREN LBRACE statements RBRACE')
+    @_('FOR LPAREN for_init RPAREN block')
     def for_loop_statement(self, p):
-        return ForLoop(p.for_init[0], p.for_init[1], Block(p.statements))
+        return ForLoop(p.for_init[0], p.for_init[1], p.block)
 
     @_('IDENTIFIER EQU expr')
     def for_init(self, p):
@@ -383,9 +689,9 @@ class OpenSCADParser(Parser):
     # ============================================================
     # Let binding
     # ============================================================
-    @_('LET LPAREN let_bindings RPAREN LBRACE statements RBRACE')
+    @_('LET LPAREN let_bindings RPAREN block')
     def let_statement(self, p):
-        return LetBinding(p.let_bindings, Block(p.statements))
+        return LetBinding(p.let_bindings, p.block)
 
     @_('let_binding')
     def let_bindings(self, p):
@@ -406,7 +712,15 @@ class OpenSCADParser(Parser):
     def include_statement(self, p):
         return IncludeDirective(p.STRING)
 
+    @_('INCLUDE STRING')
+    def include_statement(self, p):
+        return IncludeDirective(p.STRING)
+
     @_('USE STRING SEMICOLON')
+    def use_statement(self, p):
+        return UseDirective(p.STRING)
+
+    @_('USE STRING')
     def use_statement(self, p):
         return UseDirective(p.STRING)
 
@@ -591,6 +905,10 @@ class OpenSCADParser(Parser):
     def primary(self, t):
         return SpecialVar('$fs')
 
+    @_('DOLLAR_ID')
+    def primary(self, t):
+        return SpecialVar(t.DOLLAR_ID)
+
     @_('LPAREN expr RPAREN')
     def primary(self, t):
         return t.expr
@@ -652,9 +970,27 @@ class OpenSCADParser(Parser):
     # ============================================================
     # Named arguments
     # ============================================================
-    @_('SFN EQU NUMBER')
+    @_('SFN EQU expr')
     def arg(self, p):
-        return ('$fn', NumberLiteral(p.NUMBER))
+        return ('$fn', p.expr)
+
+    @_('SFA EQU expr')
+    def arg(self, p):
+        return ('$fa', p.expr)
+
+    @_('SFS EQU expr')
+    def arg(self, p):
+        return ('$fs', p.expr)
+
+    @_('DOLLAR_ID EQU expr')
+    def arg(self, p):
+        return (p.DOLLAR_ID, p.expr)
+
+    # Keyword tokens that can also appear as named argument keys
+    # (e.g. linear_extrude(..., scale=0.2))
+    @_('SCALE EQU expr')
+    def arg(self, p):
+        return ('scale', p.expr)
 
     @_('IDENTIFIER EQU expr')
     def arg(self, p):
@@ -693,13 +1029,13 @@ class OpenSCADParser(Parser):
     # ============================================================
     # Named vector (for translate/rotate/scale)
     # ============================================================
-    @_('IDENTIFIER EQU vector')
+    @_('IDENTIFIER EQU expr')
     def named_vector(self, p):
-        return p.vector
+        return p.expr
 
-    @_('vector')
+    @_('expr')
     def named_vector(self, p):
-        return p.vector
+        return p.expr
 
 
 def _args_to_dict(args_list):
@@ -988,14 +1324,37 @@ class SymbolTableVisitor:
 # Variable Inlining: replace Identifier nodes with their assigned values
 # ============================================================
 
-def _replace_identifiers(node: ASTNode, var_map: dict[str, ASTNode]) -> ASTNode:
+def _is_zero(node: ASTNode) -> bool:
+    """Check if an AST node represents the numeric value zero (literal or negated)."""
+    if isinstance(node, NumberLiteral):
+        return node.value == 0
+    if isinstance(node, UnaryOp) and node.operator == '-':
+        return _is_zero(node.operand)
+    return False
+
+
+def _is_float_literal(node: ASTNode) -> bool:
+    """Check if an AST node is a NumberLiteral with a float value."""
+    return isinstance(node, NumberLiteral) and isinstance(node.value, float)
+
+
+def _replace_identifiers(node: ASTNode, var_map: dict[str, ASTNode],
+                         _visiting: set[str] | None = None) -> ASTNode:
     """Deep copy walk of the AST, replacing Identifier nodes with their
     inlined values from var_map.
     
     When an Identifier node is found whose name matches a key in var_map,
     returns a deep copy of the corresponding value node. Otherwise,
     recursively processes child nodes and returns a new same-type node.
+    
+    A ``_visiting`` set tracks identifiers currently being expanded to
+    detect and break cycles (e.g. ``circular_pitch = (circular_pitch!=false
+    ? circular_pitch : ...)``).  When a cycle is detected the Identifier
+    node is returned as-is.
     """
+    if _visiting is None:
+        _visiting = set()
+
     # Leaf nodes that need no recursion
     if isinstance(node, (NumberLiteral, StringLiteral, BooleanLiteral, UndefLiteral, SpecialVar)):
         return node
@@ -1003,195 +1362,203 @@ def _replace_identifiers(node: ASTNode, var_map: dict[str, ASTNode]) -> ASTNode:
     # Identifier: substitute if in map
     if isinstance(node, Identifier):
         if node.name in var_map:
-            return _replace_identifiers(var_map[node.name], var_map)
+            if node.name in _visiting:
+                # Cycle detected — leave the identifier in place
+                return node
+            _visiting.add(node.name)
+            try:
+                return _replace_identifiers(var_map[node.name], var_map, _visiting)
+            finally:
+                _visiting.discard(node.name)
         return node
     
     # UnaryOp
     if isinstance(node, UnaryOp):
-        return UnaryOp(node.operator, _replace_identifiers(node.operand, var_map))
+        return UnaryOp(node.operator, _replace_identifiers(node.operand, var_map, _visiting))
     
     # BinaryOp
     if isinstance(node, BinaryOp):
         return BinaryOp(node.operator,
-                        _replace_identifiers(node.left, var_map),
-                        _replace_identifiers(node.right, var_map))
+                        _replace_identifiers(node.left, var_map, _visiting),
+                        _replace_identifiers(node.right, var_map, _visiting))
     
     # TernaryOp
     if isinstance(node, TernaryOp):
-        return TernaryOp(_replace_identifiers(node.condition, var_map),
-                         _replace_identifiers(node.true_expr, var_map),
-                         _replace_identifiers(node.false_expr, var_map))
+        return TernaryOp(_replace_identifiers(node.condition, var_map, _visiting),
+                         _replace_identifiers(node.true_expr, var_map, _visiting),
+                         _replace_identifiers(node.false_expr, var_map, _visiting))
     
     # VectorLiteral
     if isinstance(node, VectorLiteral):
-        return VectorLiteral([_replace_identifiers(e, var_map) for e in node.elements])
+        return VectorLiteral([_replace_identifiers(e, var_map, _visiting) for e in node.elements])
     
     # RangeLiteral
     if isinstance(node, RangeLiteral):
-        new_step = _replace_identifiers(node.step, var_map) if node.step else None
-        return RangeLiteral(_replace_identifiers(node.start, var_map),
-                            _replace_identifiers(node.end, var_map),
+        new_step = _replace_identifiers(node.step, var_map, _visiting) if node.step else None
+        return RangeLiteral(_replace_identifiers(node.start, var_map, _visiting),
+                            _replace_identifiers(node.end, var_map, _visiting),
                             new_step)
     
     # ShapeCall
     if isinstance(node, ShapeCall):
-        new_args = {k: _replace_identifiers(v, var_map) if isinstance(v, ASTNode) else v
+        new_args = {k: _replace_identifiers(v, var_map, _visiting) if isinstance(v, ASTNode) else v
                     for k, v in node.named_args.items()}
         return ShapeCall(node.function_name, [], new_args)
     
     # Square2D
     if isinstance(node, Square2D):
-        return Square2D(_replace_identifiers(node.size, var_map), node.center)
+        return Square2D(_replace_identifiers(node.size, var_map, _visiting), node.center)
     
     # Circle2D
     if isinstance(node, Circle2D):
-        new_r = _replace_identifiers(node.radius, var_map) if node.radius else None
-        new_d = _replace_identifiers(node.diameter, var_map) if node.diameter else None
+        new_r = _replace_identifiers(node.radius, var_map, _visiting) if node.radius else None
+        new_d = _replace_identifiers(node.diameter, var_map, _visiting) if node.diameter else None
         return Circle2D(new_r, new_d)
     
     # Polygon2D
     if isinstance(node, Polygon2D):
-        new_paths = _replace_identifiers(node.paths, var_map) if node.paths else None
-        return Polygon2D(_replace_identifiers(node.points, var_map), new_paths, node.convexity)
+        new_paths = _replace_identifiers(node.paths, var_map, _visiting) if node.paths else None
+        return Polygon2D(_replace_identifiers(node.points, var_map, _visiting), new_paths, node.convexity)
     
     # Text2D
     if isinstance(node, Text2D):
-        new_size = _replace_identifiers(node.size, var_map) if node.size else None
-        new_spacing = _replace_identifiers(node.spacing, var_map) if node.spacing else None
-        return Text2D(node.text, new_size, node.font, node.halign, node.valign,
+        new_text = _replace_identifiers(node.text, var_map, _visiting) if isinstance(node.text, ASTNode) else node.text
+        new_size = _replace_identifiers(node.size, var_map, _visiting) if node.size else None
+        new_spacing = _replace_identifiers(node.spacing, var_map, _visiting) if node.spacing else None
+        return Text2D(new_text, new_size, node.font, node.halign, node.valign,
                       new_spacing, node.direction, node.language, node.script)
     
     # Transform
     if isinstance(node, Transform):
         new_params = {}
         for k, v in node.params.items():
-            new_params[k] = _replace_identifiers(v, var_map) if isinstance(v, ASTNode) else v
+            new_params[k] = _replace_identifiers(v, var_map, _visiting) if isinstance(v, ASTNode) else v
         return Transform(node.transform_type, new_params,
-                         _replace_identifiers(node.body, var_map))
+                         _replace_identifiers(node.body, var_map, _visiting))
     
     # BooleanOp
     if isinstance(node, BooleanOp):
         return BooleanOp(node.operation,
-                         [_replace_identifiers(op, var_map) for op in node.operands])
+                         [_replace_identifiers(op, var_map, _visiting) for op in node.operands])
     
     # Hull
     if isinstance(node, Hull):
-        return Hull([_replace_identifiers(op, var_map) for op in node.operands])
+        return Hull([_replace_identifiers(op, var_map, _visiting) for op in node.operands])
     
     # Minkowski
     if isinstance(node, Minkowski):
-        return Minkowski([_replace_identifiers(op, var_map) for op in node.operands])
+        return Minkowski([_replace_identifiers(op, var_map, _visiting) for op in node.operands])
     
     # LinearExtrude
     if isinstance(node, LinearExtrude):
-        new_twist = _replace_identifiers(node.twist, var_map) if node.twist else None
-        new_scale = _replace_identifiers(node.scale, var_map) if node.scale else None
-        new_body = _replace_identifiers(node.body, var_map) if node.body else None
-        return LinearExtrude(_replace_identifiers(node.height, var_map), new_body,
+        new_twist = _replace_identifiers(node.twist, var_map, _visiting) if node.twist else None
+        new_scale = _replace_identifiers(node.scale, var_map, _visiting) if node.scale else None
+        new_body = _replace_identifiers(node.body, var_map, _visiting) if node.body else None
+        return LinearExtrude(_replace_identifiers(node.height, var_map, _visiting), new_body,
                              new_twist, new_scale, node.center)
     
     # RotateExtrude
     if isinstance(node, RotateExtrude):
-        new_body = _replace_identifiers(node.body, var_map) if node.body else None
-        return RotateExtrude(_replace_identifiers(node.angle, var_map), new_body)
+        new_body = _replace_identifiers(node.body, var_map, _visiting) if node.body else None
+        return RotateExtrude(_replace_identifiers(node.angle, var_map, _visiting), new_body)
     
     # Offset
     if isinstance(node, Offset):
-        new_body = _replace_identifiers(node.body, var_map) if node.body else None
-        return Offset(_replace_identifiers(node.radius, var_map), new_body)
+        new_body = _replace_identifiers(node.body, var_map, _visiting) if node.body else None
+        return Offset(_replace_identifiers(node.radius, var_map, _visiting), new_body)
     
     # Block
     if isinstance(node, Block):
-        return Block([_replace_identifiers(s, var_map) for s in node.statements])
+        return Block([_replace_identifiers(s, var_map, _visiting) for s in node.statements])
     
     # FunctionCall
     if isinstance(node, FunctionCall):
-        new_args = {k: _replace_identifiers(v, var_map) if isinstance(v, ASTNode) else v
+        new_args = {k: _replace_identifiers(v, var_map, _visiting) if isinstance(v, ASTNode) else v
                     for k, v in node.named_arguments.items()}
-        new_children = [_replace_identifiers(c, var_map) for c in node.arguments]
+        new_children = [_replace_identifiers(c, var_map, _visiting) for c in node.arguments]
         return FunctionCall(node.name, new_children, new_args)
     
     # FunctionCallExpr
     if isinstance(node, FunctionCallExpr):
-        new_args = {k: _replace_identifiers(v, var_map) if isinstance(v, ASTNode) else v
+        new_args = {k: _replace_identifiers(v, var_map, _visiting) if isinstance(v, ASTNode) else v
                     for k, v in node.named_arguments.items()}
-        new_children = [_replace_identifiers(c, var_map) for c in node.arguments]
-        return FunctionCallExpr(_replace_identifiers(node.callee, var_map), new_children, new_args)
+        new_children = [_replace_identifiers(c, var_map, _visiting) for c in node.arguments]
+        return FunctionCallExpr(_replace_identifiers(node.callee, var_map, _visiting), new_children, new_args)
     
     # ArrayAccess
     if isinstance(node, ArrayAccess):
-        return ArrayAccess(_replace_identifiers(node.target, var_map),
-                           _replace_identifiers(node.index, var_map))
+        return ArrayAccess(_replace_identifiers(node.target, var_map, _visiting),
+                           _replace_identifiers(node.index, var_map, _visiting))
     
     # MemberAccess
     if isinstance(node, MemberAccess):
-        return MemberAccess(_replace_identifiers(node.target, var_map), node.member)
+        return MemberAccess(_replace_identifiers(node.target, var_map, _visiting), node.member)
     
     # IfStatement
     if isinstance(node, IfStatement):
-        new_else = _replace_identifiers(node.else_body, var_map) if node.else_body else None
-        return IfStatement(_replace_identifiers(node.condition, var_map),
-                           _replace_identifiers(node.then_body, var_map),
+        new_else = _replace_identifiers(node.else_body, var_map, _visiting) if node.else_body else None
+        return IfStatement(_replace_identifiers(node.condition, var_map, _visiting),
+                           _replace_identifiers(node.then_body, var_map, _visiting),
                            new_else)
     
     # ForLoop
     if isinstance(node, ForLoop):
         return ForLoop(node.variable,
-                       _replace_identifiers(node.values, var_map),
-                       _replace_identifiers(node.body, var_map))
+                       _replace_identifiers(node.values, var_map, _visiting),
+                       _replace_identifiers(node.body, var_map, _visiting))
     
     # LetBinding
     if isinstance(node, LetBinding):
         new_assigns = []
         for a in node.assignments:
-            new_assigns.append(Assignment(a.name, _replace_identifiers(a.value, var_map)))
-        return LetBinding(new_assigns, _replace_identifiers(node.body, var_map))
+            new_assigns.append(Assignment(a.name, _replace_identifiers(a.value, var_map, _visiting)))
+        return LetBinding(new_assigns, _replace_identifiers(node.body, var_map, _visiting))
     
     # IntersectionFor
     if isinstance(node, IntersectionFor):
         return IntersectionFor(node.variable,
-                               _replace_identifiers(node.values, var_map),
-                               _replace_identifiers(node.body, var_map))
+                               _replace_identifiers(node.values, var_map, _visiting),
+                               _replace_identifiers(node.body, var_map, _visiting))
     
     # Projection
     if isinstance(node, Projection):
-        new_body = _replace_identifiers(node.body, var_map) if node.body else None
+        new_body = _replace_identifiers(node.body, var_map, _visiting) if node.body else None
         return Projection(node.cut, new_body)
     
     # Mirror
     if isinstance(node, Mirror):
-        new_body = _replace_identifiers(node.body, var_map) if node.body else None
-        return Mirror(_replace_identifiers(node.normal, var_map), new_body)
+        new_body = _replace_identifiers(node.body, var_map, _visiting) if node.body else None
+        return Mirror(_replace_identifiers(node.normal, var_map, _visiting), new_body)
     
     # MultMatrix
     if isinstance(node, MultMatrix):
-        new_body = _replace_identifiers(node.body, var_map) if node.body else None
-        return MultMatrix(_replace_identifiers(node.matrix, var_map), new_body)
+        new_body = _replace_identifiers(node.body, var_map, _visiting) if node.body else None
+        return MultMatrix(_replace_identifiers(node.matrix, var_map, _visiting), new_body)
     
     # Resize
     if isinstance(node, Resize):
-        new_auto = _replace_identifiers(node.auto, var_map) if node.auto else None
-        new_body = _replace_identifiers(node.body, var_map) if node.body else None
-        return Resize(_replace_identifiers(node.newsize, var_map), new_auto, new_body)
+        new_auto = _replace_identifiers(node.auto, var_map, _visiting) if node.auto else None
+        new_body = _replace_identifiers(node.body, var_map, _visiting) if node.body else None
+        return Resize(_replace_identifiers(node.newsize, var_map, _visiting), new_auto, new_body)
     
     # Color
     if isinstance(node, Color):
-        new_alpha = _replace_identifiers(node.alpha, var_map) if node.alpha else None
-        new_body = _replace_identifiers(node.body, var_map) if node.body else None
-        return Color(_replace_identifiers(node.color, var_map), new_alpha, new_body)
+        new_alpha = _replace_identifiers(node.alpha, var_map, _visiting) if node.alpha else None
+        new_body = _replace_identifiers(node.body, var_map, _visiting) if node.body else None
+        return Color(_replace_identifiers(node.color, var_map, _visiting), new_alpha, new_body)
     
     # Echo
     if isinstance(node, Echo):
-        return Echo([_replace_identifiers(a, var_map) for a in node.args])
+        return Echo([_replace_identifiers(a, var_map, _visiting) for a in node.args])
     
     # Assert
     if isinstance(node, Assert):
-        new_msg = _replace_identifiers(node.message, var_map) if node.message else None
-        return Assert(_replace_identifiers(node.condition, var_map), new_msg)
+        new_msg = _replace_identifiers(node.message, var_map, _visiting) if node.message else None
+        return Assert(_replace_identifiers(node.condition, var_map, _visiting), new_msg)
     
     # ChildrenRef
     if isinstance(node, ChildrenRef):
-        new_index = _replace_identifiers(node.index, var_map) if node.index else None
+        new_index = _replace_identifiers(node.index, var_map, _visiting) if node.index else None
         return ChildrenRef(new_index)
     
     # IncludeDirective / UseDirective - pass through
@@ -1262,6 +1629,9 @@ class AstToPython:
         end = self.visit(node.end)
         if node.step:
             step = self.visit(node.step)
+            # Use numpy.arange for float steps (range() does not accept floats)
+            if _is_float_literal(node.step):
+                return f"list(__import__('numpy').arange({start}, ({end})+({step})/2, {step}))"
             return f"range({start}, ({end})+1, {step})"
         return f"range({start}, ({end})+1)"
 
@@ -1274,7 +1644,13 @@ class AstToPython:
     def visit_BinaryOp(self, node: BinaryOp) -> str:
         left = self.visit(node.left)
         right = self.visit(node.right)
-        return f"({left} {node.operator} {right})"
+        op = node.operator
+        # Translate SCAD operators that differ from Python
+        if op == '&&':
+            op = 'and'
+        elif op == '||':
+            op = 'or'
+        return f"({left} {op} {right})"
 
     def visit_UnaryOp(self, node: UnaryOp) -> str:
         operand = self.visit(node.operand)
@@ -1333,31 +1709,86 @@ class AstToPython:
     def visit_ShapeCall(self, node: ShapeCall) -> str:
         name = node.function_name
         if name == 'cube':
+            center_val = node.named_args.get('center', BooleanLiteral(False))
+            center_str = self.visit(center_val)
             if 0 in node.named_args and isinstance(node.named_args[0], VectorLiteral):
                 vec = self.visit(node.named_args[0])
-                return f"self.api.box(*{vec}, center=False)"
+                return f"self.api.box(*{vec}, center={center_str})"
             elif 0 in node.named_args:
                 val = self.visit(node.named_args[0])
-                return f"self.api.box({val},{val},{val}, center=False)"
+                return f"self.api.box({val},{val},{val}, center={center_str})"
             elif 'size' in node.named_args:
                 val = self.visit(node.named_args['size'])
                 if isinstance(node.named_args['size'], VectorLiteral):
                     vec = self.visit(node.named_args['size'])
-                    return f"self.api.box(*{vec}, center=False)"
-                return f"self.api.box({val},{val},{val}, center=False)"
+                    return f"self.api.box(*{vec}, center={center_str})"
+                return f"self.api.box({val},{val},{val}, center={center_str})"
             else:
                 raise ValueError(f"cube requires a size argument, got {list(node.named_args.keys())}")
         elif name == 'sphere':
-            args_str = self._format_named_args(node.named_args)
-            return f"self.api.sphere({args_str})"
+            args = node.named_args
+            if 'd' in args:
+                d_val = self.visit(args['d'])
+                return f"self.api.sphere(r={d_val}/2)"
+            elif 'r' in args:
+                r_val = self.visit(args['r'])
+                return f"self.api.sphere(r={r_val})"
+            else:
+                args_str = self._format_named_args(args)
+                return f"self.api.sphere({args_str})"
         elif name == 'cylinder':
-            args_str = self._format_named_args(node.named_args)
-            splitargs = args_str.split(',')
-            if len(splitargs) == 3:
-                return f"self.api.cone_z({args_str})"
-            if len(splitargs) == 2:
-                return f"self.api.cylinder_z({args_str})"
-            return f"self.api.cone_z({args_str})"
+            # Map OpenSCAD cylinder params to API: r → rad, h → l
+            # cylinder_z(l, rad) and cone_z(h, r1, r2) do NOT accept center;
+            # the generated code discards center for now.
+            args = node.named_args
+            # Detect purely positional args: keys 0, 1, 2, ...
+            pos_count = sum(1 for k in args if isinstance(k, int))
+            if pos_count > 0 and not any(isinstance(k, str) for k in args):
+                # Purely positional: 1→h, 2→(h,r), 3→(h,r1,r2)
+                if pos_count == 3:
+                    h_val = self.visit(args[0])
+                    r1_val = self.visit(args[1])
+                    r2_val = self.visit(args[2])
+                    if r1_val == r2_val:
+                        return f"self.api.cylinder_z(l={h_val}, rad={r1_val})"
+                    else:
+                        return f"self.api.cone_z(h={h_val}, r1={r1_val}, r2={r2_val})"
+                elif pos_count == 2:
+                    h_val = self.visit(args[0])
+                    r_val = self.visit(args[1])
+                    return f"self.api.cylinder_z(l={h_val}, rad={r_val})"
+                else:  # 1 positional
+                    h_val = self.visit(args[0])
+                    # No radius given; use default r=1 per OpenSCAD spec
+                    return f"self.api.cylinder_z(l={h_val}, rad=1)"
+            # Named args (or mixed) — use standard key-based lookup
+            has_r = 'r' in args
+            has_d = 'd' in args
+            has_r1 = 'r1' in args
+            has_r2 = 'r2' in args
+            has_h = 'h' in args or 'height' in args
+            if has_r and has_h:
+                r_val = self.visit(args['r'])
+                h_val = self.visit(args.get('h', args.get('height')))
+                return f"self.api.cylinder_z(l={h_val}, rad={r_val})"
+            elif has_d and has_h:
+                d_val = self.visit(args['d'])
+                h_val = self.visit(args.get('h', args.get('height')))
+                return f"self.api.cylinder_z(l={h_val}, rad={d_val}/2)"
+            elif has_r1 and has_r2 and has_h:
+                h_val = self.visit(args.get('h', args.get('height')))
+                r1_val = self.visit(args['r1'])
+                r2_val = self.visit(args['r2'])
+                return f"self.api.cone_z(h={h_val}, r1={r1_val}, r2={r2_val})"
+            elif has_r1 and not has_r2 and has_h:
+                h_val = self.visit(args.get('h', args.get('height')))
+                r1_val = self.visit(args['r1'])
+                return f"self.api.cone_z(h={h_val}, r1={r1_val}, r2={r1_val})"
+            elif has_r and not has_h:
+                return f"self.api.cylinder_z(rad={self.visit(args['r'])})"
+            # Fallback
+            args_str = self._format_named_args(args)
+            return f"self.api.cylinder_z({args_str})"
         elif name == 'polyhedron':
             args_str = self._format_named_args(node.named_args)
             return f"self.api.polyhedron({args_str})"
@@ -1382,34 +1813,133 @@ class AstToPython:
         parts = [f"points={points}"]
         if node.paths is not None:
             parts.append(f"paths={self.visit(node.paths)}")
-        if node.convexity != 1:
-            parts.append(f"convexity={node.convexity}")
+        conv = node.convexity
+        if conv is not None and conv != 1:
+            conv_str = self.visit(conv) if not isinstance(conv, (int, float)) else str(conv)
+            parts.append(f"convexity={conv_str}")
         return f"self.api.polygon({', '.join(parts)})"
 
+    def _gen_text2d_call(self, node: Text2D, tck_val: str | None = None) -> str:
+        """Generate self.api.text(...) call from a Text2D node.
+
+        The API's text() signature is: text(txt, fontSize, tck, font).
+        All args are positional; missing args get sensible defaults.
+        SCAD's text() is 2D and relies on linear_extrude to add the 3rd dimension.
+        When a caller knows the extrusion height (e.g. LinearExtrude wrapping text),
+        it supplies `tck_val` so the generated call produces the correct 3D shape
+        without a subsequent .linear_extrude() call.
+        """
+        if isinstance(node.text, str):
+            text_val = repr(node.text)
+        else:
+            text_val = self.visit(node.text)
+        # fontSize: SCAD 'size' param, default 10
+        if node.size is not None:
+            size_val = self.visit(node.size)
+        else:
+            size_val = '10'
+        # tck: caller-supplied extrusion height or default 1
+        tck = tck_val if tck_val is not None else '1'
+        # font: SCAD 'font' param or default "Inter:style=Regular"
+        if node.font is not None:
+            font_val = self.visit(node.font)
+        else:
+            font_val = '"Inter:style=Regular"'
+        return f"self.api.text({text_val}, {size_val}, {tck}, {font_val})"
+
     def visit_Text2D(self, node: Text2D) -> str:
-        text_val = repr(node.text)
-        parts = [text_val]
-        for attr in ['size', 'font', 'halign', 'valign', 'spacing', 'direction', 'language', 'script']:
-            val = getattr(node, attr, None)
-            if val is not None:
-                parts.append(f"{attr}={self.visit(val)}")
-        return f"self.api.text({', '.join(parts)})"
+        """Standalone text() call — no extrusion context, use default tck."""
+        return self._gen_text2d_call(node)
+
+    def _visit_body_text2d_in_extrude(self, node: Text2D, height_str: str) -> str:
+        """Text2D inside linear_extrude: embed height as tck, skip extrude."""
+        return self._gen_text2d_call(node, tck_val=height_str)
 
     def visit_LinearExtrude(self, node: LinearExtrude) -> str:
+        # Check if the body is a plain Text2D node (no intermediate transforms).
+        # The API's text() is inherently 3D via its tck parameter, so when SCAD
+        # says text(...) → linear_extrude(height=H), we generate text(..., tck=H)
+        # and skip the .linear_extrude() step entirely.
+        if isinstance(node.body, Text2D):
+            height_str = self.visit(node.height)
+            return self._visit_body_text2d_in_extrude(node.body, height_str)
+
         body = self.visit(node.body)
         parts = [f"height={self.visit(node.height)}"]
         if node.twist is not None:
             parts.append(f"twist={self.visit(node.twist)}")
         if node.scale is not None:
             parts.append(f"scale={self.visit(node.scale)}")
-        if node.center:
+        # node.center is a bool (Python) or BooleanLiteral (AST node).
+        # When it's a BooleanLiteral, evaluate its .value attribute.
+        center_val = node.center
+        if isinstance(center_val, BooleanLiteral):
+            center_val = center_val.value
+        if center_val:
             parts.append("center=True")
         return f"{body}.linear_extrude({', '.join(parts)})"
 
+    def _unwrap_text2d(self, node: ASTNode) -> Text2D | None:
+        """Recursively unwrap transforms to find a Text2D leaf node."""
+        if isinstance(node, Text2D):
+            return node
+        if isinstance(node, Transform) and node.body is not None:
+            return self._unwrap_text2d(node.body)
+        return None
+
     def visit_RotateExtrude(self, node: RotateExtrude) -> str:
-        body = self.visit(node.body)
-        parts = [f"angle={self.visit(node.angle)}"]
-        return f"{body}.rotate_extrude({', '.join(parts)})"
+        # If the body is (or wraps) a Text2D, generate it with tck=0
+        # because rotate_extrude requires a 2D shape.
+        text2d = self._unwrap_text2d(node.body)
+        if text2d is not None:
+            body = self._gen_text2d_call(text2d, tck_val='0')
+            # Re-apply any transforms wrapping the text
+            body = self._rebody_through_transforms(node.body, text2d, body)
+        else:
+            body = self.visit(node.body)
+        if node.angle is not None:
+            parts = [f"angle={self.visit(node.angle)}"]
+            return f"{body}.rotate_extrude({', '.join(parts)})"
+        return f"{body}.rotate_extrude()"
+
+    def _rebody_through_transforms(self, outer: ASTNode, inner: ASTNode, inner_code: str) -> str:
+        """Rebuild transform chain from `outer` down to `inner`, replacing
+        the inner node's code with `inner_code`."""
+        if outer is inner:
+            return inner_code
+        if isinstance(outer, Transform) and outer.body is not None:
+            sub = self._rebody_through_transforms(outer.body, inner, inner_code)
+            # Re-visit the transform, substituting our sub-code for the body
+            orig_body = outer.body
+            outer.body = None  # temporarily detach
+            # Rebuild the Transform visitor but force the body substitution
+            # by creating a synthetic visit
+            tt = outer.transform_type
+            params = outer.params
+            # Build the wrapped body code
+            wrapped = f"({sub})"
+            if tt == 'translate':
+                raw_vec = params.get('v', params.get(0, VectorLiteral([])))
+                if isinstance(raw_vec, VectorLiteral) and len(raw_vec.elements) == 2:
+                    raw_vec = VectorLiteral(raw_vec.elements + [NumberLiteral(0)])
+                vec = self.visit(raw_vec)
+                result = f"{wrapped}.mv(*{vec})"
+            elif tt == 'rotate':
+                rot_param = params.get('a', params.get(0, None))
+                vec = self.visit(rot_param)
+                result = f"self._guard({wrapped}).rotate({vec})"
+            elif tt == 'scale':
+                param = params.get('v', params.get(0, NumberLiteral(1)))
+                scaled = self.visit(param)
+                result = f"{wrapped}.scale(*{scaled})"
+            elif tt == 'mirror':
+                normal = self.visit(params.get(0))
+                result = f"{wrapped}.mirror({normal})"
+            else:
+                raise NotImplementedError(f"Transform {tt} not supported in rotate_extrude body")
+            outer.body = orig_body
+            return result
+        return inner_code
 
     def visit_Offset(self, node: Offset) -> str:
         body = self.visit(node.body)
@@ -1418,16 +1948,40 @@ class AstToPython:
 
     def visit_Transform(self, node: Transform) -> str:
         body = self.visit(node.body)
+        # Wrap body in parentheses to ensure correct operator precedence when
+        # the body is a compound expression (e.g. "a + b" → "(a + b).mv(...)"
+        # not "a + b.mv(...)").
+        if body:
+            body = f"({body})"
         tt = node.transform_type
         if tt == 'translate':
-            vec = self.visit(node.params.get('v', node.params.get(0, VectorLiteral([]))))
+            raw_vec = node.params.get('v', node.params.get(0, VectorLiteral([])))
+            # SCAD translate accepts 2D vectors [x,y]; API mv() requires 3D.
+            if isinstance(raw_vec, VectorLiteral) and len(raw_vec.elements) == 2:
+                raw_vec = VectorLiteral(raw_vec.elements + [NumberLiteral(0)])
+            vec = self.visit(raw_vec)
             return f"{body}.mv(*{vec})"
         elif tt == 'rotate':
-            vec = self.visit(node.params.get('a', node.params.get(0, VectorLiteral([]))))
-            return f"{body}.rotate({vec})"
+            rot_param = node.params.get('a', node.params.get(0, None))
+            # Detect rotate([0,0,angle]) — common SCAD idiom for 2D rotation
+            # around Z.  The API's vector-rotate calls _ensure3d(), which
+            # breaks linear_extrude later, so emit a scalar rotate instead.
+            if (isinstance(rot_param, VectorLiteral)
+                    and len(rot_param.elements) == 3
+                    and _is_zero(rot_param.elements[0])
+                    and _is_zero(rot_param.elements[1])):
+                # Extract the Z-angle component
+                ang = self.visit(rot_param.elements[2])
+                return f"self._guard({body}).rotate({ang})"
+            vec = self.visit(rot_param)
+            return f"self._guard({body}).rotate({vec})"
         elif tt == 'scale':
-            vec = self.visit(node.params.get('v', node.params.get(0, VectorLiteral([]))))
-            return f"{body}.scale(*{vec})"
+            param = node.params.get('v', node.params.get(0, NumberLiteral(1)))
+            scaled = self.visit(param)
+            # Scalar (NumberLiteral) → body.scale(x,x,x);  Vector → body.scale(*[x,y,z])
+            if isinstance(param, NumberLiteral):
+                return f"{body}.scale({scaled}, {scaled}, {scaled})"
+            return f"{body}.scale(*{scaled})"
         elif tt == 'mirror':
             args = node.params
             if 0 in args:
@@ -1436,8 +1990,20 @@ class AstToPython:
             else:
                 return f"{body}.mirror()"
         elif tt == 'color':
-            args_str = self._format_named_args(node.params)
-            return f"{body}.color({args_str})"
+            # Convert string color names to RGB tuples; pass other args as-is
+            resolved = {}
+            for key, val in node.params.items():
+                if isinstance(key, int) and key == 0:
+                    resolved_val = _resolve_color_arg(val)
+                    if resolved_val is not None:
+                        resolved[key] = resolved_val
+                        continue
+                resolved[key] = self.visit(val)
+            args_str = ", ".join(
+                v if isinstance(k, int) else f"{k}={v}"
+                for k, v in resolved.items()
+            )
+            return f"{body}.set_color({args_str})"
         elif tt == 'resize':
             args_str = self._format_named_args(node.params)
             return f"{body}.resize({args_str})"
@@ -1496,6 +2062,41 @@ class AstToPython:
         # User-defined functions are stored as self._<name> methods
         if isinstance(node.callee, Identifier) and node.callee.name in self.helper_functions:
             return f"self._{callee}({args_str})"
+        # SCAD math builtins → math.<name>
+        # OpenSCAD trig functions use DEGREES; Python's math module uses RADIANS.
+        # Convert accordingly.
+        if isinstance(node.callee, Identifier) and node.callee.name in self.SCAD_MATH_FUNCS:
+            name = node.callee.name
+            # Functions whose INPUT is in degrees: wrap each arg with math.radians()
+            DEG_INPUT = {'cos', 'sin', 'tan'}
+            if name in DEG_INPUT:
+                # Wrap each positional argument with math.radians()
+                rad_args = ', '.join(
+                    f"math.radians({self.visit(val)})"
+                    if isinstance(key, int) else f"{key}=math.radians({self.visit(val)})"
+                    for key, val in node.named_arguments.items()
+                )
+                return f"math.{name}({rad_args})"
+            # Functions whose OUTPUT is in degrees: wrap the whole call with math.degrees()
+            DEG_OUTPUT = {'acos', 'asin', 'atan'}
+            if name in DEG_OUTPUT:
+                return f"math.degrees(math.{name}({args_str}))"
+            # atan2: both input and output differ: SCAD atan2(y,x) returns degrees,
+            # Python math.atan2(y,x) takes radians input, returns radians output.
+            if name == 'atan2':
+                return f"math.degrees(math.atan2({args_str}))"
+            # Non-trig functions: direct mapping
+            return f"math.{name}({args_str})"
+        # SCAD's str(...) concatenates multiple arguments as strings.
+        # Python's str() takes only one argument, so we use string concatenation.
+        if isinstance(node.callee, Identifier) and node.callee.name == 'str':
+            parts = []
+            for key, val in node.named_arguments.items():
+                if isinstance(key, int):
+                    parts.append(self.visit(val))
+            if parts:
+                return '+'.join(parts)
+            return "''"
         return f"{callee}({args_str})"
 
     def visit_ArrayAccess(self, node: ArrayAccess) -> str:
@@ -1510,6 +2111,9 @@ class AstToPython:
     def visit_IfStatement(self, node: IfStatement) -> str:
         cond = self.visit(node.condition)
         then_body = self.visit(node.then_body)
+        # Skip if-statement when the body is empty (e.g. echo-only)
+        if not then_body:
+            return ""
         if node.else_body:
             else_body = self.visit(node.else_body)
             return f"({then_body} if {cond} else {else_body})"
@@ -1519,7 +2123,9 @@ class AstToPython:
         var = node.variable
         values = self.visit(node.values)
         body = self.visit(node.body)
-        return f"__import__('functools').reduce(lambda a,b:a+b, [{body} for {var} in {values}])"
+        # Filter out None values (from if-statements without else) so they
+        # don't propagate into shape method chains like .rotate(None).
+        return f"__import__('functools').reduce(lambda a,b:a+b, filter(None, [{body} for {var} in {values}]))"
 
     def _substitute_vars(self, node: ASTNode, var_map: dict) -> ASTNode:
         if node is None:
@@ -1560,7 +2166,7 @@ class AstToPython:
         for assign in node.assignments:
             var_map[assign.name] = assign.value
         # Substitute variables in body
-        body = self._substitute_vars(node.body, var_map)
+        body = self._substitute_vars(node.body, var_map, _visiting)
         return self.visit(body)
 
     def visit_FunctionDef(self, node: FunctionDef) -> str:
@@ -1581,6 +2187,15 @@ class AstToPython:
         return ""
 
     def visit_UseDirective(self, node: UseDirective) -> str:
+        # Traverse the used file's AST to register its modules and functions
+        # in helper_modules / helper_functions so they can be called from
+        # the main file's generated code.
+        if node.resolved_ast:
+            for stmt in node.resolved_ast.statements:
+                if isinstance(stmt, ModuleDef):
+                    self.helper_modules[stmt.name] = stmt
+                elif isinstance(stmt, FunctionDef):
+                    self.helper_functions[stmt.name] = stmt
         return ""
 
     def visit_Echo(self, node: Echo) -> str:
@@ -1588,6 +2203,13 @@ class AstToPython:
 
     def visit_Assert(self, node: Assert) -> str:
         return ""
+
+    # SCAD math builtins that map to Python's math module
+    SCAD_MATH_FUNCS = frozenset({
+        'cos', 'sin', 'tan', 'acos', 'asin', 'atan', 'atan2',
+        'ceil', 'exp', 'floor', 'ln', 'log', 'pow',
+        'round', 'sign', 'sqrt',
+    })
 
     def _format_named_args(self, named_args: dict) -> str:
         """Format named arguments dict into a string for Python output.
@@ -1608,6 +2230,27 @@ class AstToPython:
                 parts.append(f"{key}={self.visit(val)}")
         return ", ".join(parts)
 
+    def _collect_nested_modules(self) -> None:
+        """Walk bodies of all collected modules and register nested ModuleDef nodes.
+        
+        In SCAD, modules can be nested (e.g. module helpers() { module line() { ... } }).
+        The top-level AST walk only registers the outermost module; we need a second pass
+        over their bodies to discover nested module definitions.
+        """
+        from b1scad.ast_nodes import Block
+        _todo = list(self.helper_modules.values())
+        while _todo:
+            node = _todo.pop()
+            body = node.body
+            if isinstance(body, Block):
+                for stmt in body.statements:
+                    if isinstance(stmt, ModuleDef):
+                        if stmt.name not in self.helper_modules:
+                            self.helper_modules[stmt.name] = stmt
+                            _todo.append(stmt)
+                    elif isinstance(stmt, Block):
+                        _todo.append(stmt)
+
     def gen_helper_methods(self) -> str:
         """Generate Python helper method definitions from stored module/function defs.
         
@@ -1615,11 +2258,15 @@ class AstToPython:
         indentation (4 spaces for def line, 8 spaces for body lines),
         separated by blank lines between methods.
         """
+        self._collect_nested_modules()
         parts = []
         for name, node in sorted(self.helper_modules.items()):
             # Generate method signature
             params = []
             for pname, pdefault in node.parameters:
+                # Skip special vars ($fn, $fa, $fs) — not valid Python identifiers
+                if pname.startswith('$'):
+                    continue
                 if pdefault is not None:
                     default_str = self.visit(pdefault)
                     params.append(f"{pname}={default_str}")
@@ -1627,8 +2274,13 @@ class AstToPython:
                     params.append(pname)
             params_str = ", ".join(params)
             
-            # Generate method body using _inline_vars to handle variable assignments
-            body_expr = self._inline_vars(node.body.statements)
+            # Generate method body: Block bodies use _inline_vars (handles variable assignments),
+            # direct-statement bodies (module foo() bar();) use visit directly.
+            from b1scad.ast_nodes import Block
+            if isinstance(node.body, Block):
+                body_expr = self._inline_vars(node.body.statements)
+            else:
+                body_expr = self.visit(node.body)
             
             if body_expr:
                 if 'children()' in body_expr:
@@ -1654,6 +2306,9 @@ class AstToPython:
         for name, node in sorted(self.helper_functions.items()):
             params = []
             for pname, pdefault in node.parameters:
+                # Skip special vars ($fn, $fa, $fs)
+                if pname.startswith('$'):
+                    continue
                 if pdefault is not None:
                     default_str = self.visit(pdefault)
                     params.append(f"{pname}={default_str}")
@@ -1689,15 +2344,23 @@ class CodeGenerator:
             f"{model} Solid",
             f'"""',
             "",
+            "import math",
             "import os",
             "import sys",
-            "sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))",
+            "sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))",
             "",
             "from b13d.api.solid import Solid, test_loop, main_maker",
             "from b13d.api.core import Shape",
             "",
             f"class {cls_name}(Solid):",
             f'    """ Generate a {model} """',
+            "    def _guard(self, s):",
+            "        '''Convert None to a no-op shape so chained method calls work.'''",
+            "        if s is not None:",
+            "            return s",
+            "        # Zero-volume box: harmless identity for union/difference/rotate",
+            "        return self.api.box(0, 0, 0)",
+            "",
             f"    def gen(self) -> Shape:",
         ]
         # Add the body lines (already at 8-space indentation from body='' or
@@ -1791,9 +2454,10 @@ def scad2py(infname: str, execute_en: bool = True):
     # generate output file
     output_path = file_replace_extension(infname, ".py")
 
-    # generate module name
+    # generate module name (replace hyphens for valid Python identifiers)
     fname = os.path.basename(output_path)
     basefname, _ = os.path.splitext(fname)
+    basefname = basefname.replace('-', '_')
     modelname = snake2camel(basefname)
 
     # make sure output file is erased if exists

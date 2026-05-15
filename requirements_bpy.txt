@@ -1,4 +1,4 @@
-numpy>=2,<3
+numpy==1.26.4
 nlopt==2.7.1
 trimesh==4.4.8
 # manifold seems compatible with build123d
@@ -17,17 +17,26 @@ openpyxl
 # html-testRunner
 prettytable
 
+# Optional Blender backend (bpy) — install with: pip install pylele[blender]
+mathutils==3.3.0; python_version <= '3.11'
+# python 3.10
+bpy==4.0.0; python_version < '3.11'
+fake-bpy-module-4.0; python_version < '3.11'
+# python 3.11
+bpy==4.5.1; python_version == '3.11'
+fake-bpy-module-4.1; python_version == '3.11'
+
 # b1scad
-sly
-svgpathtools
+# sly
+# svgpathtools
 # svg2dxf
-svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
+# svg2dxf @ git+https://github.com/multigcs/svg2dxf@main
 
 # Optional CadQuery backend (cq) — install with: pip install pylele[cadquery]
 # cadquery<=2.4.0
 
 # Build123d backend (bd)
-build123d==0.10.0
+# build123d==0.10.0
 
 # test
 pytest

@@ -49,12 +49,17 @@ The following tuner configurations are available:
 
 B13D is a portable Python 3D Modeling Library that acts as a common wrapper around the following backends:
 
-* [CadQuery (cq)](https://github.com/CadQuery/cadquery) (Most Accurate, supports fillet)
-* [Blender (bpy)](https://github.com/blender/blender) (*Still a little buggy...*, supports fillet, Python 3.10 and 3.11 only)
-* [Trimesh (tm)](https://github.com/mikedh/trimesh) (Fast, supports hull)
-* [SolidPython2 (sp2)](https://github.com/jeff-dh/SolidPython) (Supports .stl, .svg, .scad, and [BOSL2](https://github.com/BelfrySCAD/BOSL2) library import, fast when using manifold option)
+Supported:
 * [Manifold3D (mf)](https://github.com/elalish/manifold) (Fastest, used by trimesh and OpenSCAD)
+* [Trimesh (tm)](https://github.com/mikedh/trimesh) (Fast, supports hull)
+* [CadQuery (cq)](https://github.com/CadQuery/cadquery) (Most Accurate, supports fillet)
+fillet, Python 3.10 and 3.11 only)
+* [SolidPython2 (sp2)](https://github.com/jeff-dh/SolidPython) (Supports .stl, .svg, .scad, and [BOSL2](https://github.com/BelfrySCAD/BOSL2) library import, fast when using manifold option)
+
+Experimental (Buggy)
+* [Blender (bpy)](https://github.com/blender/blender) (*Still a little buggy...*, supports 
 * [build123d (bd)](https://github.com/gumyr/build123d)(Evolution of cadquery)
+* [PyVista (pv)](https://github.com/pyvista/pyvista) (VTK-based 3D plotting and mesh analysis, supports boolean operations)
 
 ## GUIs
 
@@ -102,6 +107,12 @@ To enable the build123d (bd) backend:
 
 ```
 pip install git+https://github.com/bat52/pylele@main[build123d]
+```
+
+To enable the PyVista (pv) backend:
+
+```
+pip install git+https://github.com/bat52/pylele@main[pyvista]
 ```
 
 Multiple extras can be combined, e.g.:
