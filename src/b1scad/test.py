@@ -30,7 +30,7 @@ class B1scadTestMethods(unittest.TestCase):
         scad_files = sorted(
             [f for f in os.listdir(scaddir) if f.endswith('.scad')]
         )
-        skip_files = {'model.scad', 'model17.scad', 'model27.scad', 'model28.scad'}
+        skip_files = {}
         for scadfname in scad_files:
             if scadfname in skip_files:
                 if scadfname == 'model.scad':
