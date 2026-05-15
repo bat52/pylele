@@ -1813,8 +1813,9 @@ class AstToPython:
         parts = [f"points={points}"]
         if node.paths is not None:
             parts.append(f"paths={self.visit(node.paths)}")
-        conv_str = str(node.convexity) if node.convexity else None
-        if conv_str and conv_str != '1':
+        conv = node.convexity
+        if conv is not None and conv != 1:
+            conv_str = self.visit(conv) if not isinstance(conv, (int, float)) else str(conv)
             parts.append(f"convexity={conv_str}")
         return f"self.api.polygon({', '.join(parts)})"
 
