@@ -83,28 +83,41 @@ class OpenSCADLexer(Lexer):
     MINKOWSKI = r'minkowski'
     OFFSET = r'offset'
 
-    # --- New keywords ---
-    MODULE = r'module'
-    FUNCTION = r'function'
-    IF = r'if'
-    ELSE = r'else'
-    FOR = r'for'
-    LET = r'let'
-    EACH = r'each'
-    INCLUDE = r'include'
-    USE = r'use'
-    ASSERT = r'assert'
-    ECHO = r'echo'
-    CHILDREN = r'children'
-
-
-    # --- Literals ---
-    TRUE = r'true'
-    FALSE = r'false'
-    UNDEF = r'undef'
-
     # --- Identifiers and special vars ---
+    # IDENTIFIER MUST be defined before all keyword tokens in the lexer class.
+    # SLY builds a single regex alternation from all token patterns in the order
+    # they are defined.  Since Python's re.match returns the FIRST matching
+    # alternative (not the longest), having LET=r'let' before IDENTIFIER
+    # causes 'letter' to be tokenized as LET('let') + IDENTIFIER('ter').
+    # Placing IDENTIFIER first ensures it always wins, and the token function
+    # below remaps specific values to keyword types.
     IDENTIFIER = r'[a-zA-Z_][a-zA-Z0-9_]*'
+
+    # Keywords are NOT defined as separate patterns — they are handled by the
+    # IDENTIFIER token function below.  The tokens tuple still declares them
+    # so the parser can reference them.
+    _keywords = {
+        'module': 'MODULE',
+        'function': 'FUNCTION',
+        'if': 'IF',
+        'else': 'ELSE',
+        'for': 'FOR',
+        'let': 'LET',
+        'each': 'EACH',
+        'include': 'INCLUDE',
+        'use': 'USE',
+        'assert': 'ASSERT',
+        'echo': 'ECHO',
+        'children': 'CHILDREN',
+        'true': 'TRUE',
+        'false': 'FALSE',
+        'undef': 'UNDEF',
+    }
+
+    def IDENTIFIER(self, t):
+        t.type = self._keywords.get(t.value, 'IDENTIFIER')
+        return t
+
     SFN = r'\$fn'
     SFA = r'\$fa'
     SFS = r'\$fs'

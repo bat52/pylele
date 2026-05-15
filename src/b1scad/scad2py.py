@@ -372,8 +372,9 @@ class OpenSCADParser(Parser):
     def shape_call(self, p):
         args = _args_to_dict(p.args)
         text_val = args.get(0, args.get('text', ''))
-        if not isinstance(text_val, str):
-            text_val = str(text_val)
+        # Keep AST nodes as-is for variable inlining; convert StringLiteral to str.
+        if isinstance(text_val, StringLiteral):
+            text_val = text_val.value
         return Text2D(
             text=text_val,
             size=args.get('size'),
@@ -1375,9 +1376,10 @@ def _replace_identifiers(node: ASTNode, var_map: dict[str, ASTNode],
     
     # Text2D
     if isinstance(node, Text2D):
+        new_text = _replace_identifiers(node.text, var_map, _visiting) if isinstance(node.text, ASTNode) else node.text
         new_size = _replace_identifiers(node.size, var_map, _visiting) if node.size else None
         new_spacing = _replace_identifiers(node.spacing, var_map, _visiting) if node.spacing else None
-        return Text2D(node.text, new_size, node.font, node.halign, node.valign,
+        return Text2D(new_text, new_size, node.font, node.halign, node.valign,
                       new_spacing, node.direction, node.language, node.script)
     
     # Transform
@@ -1685,21 +1687,42 @@ class AstToPython:
             # cylinder_z(l, rad) and cone_z(h, r1, r2) do NOT accept center;
             # the generated code discards center for now.
             args = node.named_args
-            has_r = 'r' in args or 0 in args
-            has_d = 'd' in args  # diameter
+            # Detect purely positional args: keys 0, 1, 2, ...
+            pos_count = sum(1 for k in args if isinstance(k, int))
+            if pos_count > 0 and not any(isinstance(k, str) for k in args):
+                # Purely positional: 1→h, 2→(h,r), 3→(h,r1,r2)
+                if pos_count == 3:
+                    h_val = self.visit(args[0])
+                    r1_val = self.visit(args[1])
+                    r2_val = self.visit(args[2])
+                    if r1_val == r2_val:
+                        return f"self.api.cylinder_z(l={h_val}, rad={r1_val})"
+                    else:
+                        return f"self.api.cone_z(h={h_val}, r1={r1_val}, r2={r2_val})"
+                elif pos_count == 2:
+                    h_val = self.visit(args[0])
+                    r_val = self.visit(args[1])
+                    return f"self.api.cylinder_z(l={h_val}, rad={r_val})"
+                else:  # 1 positional
+                    h_val = self.visit(args[0])
+                    # No radius given; use default r=1 per OpenSCAD spec
+                    return f"self.api.cylinder_z(l={h_val}, rad=1)"
+            # Named args (or mixed) — use standard key-based lookup
+            has_r = 'r' in args
+            has_d = 'd' in args
             has_r1 = 'r1' in args
             has_r2 = 'r2' in args
             has_h = 'h' in args or 'height' in args
             if has_r and has_h:
-                r_val = self.visit(args.get('r', args.get(0)))
+                r_val = self.visit(args['r'])
                 h_val = self.visit(args.get('h', args.get('height')))
                 return f"self.api.cylinder_z(l={h_val}, rad={r_val})"
             elif has_d and has_h:
-                d_val = self.visit(args.get('d', args.get(0)))
+                d_val = self.visit(args['d'])
                 h_val = self.visit(args.get('h', args.get('height')))
                 return f"self.api.cylinder_z(l={h_val}, rad={d_val}/2)"
             elif has_r1 and has_r2 and has_h:
-                h_val = self.visit(args['h'])
+                h_val = self.visit(args.get('h', args.get('height')))
                 r1_val = self.visit(args['r1'])
                 r2_val = self.visit(args['r2'])
                 return f"self.api.cone_z(h={h_val}, r1={r1_val}, r2={r2_val})"
@@ -1708,7 +1731,7 @@ class AstToPython:
                 r1_val = self.visit(args['r1'])
                 return f"self.api.cone_z(h={h_val}, r1={r1_val}, r2={r1_val})"
             elif has_r and not has_h:
-                return f"self.api.cylinder_z(rad={self.visit(args.get('r', args.get(0)))})"
+                return f"self.api.cylinder_z(rad={self.visit(args['r'])})"
             # Fallback
             args_str = self._format_named_args(args)
             return f"self.api.cylinder_z({args_str})"
@@ -1741,16 +1764,50 @@ class AstToPython:
             parts.append(f"convexity={conv_str}")
         return f"self.api.polygon({', '.join(parts)})"
 
-    def visit_Text2D(self, node: Text2D) -> str:
-        text_val = repr(node.text)
+    def _gen_text2d_call(self, node: Text2D, tck_val: str | None = None) -> str:
+        """Generate self.api.text(...) call from a Text2D node.
+
+        The API's text() creates a fully 3D shape (extrudes glyphs by tck).
+        SCAD's text() is 2D and relies on linear_extrude to add the 3rd dimension.
+        When a caller knows the extrusion height (e.g. LinearExtrude wrapping text),
+        it supplies `tck_val` so the generated call produces the correct 3D shape
+        without a subsequent .linear_extrude() call.
+        """
+        if isinstance(node.text, str):
+            text_val = repr(node.text)
+        else:
+            text_val = self.visit(node.text)
         parts = [text_val]
-        for attr in ['size', 'font', 'halign', 'valign', 'spacing', 'direction', 'language', 'script']:
-            val = getattr(node, attr, None)
-            if val is not None:
-                parts.append(f"{attr}={self.visit(val)}")
+        # Map SCAD 'size' → API 'fontSize'
+        if node.size is not None:
+            parts.append(f"fontSize={self.visit(node.size)}")
+        # Use the caller-supplied tck_val (extrusion height) or a reasonable default.
+        if tck_val is not None:
+            parts.append(f"tck={tck_val}")
+        else:
+            parts.append("tck=1")
+        # Map SCAD 'font' → API 'font'
+        if node.font is not None:
+            parts.append(f"font={self.visit(node.font)}")
         return f"self.api.text({', '.join(parts)})"
 
+    def visit_Text2D(self, node: Text2D) -> str:
+        """Standalone text() call — no extrusion context, use default tck."""
+        return self._gen_text2d_call(node)
+
+    def _visit_body_text2d_in_extrude(self, node: Text2D, height_str: str) -> str:
+        """Text2D inside linear_extrude: embed height as tck, skip extrude."""
+        return self._gen_text2d_call(node, tck_val=height_str)
+
     def visit_LinearExtrude(self, node: LinearExtrude) -> str:
+        # Check if the body is a plain Text2D node (no intermediate transforms).
+        # The API's text() is inherently 3D via its tck parameter, so when SCAD
+        # says text(...) → linear_extrude(height=H), we generate text(..., tck=H)
+        # and skip the .linear_extrude() step entirely.
+        if isinstance(node.body, Text2D):
+            height_str = self.visit(node.height)
+            return self._visit_body_text2d_in_extrude(node.body, height_str)
+
         body = self.visit(node.body)
         parts = [f"height={self.visit(node.height)}"]
         if node.twist is not None:
