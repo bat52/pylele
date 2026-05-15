@@ -7,7 +7,7 @@ from __future__ import annotations
 from sly import Lexer
 
 import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../"))
 from b13d.api.utils import gen_scad_foo
 
 class OpenSCADLexer(Lexer):
@@ -36,7 +36,7 @@ class OpenSCADLexer(Lexer):
         
         # Structural
         'LBRACE', 'RBRACE', 'LPAREN', 'RPAREN', 'LSQUARE', 'RSQUARE', 'COMMA', 'SEMICOLON',
-        'EQU', 'COLON', 'DOT', 'QUESTION', 'PIPE',
+        'EQU', 'COLON', 'DOT', 'QUESTION',
         
         # Arithmetic operators
         'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'MOD', 'CARET',
@@ -48,7 +48,7 @@ class OpenSCADLexer(Lexer):
         'AND', 'OR', 'NOT',
     )
     
-    ignore = ' \t\n'
+    ignore = ' \t\n#'
 
     # --- New transforms/operations (Order matters! Longest first) ---
     LINEAR_EXTRUDE = r'linear_extrude'
@@ -110,7 +110,7 @@ class OpenSCADLexer(Lexer):
     SFS = r'\$fs'
 
     # --- Number ---
-    NUMBER = r'[+-]?\d+(\.\d+)?([eE][+-]?\d+)?'
+    NUMBER = r'(?:\d+\.?\d*|\.\d+)([eE][+-]?\d+)?'
 
     # --- String literal ---
     STRING = r'"(?:[^"\\]|\\.)*"'
@@ -124,11 +124,19 @@ class OpenSCADLexer(Lexer):
     RSQUARE = r'\]'
     COMMA = r','
     SEMICOLON = r';'
+    EQ = r'=='
+    NEQ = r'!='
+    LE = r'<='
+    GE = r'>='
     EQU = r'='
+    LESS = r'<'
+    GREATER = r'>'
     COLON = r':'
     DOT = r'\.'
     QUESTION = r'\?'
-    PIPE = r'\|'
+    AND = r'&&'
+    OR = r'\|\|'
+    NOT = r'!'
 
     # --- Arithmetic operators ---
     PLUS = r'\+'
@@ -137,19 +145,6 @@ class OpenSCADLexer(Lexer):
     DIVIDE = r'/'
     MOD = r'%'
     CARET = r'\^'
-
-    # --- Comparison operators ---
-    LE = r'<='
-    GE = r'>='
-    EQ = r'=='
-    NEQ = r'!='
-    LESS = r'<'
-    GREATER = r'>'
-
-    # --- Logical operators ---
-    AND = r'&&'
-    OR = r'\|\|'
-    NOT = r'!'
 
     # --- Comments ---
     # Note: comments are handled in scad2ast() by preprocessing the source
@@ -177,11 +172,16 @@ def _strip_comments(code: str) -> str:
     """Strip // line comments and /* */ block comments from SCAD source code.
     Also transforms include/use <path> into include/use "path" to avoid
     lexer conflicts with comparison operators < and >.
+    Also strips SCAD debug modifier characters (# % !) that appear before
+    shape calls (these are visual-only modifiers in OpenSCAD and would
+    otherwise cause lexer errors).
     
     Handles:
     - Line comments: // ... until end of line
     - Block comments: /* ... */ (can span multiple lines)
-    - Preserves string literals (doesn't strip // or /* inside strings)
+    - Preserves string literals (doesn't strip //, /*, or modifiers inside strings)
+    - Does NOT strip * (multiplication operator, also a SCAD modifier but
+      impossible to distinguish from multiplication without a parser).
     """
     # Transform include/use <path> to "path"
     code = re.sub(r'(include|use)\s*<([^>]+)>', r'\1 "\2"', code)
@@ -216,6 +216,22 @@ def _strip_comments(code: str) -> str:
                         i += 2
                         break
                     i += 1
+                continue
+            
+            # Strip SCAD debug modifier characters (# %).
+            # These are NOT comments — they are visual-only modifiers in
+            # OpenSCAD that prefix shape calls. They do not affect geometry
+            # and must be removed to avoid lexer errors (# in particular
+            # causes SLY's ignore mechanism to misbehave).
+            # Do NOT strip '!' — it is the logical NOT operator in
+            # expressions (e.g. x!=y).  The reference lexer returns '!' as
+            # a character token and the parser distinguishes NOT from the
+            # debug-modifier prefix by context.
+            # Do NOT strip '*' here — it is both a modifier and the
+            # multiplication operator, and cannot be safely distinguished
+            # without a full parser.
+            if c in '#%':
+                i += 1
                 continue
         
         result.append(c)
@@ -256,3 +272,5 @@ if __name__ == "__main__":
         infname = sys.argv[1]
     
     ast = scad2ast(infname)
+
+
