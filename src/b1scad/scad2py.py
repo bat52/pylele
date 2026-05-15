@@ -1498,18 +1498,20 @@ class AstToPython:
     def visit_ShapeCall(self, node: ShapeCall) -> str:
         name = node.function_name
         if name == 'cube':
+            center_val = node.named_args.get('center', BooleanLiteral(False))
+            center_str = self.visit(center_val)
             if 0 in node.named_args and isinstance(node.named_args[0], VectorLiteral):
                 vec = self.visit(node.named_args[0])
-                return f"self.api.box(*{vec}, center=False)"
+                return f"self.api.box(*{vec}, center={center_str})"
             elif 0 in node.named_args:
                 val = self.visit(node.named_args[0])
-                return f"self.api.box({val},{val},{val}, center=False)"
+                return f"self.api.box({val},{val},{val}, center={center_str})"
             elif 'size' in node.named_args:
                 val = self.visit(node.named_args['size'])
                 if isinstance(node.named_args['size'], VectorLiteral):
                     vec = self.visit(node.named_args['size'])
-                    return f"self.api.box(*{vec}, center=False)"
-                return f"self.api.box({val},{val},{val}, center=False)"
+                    return f"self.api.box(*{vec}, center={center_str})"
+                return f"self.api.box({val},{val},{val}, center={center_str})"
             else:
                 raise ValueError(f"cube requires a size argument, got {list(node.named_args.keys())}")
         elif name == 'sphere':
@@ -1584,6 +1586,11 @@ class AstToPython:
 
     def visit_Transform(self, node: Transform) -> str:
         body = self.visit(node.body)
+        # Wrap body in parentheses to ensure correct operator precedence when
+        # the body is a compound expression (e.g. "a + b" → "(a + b).mv(...)"
+        # not "a + b.mv(...)").
+        if body:
+            body = f"({body})"
         tt = node.transform_type
         if tt == 'translate':
             vec = self.visit(node.params.get('v', node.params.get(0, VectorLiteral([]))))
