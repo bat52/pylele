@@ -32,7 +32,7 @@ class OpenSCADLexer(Lexer):
         'NUMBER', 'STRING', 'TRUE', 'FALSE', 'UNDEF',
         
         # Identifiers and special vars
-        'IDENTIFIER', 'SFN', 'SFA', 'SFS',
+        'IDENTIFIER', 'SFN', 'SFA', 'SFS', 'DOLLAR_ID',
         
         # Structural
         'LBRACE', 'RBRACE', 'LPAREN', 'RPAREN', 'LSQUARE', 'RSQUARE', 'COMMA', 'SEMICOLON',
@@ -119,6 +119,8 @@ class OpenSCADLexer(Lexer):
     SFN = r'\$fn'
     SFA = r'\$fa'
     SFS = r'\$fs'
+    # General $-prefixed special variable (e.g. $vpr, $vpt, $vpd, $t, $children)
+    DOLLAR_ID = r'\$[a-zA-Z_][a-zA-Z0-9_]*'
 
     # --- Number ---
     NUMBER = r'(?:\d+\.?\d*|\.\d+)([eE][+-]?\d+)?'

@@ -579,6 +579,10 @@ class OpenSCADParser(Parser):
     def assignment_statement(self, p):
         return Assignment('$fn', p.expr)
 
+    @_('DOLLAR_ID EQU expr SEMICOLON')
+    def assignment_statement(self, p):
+        return Assignment(p.DOLLAR_ID, p.expr)
+
     # ============================================================
     # Module definition
     # ============================================================
@@ -640,6 +644,14 @@ class OpenSCADParser(Parser):
     def param(self, p):
         return ('$fs', p.expr)
 
+    @_('DOLLAR_ID EQU expr')
+    def param(self, p):
+        return (p.DOLLAR_ID, p.expr)
+
+    @_('DOLLAR_ID')
+    def param(self, p):
+        return (p.DOLLAR_ID, None)
+
     # ============================================================
     # If/else statement
     # ============================================================
@@ -700,7 +712,15 @@ class OpenSCADParser(Parser):
     def include_statement(self, p):
         return IncludeDirective(p.STRING)
 
+    @_('INCLUDE STRING')
+    def include_statement(self, p):
+        return IncludeDirective(p.STRING)
+
     @_('USE STRING SEMICOLON')
+    def use_statement(self, p):
+        return UseDirective(p.STRING)
+
+    @_('USE STRING')
     def use_statement(self, p):
         return UseDirective(p.STRING)
 
@@ -885,6 +905,10 @@ class OpenSCADParser(Parser):
     def primary(self, t):
         return SpecialVar('$fs')
 
+    @_('DOLLAR_ID')
+    def primary(self, t):
+        return SpecialVar(t.DOLLAR_ID)
+
     @_('LPAREN expr RPAREN')
     def primary(self, t):
         return t.expr
@@ -957,6 +981,16 @@ class OpenSCADParser(Parser):
     @_('SFS EQU expr')
     def arg(self, p):
         return ('$fs', p.expr)
+
+    @_('DOLLAR_ID EQU expr')
+    def arg(self, p):
+        return (p.DOLLAR_ID, p.expr)
+
+    # Keyword tokens that can also appear as named argument keys
+    # (e.g. linear_extrude(..., scale=0.2))
+    @_('SCALE EQU expr')
+    def arg(self, p):
+        return ('scale', p.expr)
 
     @_('IDENTIFIER EQU expr')
     def arg(self, p):
@@ -1990,6 +2024,16 @@ class AstToPython:
                 return f"math.degrees(math.atan2({args_str}))"
             # Non-trig functions: direct mapping
             return f"math.{name}({args_str})"
+        # SCAD's str(...) concatenates multiple arguments as strings.
+        # Python's str() takes only one argument, so we use string concatenation.
+        if isinstance(node.callee, Identifier) and node.callee.name == 'str':
+            parts = []
+            for key, val in node.named_arguments.items():
+                if isinstance(key, int):
+                    parts.append(self.visit(val))
+            if parts:
+                return '+'.join(parts)
+            return "''"
         return f"{callee}({args_str})"
 
     def visit_ArrayAccess(self, node: ArrayAccess) -> str:
@@ -2080,6 +2124,15 @@ class AstToPython:
         return ""
 
     def visit_UseDirective(self, node: UseDirective) -> str:
+        # Traverse the used file's AST to register its modules and functions
+        # in helper_modules / helper_functions so they can be called from
+        # the main file's generated code.
+        if node.resolved_ast:
+            for stmt in node.resolved_ast.statements:
+                if isinstance(stmt, ModuleDef):
+                    self.helper_modules[stmt.name] = stmt
+                elif isinstance(stmt, FunctionDef):
+                    self.helper_functions[stmt.name] = stmt
         return ""
 
     def visit_Echo(self, node: Echo) -> str:
