@@ -50,53 +50,50 @@ class OpenSCADLexer(Lexer):
     
     ignore = ' \t\n#'
 
-    # --- New transforms/operations (Order matters! Longest first) ---
-    LINEAR_EXTRUDE = r'linear_extrude'
-    ROTATE_EXTRUDE = r'rotate_extrude'
-    INTERSECTION_FOR = r'intersection_for'
-
-    # --- Existing shape/transform tokens ---
-    CUBE = r'cube'
-    SPHERE = r'sphere'
-    CYLINDER = r'cylinder'
-    POLYHEDRON = r'polyhedron'
-    UNION = r'union'
-    DIFFERENCE = r'difference'
-    INTERSECTION = r'intersection'
-    TRANSLATE = r'translate'
-    ROTATE = r'rotate'
-    SCALE = r'scale'
-    HULL = r'hull'
-
-    # --- New 2D primitives ---
-    SQUARE = r'square'
-    CIRCLE = r'circle'
-    POLYGON = r'polygon'
-    TEXT = r'text'
-
-    # --- New transforms/operations (Others) ---
-    MIRROR = r'mirror'
-    MULTMATRIX = r'multmatrix'
-    RESIZE = r'resize'
-    COLOR = r'color'
-    PROJECTION = r'projection'
-    MINKOWSKI = r'minkowski'
-    OFFSET = r'offset'
-
     # --- Identifiers and special vars ---
     # IDENTIFIER MUST be defined before all keyword tokens in the lexer class.
     # SLY builds a single regex alternation from all token patterns in the order
     # they are defined.  Since Python's re.match returns the FIRST matching
-    # alternative (not the longest), having LET=r'let' before IDENTIFIER
-    # causes 'letter' to be tokenized as LET('let') + IDENTIFIER('ter').
+    # alternative (not the longest), having a standalone pattern like
+    # cylinder=r'cylinder' before IDENTIFIER causes 'cylinderHeight' to be
+    # tokenized as CYLINDER('cylinder') + IDENTIFIER('Height').
     # Placing IDENTIFIER first ensures it always wins, and the token function
     # below remaps specific values to keyword types.
     IDENTIFIER = r'[a-zA-Z_][a-zA-Z0-9_]*'
 
-    # Keywords are NOT defined as separate patterns — they are handled by the
-    # IDENTIFIER token function below.  The tokens tuple still declares them
-    # so the parser can reference them.
+    # All keyword-like tokens (shapes, transforms, control flow, literals) are
+    # handled by the IDENTIFIER token function below — NO separate regex patterns
+    # are defined for them.  The tokens tuple still declares them so the parser
+    # can reference them.
     _keywords = {
+        # Shapes
+        'cube': 'CUBE',
+        'sphere': 'SPHERE',
+        'cylinder': 'CYLINDER',
+        'polyhedron': 'POLYHEDRON',
+        'square': 'SQUARE',
+        'circle': 'CIRCLE',
+        'polygon': 'POLYGON',
+        'text': 'TEXT',
+        # Transforms / operations
+        'translate': 'TRANSLATE',
+        'rotate': 'ROTATE',
+        'scale': 'SCALE',
+        'union': 'UNION',
+        'difference': 'DIFFERENCE',
+        'intersection': 'INTERSECTION',
+        'hull': 'HULL',
+        'mirror': 'MIRROR',
+        'multmatrix': 'MULTMATRIX',
+        'resize': 'RESIZE',
+        'color': 'COLOR',
+        'projection': 'PROJECTION',
+        'minkowski': 'MINKOWSKI',
+        'offset': 'OFFSET',
+        'linear_extrude': 'LINEAR_EXTRUDE',
+        'rotate_extrude': 'ROTATE_EXTRUDE',
+        'intersection_for': 'INTERSECTION_FOR',
+        # Control flow / module keywords
         'module': 'MODULE',
         'function': 'FUNCTION',
         'if': 'IF',
@@ -109,6 +106,7 @@ class OpenSCADLexer(Lexer):
         'assert': 'ASSERT',
         'echo': 'ECHO',
         'children': 'CHILDREN',
+        # Literals
         'true': 'TRUE',
         'false': 'FALSE',
         'undef': 'UNDEF',

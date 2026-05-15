@@ -628,6 +628,18 @@ class OpenSCADParser(Parser):
     def param(self, p):
         return (p.IDENTIFIER, p.expr)
 
+    @_('SFN EQU expr')
+    def param(self, p):
+        return ('$fn', p.expr)
+
+    @_('SFA EQU expr')
+    def param(self, p):
+        return ('$fa', p.expr)
+
+    @_('SFS EQU expr')
+    def param(self, p):
+        return ('$fs', p.expr)
+
     # ============================================================
     # If/else statement
     # ============================================================
@@ -1680,8 +1692,16 @@ class AstToPython:
             else:
                 raise ValueError(f"cube requires a size argument, got {list(node.named_args.keys())}")
         elif name == 'sphere':
-            args_str = self._format_named_args(node.named_args)
-            return f"self.api.sphere({args_str})"
+            args = node.named_args
+            if 'd' in args:
+                d_val = self.visit(args['d'])
+                return f"self.api.sphere(r={d_val}/2)"
+            elif 'r' in args:
+                r_val = self.visit(args['r'])
+                return f"self.api.sphere(r={r_val})"
+            else:
+                args_str = self._format_named_args(args)
+                return f"self.api.sphere({args_str})"
         elif name == 'cylinder':
             # Map OpenSCAD cylinder params to API: r → rad, h → l
             # cylinder_z(l, rad) and cone_z(h, r1, r2) do NOT accept center;
@@ -2128,6 +2148,9 @@ class AstToPython:
             # Generate method signature
             params = []
             for pname, pdefault in node.parameters:
+                # Skip special vars ($fn, $fa, $fs) — not valid Python identifiers
+                if pname.startswith('$'):
+                    continue
                 if pdefault is not None:
                     default_str = self.visit(pdefault)
                     params.append(f"{pname}={default_str}")
@@ -2167,6 +2190,9 @@ class AstToPython:
         for name, node in sorted(self.helper_functions.items()):
             params = []
             for pname, pdefault in node.parameters:
+                # Skip special vars ($fn, $fa, $fs)
+                if pname.startswith('$'):
+                    continue
                 if pdefault is not None:
                     default_str = self.visit(pdefault)
                     params.append(f"{pname}={default_str}")
