@@ -800,6 +800,14 @@ class ShapeAPI(ABC):
         # Points (1,1),(11,1),(1,11) → right triangle with legs of 10, area=50, expected volume=50*5=250
         zPolyExt = self.polygon_extrusion([(1, 1), (11, 1), (1, 11)], 5)
         self._export_and_validate(zPolyExt, expDir, "zpolyext", min_volume=200)
+
+        # Polygon extrusion with 4+ points (n-gon, not triangle) to catch the
+        # PV n-gon→non-watertight bug.  A kite shape at origin: area ~ 24,
+        # volume = 24*5 = 120.
+        zPolyExtQuad = self.polygon_extrusion(
+            [(0, 0), (4, 0), (6, 4), (0, 4)], 5
+        )
+        self._export_and_validate(zPolyExtQuad, expDir, "zpolyext-quad", min_volume=100)
         bbox_tol = self.fidelity.tolerance()
         # Verify non-origin coordinates are preserved (catches auto-centering bug)
         assert fabs(zPolyExt.left() - 1) < bbox_tol, f"polygon_extrusion left={zPolyExt.left()} != 1"
@@ -862,6 +870,30 @@ class ShapeAPI(ABC):
         )
         self._export_and_validate(dome, expDir, "splineext", min_volume=100)
 
+        # Spline extrusion with negative ht — catches PV bug where negative ht
+        # was not positioning correctly (was extruding in -Z then not translating).
+        dome_neg = self.spline_extrusion(
+            start=(0, 0),
+            path=[
+                (-5, 0),
+                (-5, 10),
+                (0, 10),
+                [
+                    (1, 10, 0),
+                    (5, 8, -inf),
+                    (2.5, 5, -inf),
+                    (5, 2, -inf),
+                    (1, 0, 0),
+                ],
+                (0, 0),
+            ],
+            ht=-5,
+        )
+        self._export_and_validate(dome_neg, expDir, "splineext-neg", min_volume=100)
+        # Must extend into -Z, not +Z (skip mock which returns dummy bbox)
+        if self.implementation != Implementation.MOCK:
+            assert dome_neg.bottom() < -4, f"spline_extrusion(-5) bottom={dome_neg.bottom()} should be < -4"
+
         donut = self.spline_revolve(
             start=(0, 1),
             path=[
@@ -880,6 +912,29 @@ class ShapeAPI(ABC):
             deg=-225,
         )
         self._export_and_validate(donut, expDir, "splinerev", min_volume=100)
+        # spline_revolve with positive deg — catches PV inward-normal (missing flip_faces) bug.
+        donut_pos = self.spline_revolve(
+            start=(0, 1),
+            path=[
+                (-5, 1),
+                (-5, 9),
+                (0, 9),
+                [
+                    (1, 9, 0),
+                    (5, 7, -inf),
+                    (2.5, 5, -inf),
+                    (5, 3, -inf),
+                    (1, 1, 0),
+                ],
+                (0, 1),
+            ],
+            deg=45,
+        )
+        self._export_and_validate(donut_pos, expDir, "splinerev-pos", min_volume=50)
+        # Must sweep into +Z (positive deg = positive Z) — skip mock which returns dummy bbox
+        if self.implementation != Implementation.MOCK:
+            assert donut_pos.top() > 0, f"spline_revolve(+45) top={donut_pos.top()} should be > 0"
+            assert fabs(donut_pos.bottom()) < 1, f"spline_revolve(+45) bottom={donut_pos.bottom()} should be near 0"
 
         sweep = self.regpoly_sweep(
             1, [(-20, 0, 0), (20, 0, 40), (40, 20, 40), (60, 20, 0)]
