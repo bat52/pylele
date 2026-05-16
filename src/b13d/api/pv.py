@@ -621,10 +621,11 @@ class PVLineSplineExtrusionZ(PVShape):
         super().__init__(api)
         self.path = path
         self.ht = ht
-        approx_curve_path = lineSplineXY(start, path, self._smoothing_segments)
-        # Create polygon from points using PolyData
         import numpy as np
-        # Close the path if not already closed
+
+        approx_curve_path = lineSplineXY(start, path, self._smoothing_segments)
+        # lineSplineXY already closes the path via ensureClosed2DPath
+        # Close the path if not already closed (redundant safety)
         if approx_curve_path[0] != approx_curve_path[-1]:
             closed_path = approx_curve_path + [approx_curve_path[0]]
         else:
@@ -633,44 +634,138 @@ class PVLineSplineExtrusionZ(PVShape):
         points_2d = np.array(closed_path)
         # Add Z coordinate (0 for flat polygon)
         points_3d = np.column_stack([points_2d, np.zeros(len(points_2d))])
-        # Create faces (assuming convex polygon for simplicity)
         n_points = len(points_3d)
         faces = [n_points] + list(range(n_points))  # [n_points, 0, 1, 2, ..., n_points-1]
         polygon = pv.PolyData(points_3d, faces)
-        self.solid = polygon.extrude((0, 0, ht), capping=True)
+        # Triangulate polygon BEFORE extrusion to ensure watertight result
+        polygon = polygon.triangulate()
+
+        # Handle negative extrusion direction: extrude positive and move,
+        # matching the BD backend behaviour.
+        if ht < 0:
+            self.solid = polygon.extrude((0, 0, abs(ht)), capping=True)
+            self.solid = self.solid.translate((0, 0, -abs(ht)))
+        else:
+            self.solid = polygon.extrude((0, 0, ht), capping=True)
 
 
 class PVLineSplineRevolveX(PVShape):
     def __init__(self, start: tuple[float, float], path: list, deg: float, api: PVShapeAPI):
         super().__init__(api)
-        _, dimY = dimXY(start, path)
-        segs = ceil(self._smoothing_segments(2 * pi * dimY) * abs(deg) / 360.0)
-        approx_curve_path = lineSplineXY(start, path, self._smoothing_segments)
-        # Convert from (x,y) to (0,y,x) coordinates for proper revolution around X-axis
-        # This swaps Y and Z while keeping X at 0 for the revolution operation
-        approx_curve_path = [(0, y, x) for x, y in approx_curve_path]
-        # Create polygon from points using PolyData
         import numpy as np
-        # Close the path if not already closed
-        if approx_curve_path[0] != approx_curve_path[-1]:
-            closed_path = approx_curve_path + [approx_curve_path[0]]
-        else:
-            closed_path = approx_curve_path
-        # Convert to numpy array - we already have 3D points (0, y, x)
-        points_3d = np.array(closed_path)
-        # Create faces (assuming convex polygon for simplicity)
-        n_points = len(points_3d)
-        faces = [n_points] + list(range(n_points))  # [n_points, 0, 1, 2, ..., n_points-1]
-        polygon = pv.PolyData(points_3d, faces)
+
+        _, dimY = dimXY(start, path)
+        n_theta = max(3, ceil(
+            self._smoothing_segments(2 * pi * dimY) * abs(deg) / 360.0
+        ))
+
         try:
-            self.solid = polygon.extrude_rotate(angle=deg, resolution=segs, capping=True)
-            self.solid = self.solid.rotate_z(90).rotate_y(90)
+            # Build the revolve mesh manually.
+            # The profile is a closed 2D path (x, y) where X is the revolve axis
+            # and Y is the radius from the axis. The revolve sweeps the profile
+            # around the X axis by |deg| degrees.
+            profile = lineSplineXY(start, path, self._smoothing_segments)
+            # Ensure the profile is closed
+            if profile[0] != profile[-1]:
+                profile.append(profile[0])
+
+            # Deduplicate consecutive points that are (nearly) identical
+            dedup = [profile[0]]
+            for p in profile[1:]:
+                if (abs(p[0] - dedup[-1][0]) > 1e-6 or
+                    abs(p[1] - dedup[-1][1]) > 1e-6):
+                    dedup.append(p)
+            if dedup[0] != dedup[-1]:
+                dedup.append(dedup[0])
+
+            # Remove all points near the revolve axis (y close to 0) except the
+            # very first one (the neck center).  This avoids degenerate
+            # triangles at the axis during mesh construction.  The gap left by
+            # removing near-axis tail points is closed by the end caps.
+            neck_center = dedup[0]
+            cleaned = [neck_center]
+            for p in dedup[1:]:
+                if p[1] > 0.1:
+                    cleaned.append(p)
+            outer_pts = cleaned[1:]  # all unique outer curve points
+            n_outer = len(outer_pts)
+
+            angle_rad = abs(deg) * pi / 180.0
+            theta = np.linspace(0.0, angle_rad, n_theta + 1)
+
+            # Build vertices: one ring of outer points per angle step, plus a
+            # single shared neck-center vertex on the revolve axis.
+            all_verts = []
+            for t in theta:
+                ct = np.cos(t)
+                st = np.sin(t)
+                for xi, yi in outer_pts:
+                    all_verts.append([xi, yi * ct, yi * st])
+            neck_v = [float(neck_center[0]), 0.0, 0.0]
+            all_verts = np.array(all_verts + [neck_v], dtype=np.float32)
+            neck_idx = len(all_verts) - 1
+
+            # Build triangle faces:
+            #   1) Side surface: quads split into triangles between adjacent
+            #      rings along the outer curve.
+            #   2) End caps: fan triangles from the shared neck-center vertex
+            #      to each ring.
+            tri_faces = []
+
+            # Side surface (connecting outer-curve points between rings)
+            for i in range(n_theta):
+                r0 = i * n_outer
+                r1 = (i + 1) * n_outer
+                for j in range(n_outer):
+                    j_next = (j + 1) % n_outer
+                    a = r0 + j
+                    b = r0 + j_next
+                    c = r1 + j_next
+                    d = r1 + j
+                    tri_faces.append([a, b, c])
+                    tri_faces.append([a, c, d])
+
+            # End cap at θ = 0
+            for j in range(n_outer):
+                j_next = (j + 1) % n_outer
+                tri_faces.append([neck_idx, j, j_next])
+
+            # End cap at θ = |deg| (last angle, opposite winding)
+            last_start = n_theta * n_outer
+            for j in range(n_outer):
+                j_next = (j + 1) % n_outer
+                tri_faces.append([neck_idx, last_start + j_next,
+                                  last_start + j])
+
+            # Convert to a PyVista PolyData mesh.
+            # PyVista expects faces as [3, i0, i1, i2, 3, i0, i1, i2, ...]
+            # for triangle faces.
+            tri_arr = np.array(tri_faces, dtype=np.int64)
+            faces_pv = np.zeros(len(tri_arr) * 4, dtype=np.int64)
+            faces_pv[0::4] = 3
+            faces_pv[1::4] = tri_arr[:, 0]
+            faces_pv[2::4] = tri_arr[:, 1]
+            faces_pv[3::4] = tri_arr[:, 2]
+            self.solid = pv.PolyData(all_verts, faces_pv)
+
+            # The revolve is built around the X axis (profile xi along X,
+            # radial sweep in YZ).  deg < 0 means the revolve sweeps into
+            # the negative-Z half-space, which we achieve with a Z reflection.
+            # The manual face winding produces inward-pointing normals.
+            # reflect() inverts face winding, so it doubles as a normal-flip.
             if deg < 0:
-                self.solid = self.solid.reflect(normal=(0, 0, 1), point=(0, 0, 0), inplace=0)
+                self.solid = self.solid.reflect(
+                    normal=(0, 0, 1), point=(0, 0, 0), inplace=0
+                )
+                # reflect already flipped normals to outward — nothing more needed.
+            else:
+                # No reflect was applied; normals are still inward → flip.
+                self.solid = self.solid.flip_faces()
+
         except Exception as e:
             print(f"Warning: PVLineSplineRevolveX failed: {e}")
-            # Fallback: create a simple shape
-            self.solid = pv.Sphere(radius=1, phi_resolution=10, theta_resolution=10)
+            self.solid = pv.Sphere(radius=1, phi_resolution=10,
+                                   theta_resolution=10)
 
 
 class PVCirclePolySweep(PVShape):
