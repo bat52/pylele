@@ -700,46 +700,42 @@ class PVLineSplineRevolveX(PVShape):
             if dedup[0] != dedup[-1]:
                 dedup.append(dedup[0])
 
-            # Remove all points near the revolve axis (y close to 0) except the
-            # very first one (the neck center).  This avoids degenerate
-            # triangles at the axis during mesh construction.  The gap left by
-            # removing near-axis tail points is closed by the end caps.
-            neck_center = dedup[0]
-            cleaned = [neck_center]
-            for p in dedup[1:]:
-                if p[1] > 0.1:
-                    cleaned.append(p)
-            outer_pts = cleaned[1:]  # all unique outer curve points
-            n_outer = len(outer_pts)
+            # NOTE: we keep ALL profile points (including those on/near the
+            # revolve axis at y≈0) in the ring.  Previously axis points were
+            # removed and replaced by a single shared vertex, but that caused
+            # non-watertight meshes for profiles that touch the axis (e.g. neck
+            # half-profile).  Instead we build all rings with the full polygon,
+            # then merge collocated vertices and remove degenerate faces below.
+
+            # Dedup removes the closing duplicate
+            ring_pts = dedup[:-1]
+            n_ring = len(ring_pts)
 
             angle_rad = abs(deg) * pi / 180.0
             theta = np.linspace(0.0, angle_rad, n_theta + 1)
 
-            # Build vertices: one ring of outer points per angle step, plus a
-            # single shared neck-center vertex on the revolve axis.
+            # Build vertices: one full ring of profile points per angle step.
             all_verts = []
             for t in theta:
                 ct = np.cos(t)
                 st = np.sin(t)
-                for xi, yi in outer_pts:
+                for xi, yi in ring_pts:
                     all_verts.append([xi, yi * ct, yi * st])
-            neck_v = [float(neck_center[0]), 0.0, 0.0]
-            all_verts = np.array(all_verts + [neck_v], dtype=np.float32)
-            neck_idx = len(all_verts) - 1
+            all_verts = np.array(all_verts, dtype=np.float32)
 
             # Build triangle faces:
             #   1) Side surface: quads split into triangles between adjacent
-            #      rings along the outer curve.
-            #   2) End caps: fan triangles from the shared neck-center vertex
-            #      to each ring.
+            #      rings, connecting all ring points in order.
+            #   2) End caps: fan triangles from vertex 0 (first axis point)
+            #      to each remaining vertex of the first and last rings.
             tri_faces = []
 
-            # Side surface (connecting outer-curve points between rings)
+            # Side surface (connecting ring points between adjacent rings)
             for i in range(n_theta):
-                r0 = i * n_outer
-                r1 = (i + 1) * n_outer
-                for j in range(n_outer):
-                    j_next = (j + 1) % n_outer
+                r0 = i * n_ring
+                r1 = (i + 1) * n_ring
+                for j in range(n_ring):
+                    j_next = (j + 1) % n_ring
                     a = r0 + j
                     b = r0 + j_next
                     c = r1 + j_next
@@ -747,28 +743,43 @@ class PVLineSplineRevolveX(PVShape):
                     tri_faces.append([a, b, c])
                     tri_faces.append([a, c, d])
 
-            # End cap at θ = 0
-            for j in range(n_outer):
-                j_next = (j + 1) % n_outer
-                tri_faces.append([neck_idx, j, j_next])
+            # End cap at θ = 0: fan from vertex 0 (first axis point)
+            for j in range(1, n_ring - 1):
+                tri_faces.append([0, j, j + 1])
 
             # End cap at θ = |deg| (last angle, opposite winding)
-            last_start = n_theta * n_outer
-            for j in range(n_outer):
-                j_next = (j + 1) % n_outer
-                tri_faces.append([neck_idx, last_start + j_next,
+            last_start = n_theta * n_ring
+            for j in range(1, n_ring - 1):
+                tri_faces.append([last_start, last_start + j + 1,
                                   last_start + j])
 
-            # Convert to a PyVista PolyData mesh.
-            # PyVista expects faces as [3, i0, i1, i2, 3, i0, i1, i2, ...]
-            # for triangle faces.
+            # Merge collocated vertices and remove degenerate faces.
+            # Points on the revolve axis (y≈0) produce the same 3D position
+            # (x, 0, 0) at every theta step; merging eliminates duplicates.
             tri_arr = np.array(tri_faces, dtype=np.int64)
-            faces_pv = np.zeros(len(tri_arr) * 4, dtype=np.int64)
+            # Round to avoid float-precision splitting of collocated verts
+            unique_verts, inverse = np.unique(
+                np.round(all_verts, decimals=6), axis=0, return_inverse=True
+            )
+            tri_arr_mapped = inverse[tri_arr]
+
+            # Remove faces that became degenerate after vertex merge
+            degenerate = np.any(
+                tri_arr_mapped[:, 0:1] == tri_arr_mapped[:, 1:2], axis=1
+            ) | np.any(
+                tri_arr_mapped[:, 0:1] == tri_arr_mapped[:, 2:3], axis=1
+            ) | np.any(
+                tri_arr_mapped[:, 1:2] == tri_arr_mapped[:, 2:3], axis=1
+            )
+            tri_arr_clean = tri_arr_mapped[~degenerate]
+
+            # Convert to PyVista PolyData format
+            faces_pv = np.zeros(len(tri_arr_clean) * 4, dtype=np.int64)
             faces_pv[0::4] = 3
-            faces_pv[1::4] = tri_arr[:, 0]
-            faces_pv[2::4] = tri_arr[:, 1]
-            faces_pv[3::4] = tri_arr[:, 2]
-            self.solid = pv.PolyData(all_verts, faces_pv)
+            faces_pv[1::4] = tri_arr_clean[:, 0]
+            faces_pv[2::4] = tri_arr_clean[:, 1]
+            faces_pv[3::4] = tri_arr_clean[:, 2]
+            self.solid = pv.PolyData(unique_verts, faces_pv)
 
             # The revolve is built around the X axis (profile xi along X,
             # radial sweep in YZ).  deg < 0 means the revolve sweeps into
