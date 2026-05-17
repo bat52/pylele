@@ -27,6 +27,24 @@ from b13d.api.core import ShapeAPI, Shape, run_api_test, Direction, Implementati
 from b13d.api.utils import dimXY, file_ensure_extension, lineSplineXY
 
 
+def _ensure_cw_winding_2d(points_2d):
+    """Ensure polygon vertices are in clockwise order.
+    PyVista extrude produces outward normals for CW winding, inward for CCW."""
+    import numpy as np
+    # Compute signed area (positive = CCW)
+    area = 0.0
+    n = len(points_2d)
+    for i in range(n - 1):
+        x1, y1 = points_2d[i]
+        x2, y2 = points_2d[i + 1]
+        area += x1 * y2 - x2 * y1
+    area /= 2.0
+    if area > 0:
+        # CCW → reverse to make CW
+        points_2d = points_2d[::-1]
+    return points_2d
+
+
 class PVShapeAPI(ShapeAPI):
 
     def export_stl(self, shape: PVShape, path: Union[str, Path]) -> None:
@@ -580,8 +598,10 @@ class PVPolyExtrusionZ(PVShape):
             closed_path = path + [path[0]]
         else:
             closed_path = path
-        # Convert to numpy array (do NOT reverse - PyVista extrude handles winding correctly)
+        # Convert to numpy array
         points_2d = np.array(closed_path, dtype=np.float64)
+        # Ensure CW winding so PyVista extrude produces outward normals
+        points_2d = _ensure_cw_winding_2d(points_2d)
         # Add Z coordinate (0 for flat polygon)
         points_3d = np.column_stack([points_2d, np.zeros(len(points_2d))])
         # Create faces (assuming convex polygon for simplicity)
@@ -632,6 +652,8 @@ class PVLineSplineExtrusionZ(PVShape):
             closed_path = approx_curve_path
         # Convert to numpy array
         points_2d = np.array(closed_path)
+        # Ensure CW winding so PyVista extrude produces outward normals
+        points_2d = _ensure_cw_winding_2d(points_2d)
         # Add Z coordinate (0 for flat polygon)
         points_3d = np.column_stack([points_2d, np.zeros(len(points_2d))])
         n_points = len(points_3d)
@@ -751,16 +773,22 @@ class PVLineSplineRevolveX(PVShape):
             # The revolve is built around the X axis (profile xi along X,
             # radial sweep in YZ).  deg < 0 means the revolve sweeps into
             # the negative-Z half-space, which we achieve with a Z reflection.
-            # The manual face winding produces inward-pointing normals.
-            # reflect() inverts face winding, so it doubles as a normal-flip.
             if deg < 0:
                 self.solid = self.solid.reflect(
                     normal=(0, 0, 1), point=(0, 0, 0), inplace=0
                 )
-                # reflect already flipped normals to outward — nothing more needed.
-            else:
-                # No reflect was applied; normals are still inward → flip.
+                # reflect inverts face winding → restore outward normals.
                 self.solid = self.solid.flip_faces()
+            # Ensure outward normals by checking the volume sign via trimesh
+            try:
+                import trimesh
+                with tempfile.NamedTemporaryFile(suffix='.stl', delete=True) as tmp:
+                    self.solid.save(tmp.name)
+                    mesh = trimesh.load(tmp.name)
+                    if mesh.is_watertight and mesh.volume < 0:
+                        self.solid = self.solid.flip_faces()
+            except Exception:
+                pass
 
         except Exception as e:
             print(f"Warning: PVLineSplineRevolveX failed: {e}")
