@@ -817,6 +817,16 @@ class ShapeAPI(ABC):
         assert fabs(zPolyExt.bottom()) < bbox_tol, f"polygon_extrusion bottom={zPolyExt.bottom()} != 0"
         print(f"[{implCode}] Polygon extrusion bbox: left={zPolyExt.left()}, right={zPolyExt.right()}, front={zPolyExt.front()}, back={zPolyExt.back()}, bottom={zPolyExt.bottom()}, top={zPolyExt.top()}")
 
+        # Polygon extrusion with CCW winding — catches PV inward-normal bug
+        # where inward-facing polygon winding caused extrusion into -Z.
+        # Points: triangle (0,0)→(10,0)→(0,10) is CCW (positive signed area).
+        # Area=50, volume=50*5=250, should extend in +Z from 0 to 5.
+        zPolyExtCCW = self.polygon_extrusion([(0, 0), (10, 0), (0, 10)], 5)
+        self._export_and_validate(zPolyExtCCW, expDir, "zpolyext-ccw", min_volume=200)
+        # Verify extrusion is in +Z direction (catches CW→-Z extrusion bug)
+        assert fabs(zPolyExtCCW.top() - 5) < bbox_tol, f"polygon_extrusion(CCW) top={zPolyExtCCW.top()} != 5"
+        assert fabs(zPolyExtCCW.bottom()) < bbox_tol, f"polygon_extrusion(CCW) bottom={zPolyExtCCW.bottom()} != 0"
+
         zPolyhedron = self.polyhedron(
             points=[(0, 0, 0), (10, 0, 0), (0, 10, 0), (0, 0, 10)],
             faces=[[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]],
@@ -869,6 +879,11 @@ class ShapeAPI(ABC):
             ht=5,
         )
         self._export_and_validate(dome, expDir, "splineext", min_volume=100)
+        # Verify spline extrusion extends in +Z (catches inward-normal extrusion bug).
+        # Skip mock which returns dummy bbox.
+        if self.implementation != Implementation.MOCK:
+            assert fabs(dome.top() - 5) < bbox_tol, f"spline_extrusion top={dome.top()} != 5"
+            assert fabs(dome.bottom()) < bbox_tol, f"spline_extrusion bottom={dome.bottom()} != 0"
 
         # Spline extrusion with negative ht — catches PV bug where negative ht
         # was not positioning correctly (was extruding in -Z then not translating).
