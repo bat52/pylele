@@ -882,8 +882,11 @@ class ShapeAPI(ABC):
         # Verify spline extrusion extends in +Z (catches inward-normal extrusion bug).
         # Skip mock which returns dummy bbox.
         if self.implementation != Implementation.MOCK:
-            assert fabs(dome.top() - 5) < bbox_tol, f"spline_extrusion top={dome.top()} != 5"
-            assert fabs(dome.bottom()) < bbox_tol, f"spline_extrusion bottom={dome.bottom()} != 0"
+            # CadQuery + OCC can report spline-bbox Z with a few thousandths drift.
+            # Keep this tight enough to still catch wrong extrusion direction.
+            spline_bbox_tol = max(bbox_tol, 0.01) if self.implementation == Implementation.CADQUERY else bbox_tol
+            assert fabs(dome.top() - 5) < spline_bbox_tol, f"spline_extrusion top={dome.top()} != 5"
+            assert fabs(dome.bottom()) < spline_bbox_tol, f"spline_extrusion bottom={dome.bottom()} != 0"
 
         # Spline extrusion with negative ht — catches PV bug where negative ht
         # was not positioning correctly (was extruding in -Z then not translating).
