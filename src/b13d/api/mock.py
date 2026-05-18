@@ -105,7 +105,7 @@ class MockShapeAPI(ShapeAPI):
     
     def genImport(self, infile: str, extrude: float = None) -> MockShape:
         assert os.path.exists(infile)
-        assert isinstance(extrude, (int, float))
+        assert extrude is None or isinstance(extrude, (int, float))
         return MockShape(self)
 
     def genShape(self, solid) -> MockShape:
@@ -184,7 +184,11 @@ class MockShape(Shape):
     def rotate_z(self, ang: float) -> MockShape:
         return self
 
-    def scale(self, x: float, y: float, z: float) -> MockShape:
+    def scale(self, x: float, y: float = None, z: float = None) -> MockShape:
+        if y is None:
+            y = x
+        if z is None:
+            z = 1
         # Scale bbox around origin
         self._bbox = (
             self._bbox[0] * x, self._bbox[1] * x,
@@ -203,6 +207,9 @@ class MockShape(Shape):
         return self
 
     def offset(self, r=None, chamfer=False) -> MockShape:
+        return self
+
+    def resize(self, size=None) -> MockShape:
         return self
 
     def projection(self, cut=False) -> MockShape:
