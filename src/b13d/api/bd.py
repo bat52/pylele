@@ -630,6 +630,9 @@ class BDLineSplineExtrusionZ(BDShape):
         approx_curve_path = lineSplineXY(start, path, self._smoothing_segments)
         cleaned = _clean_polygon_path(approx_curve_path)
         if cleaned is not None and len(cleaned) >= 3:
+            # build123d extrude direction follows winding; normalize to CCW so
+            # positive thickness always extrudes toward +Z.
+            cleaned = _ensure_ccw(cleaned)
             # Use align=None to preserve original coordinates
             polygon = bd.Polygon(*cleaned, align=None)
             self.solid = bd.extrude(polygon, ht)
