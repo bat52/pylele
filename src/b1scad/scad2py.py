@@ -355,7 +355,7 @@ class OpenSCADParser(Parser):
     def shape_call(self, p):
         args = _args_to_dict(p.args)
         return Circle2D(
-            radius=args.get('r'),
+            radius=args.get('r', args.get(0)),
             diameter=args.get('d')
         )
 
@@ -628,9 +628,17 @@ class OpenSCADParser(Parser):
     def param(self, p):
         return (p.IDENTIFIER, None)
 
+    @_('OFFSET')
+    def param(self, p):
+        return ('offset', None)
+
     @_('IDENTIFIER EQU expr')
     def param(self, p):
         return (p.IDENTIFIER, p.expr)
+
+    @_('OFFSET EQU expr')
+    def param(self, p):
+        return ('offset', p.expr)
 
     @_('SFN EQU expr')
     def param(self, p):
@@ -893,6 +901,10 @@ class OpenSCADParser(Parser):
     def primary(self, t):
         return Identifier(t.IDENTIFIER)
 
+    @_('OFFSET')
+    def primary(self, t):
+        return Identifier('offset')
+
     @_('SFN')
     def primary(self, t):
         return SpecialVar('$fn')
@@ -991,6 +1003,10 @@ class OpenSCADParser(Parser):
     @_('SCALE EQU expr')
     def arg(self, p):
         return ('scale', p.expr)
+
+    @_('OFFSET EQU expr')
+    def arg(self, p):
+        return ('offset', p.expr)
 
     @_('IDENTIFIER EQU expr')
     def arg(self, p):
@@ -1591,6 +1607,7 @@ class AstToPython:
     def __init__(self):
         self.helper_modules: dict[str, ModuleDef] = {}
         self.helper_functions: dict[str, FunctionDef] = {}
+        self.global_var_map: dict[str, ASTNode] = {}
 
     def visit(self, node: ASTNode) -> str:
         if node is None:
@@ -1601,6 +1618,10 @@ class AstToPython:
         return method(node)
 
     def visit_Module(self, node: Module) -> str:
+        self.global_var_map = {}
+        for stmt in node.statements:
+            if isinstance(stmt, Assignment):
+                self.global_var_map[stmt.name] = stmt.value
         return self._inline_vars(node.statements)
 
     def visit_Block(self, node: Block) -> str:
@@ -1654,6 +1675,8 @@ class AstToPython:
 
     def visit_UnaryOp(self, node: UnaryOp) -> str:
         operand = self.visit(node.operand)
+        if node.operator == '!':
+            return f"(not {operand})"
         return f"({node.operator}{operand})"
 
     def visit_TernaryOp(self, node: TernaryOp) -> str:
@@ -1701,6 +1724,20 @@ class AstToPython:
                 parts.append(rendered)
         
         return " + ".join(parts)
+
+    def _render_operand_sequence(self, operands: list[ASTNode]) -> list[str]:
+        """Render boolean/hull/minkowski operands while honoring local assignments."""
+        var_map: dict[str, ASTNode] = {}
+        parts: list[str] = []
+        for operand in operands:
+            if isinstance(operand, Assignment):
+                var_map[operand.name] = _replace_identifiers(operand.value, var_map)
+                continue
+            substituted = _replace_identifiers(operand, var_map)
+            rendered = self.visit(substituted)
+            if rendered:
+                parts.append(rendered)
+        return parts
 
     def visit_Assignment(self, node: Assignment) -> str:
         return ""
@@ -2017,14 +2054,22 @@ class AstToPython:
             raise NotImplementedError(f"Unknown transform: {tt}")
 
     def visit_BooleanOp(self, node: BooleanOp) -> str:
+        parts = self._render_operand_sequence(node.operands)
         if node.operation == 'union':
-            parts = [self.visit(op) for op in node.operands]
+            if not parts:
+                return ""
             return " + ".join(parts)
         elif node.operation == 'difference':
-            parts = [self.visit(op) for op in node.operands]
-            return f"{self.visit(node.operands[0])} - ({' + '.join(self.visit(op) for op in node.operands[1:])})"
+            if not parts:
+                return ""
+            if len(parts) == 1:
+                return parts[0]
+            return f"{parts[0]} - ({' + '.join(parts[1:])})"
         elif node.operation == 'intersection':
-            parts = [self.visit(op) for op in node.operands]
+            if not parts:
+                return ""
+            if len(parts) == 1:
+                return parts[0]
             result = parts[0]
             for p in parts[1:]:
                 result = f"{result}.intersection({p})"
@@ -2033,17 +2078,40 @@ class AstToPython:
             raise NotImplementedError(f"Unknown boolean op: {node.operation}")
 
     def visit_Hull(self, node: Hull) -> str:
-        body = " + ".join(self.visit(op) for op in node.operands)
+        parts = self._render_operand_sequence(node.operands)
+        if not parts:
+            return ""
+        body = " + ".join(parts)
         return f"({body}).hull()"
 
     def visit_Minkowski(self, node: Minkowski) -> str:
-        operands = [self.visit(op) for op in node.operands]
+        operands = self._render_operand_sequence(node.operands)
+        if not operands:
+            return ""
         result = operands[0]
         for operand in operands[1:]:
             result = f"{result}.minkowski({operand})"
         return result
 
     def visit_FunctionCall(self, node: FunctionCall) -> str:
+        if node.name == 'import':
+            import_arg = node.named_arguments.get('file', node.named_arguments.get(0))
+            if import_arg is None:
+                raise ValueError("import() requires a file argument")
+            import_path = self.visit(import_arg)
+            extrude_arg = node.named_arguments.get('extrude')
+            if extrude_arg is not None:
+                extrude_str = self.visit(extrude_arg)
+                return (
+                    "self.api.genImport("
+                    f"os.path.join(os.path.dirname(__file__), {import_path}), "
+                    f"extrude={extrude_str})"
+                )
+            return (
+                "self.api.genImport("
+                f"os.path.join(os.path.dirname(__file__), {import_path}))"
+            )
+
         args_str = self._format_named_args(node.named_arguments)
         children_str = ', '.join(self.visit(child) for child in node.arguments)
         if children_str and args_str:
@@ -2166,7 +2234,7 @@ class AstToPython:
         for assign in node.assignments:
             var_map[assign.name] = assign.value
         # Substitute variables in body
-        body = self._substitute_vars(node.body, var_map, _visiting)
+        body = self._substitute_vars(node.body, var_map)
         return self.visit(body)
 
     def visit_FunctionDef(self, node: FunctionDef) -> str:
@@ -2268,7 +2336,7 @@ class AstToPython:
                 if pname.startswith('$'):
                     continue
                 if pdefault is not None:
-                    default_str = self.visit(pdefault)
+                    default_str = self.visit(_replace_identifiers(pdefault, self.global_var_map))
                     params.append(f"{pname}={default_str}")
                 else:
                     params.append(pname)
@@ -2278,9 +2346,9 @@ class AstToPython:
             # direct-statement bodies (module foo() bar();) use visit directly.
             from b1scad.ast_nodes import Block
             if isinstance(node.body, Block):
-                body_expr = self._inline_vars(node.body.statements)
+                body_expr = self._inline_vars(node.body.statements, dict(self.global_var_map))
             else:
-                body_expr = self.visit(node.body)
+                body_expr = self.visit(_replace_identifiers(node.body, self.global_var_map))
             
             if body_expr:
                 if 'children()' in body_expr:
@@ -2310,12 +2378,12 @@ class AstToPython:
                 if pname.startswith('$'):
                     continue
                 if pdefault is not None:
-                    default_str = self.visit(pdefault)
+                    default_str = self.visit(_replace_identifiers(pdefault, self.global_var_map))
                     params.append(f"{pname}={default_str}")
                 else:
                     params.append(pname)
             params_str = ", ".join(params)
-            body_str = self.visit(node.body)
+            body_str = self.visit(_replace_identifiers(node.body, self.global_var_map))
             lines = [f"    def _{name}(self, {params_str}):",
                      f"        return {body_str}"]
             parts.append("\n".join(lines))
