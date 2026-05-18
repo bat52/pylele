@@ -9,7 +9,7 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
-from b13d.api.core import Shape
+from b13d.api.core import Shape, Implementation
 from b13d.api.constants import FIT_TOL
 from b13d.api.solid import main_maker, test_loop
 from pylele.pylele2.config import LeleBodyType
@@ -33,8 +33,13 @@ class LeleRim(LeleChamber):
         rimFront = self.api.cylinder_half(rad,  True, tck).scale(frontWthRatio, 1, 1)
         rimBack  = self.api.cylinder_half(rad, False, tck).scale(backWthRatio , 1, 1)
 
-        rimFront <<= (scLen          , 0, joinTol - tck / 2)
-        rimBack  <<= (scLen - joinTol, 0, joinTol - tck / 2)
+        zPos = joinTol - tck / 2
+        # build123d fails on the asymmetric overlap (front at scLen, back at scLen-joinTol)
+        # but succeeds with symmetric overlap around scLen.
+        frontX = scLen + joinTol if self.cli.implementation == Implementation.BUILD123D else scLen
+
+        rimFront <<= (frontX         , 0, zPos)
+        rimBack  <<= (scLen - joinTol, 0, zPos)
 
         return rimFront + rimBack
     
