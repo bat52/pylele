@@ -205,6 +205,7 @@ def test_body(self, apis=None):
 
     ## Cadquery and blender
     tests = {
+        "default": [],
         "tail_end": ["-t", TunerType.WORM.name, "-e", "90", "-E","-refv","934731"],
         "flat": ["-bt", str(LeleBodyType.FLAT), "-fbt", "50", "-refv", "1405935"],
         "flat_worm": [
