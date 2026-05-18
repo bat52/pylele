@@ -113,7 +113,10 @@ class LeleChamber(LeleBase):
                 .scale(backRat, 1, botRat)
             )
 
-            if self.cli.implementation == Implementation.BLENDER:
+            if self.cli.implementation in (
+                Implementation.BLENDER,
+                Implementation.BUILD123D,
+            ):
                 topFront <<= ( jcTol, 0, -jcTol)
                 topBack  <<= ( jcTol, 0, -jcTol)
                 botFront <<= (-jcTol, 0,  jcTol)
