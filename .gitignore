@@ -178,7 +178,7 @@ get-pip.py
 
 # output files
 *.stl
-*.scad
+# *.scad
 *.csg
 
 # b1scad
