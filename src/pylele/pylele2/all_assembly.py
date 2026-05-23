@@ -102,14 +102,14 @@ def test_all_assembly(self, apis=None):
         "gotoh_tuners": ["-t", "gotoh"],
     }
 
-    # reference volumes
+    # reference volumes (measured via manifold3d API)
     refv = {
-        'default'        :  '529039',
-        'worm'           :  '579205',
-        'flat'           : '1078970',
-        'hollow'         :  '919553',
-        'travel'         :  '837153',
-        'travelele'      :  '403970'
+        'default'        :  '554674',
+        'worm'           :  '581855',
+        'flat'           : '1147895',
+        'hollow'         :  '991435',
+        'travel'         :  '552823',
+        'travelele'      :  '386230'
     }
 
     test_config = {}

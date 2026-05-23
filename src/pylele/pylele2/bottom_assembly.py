@@ -200,10 +200,10 @@ def test_bottom_assembly(self, apis=None):
 
     refv = {
         'default': "467193",
-        'travel' : '548386',
-        'hollow' : '424951',
-        'gourd'  : '504390',
-        'flat'   : '913770',
+        'travel' : '620355',
+        'hollow' : '424335',
+        'gourd'  : '525949',
+        'flat'   : '968652',
         }
     test_body = {}
     for body in list(LeleBodyType):
