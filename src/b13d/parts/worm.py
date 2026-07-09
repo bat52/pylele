@@ -169,6 +169,9 @@ class Worm(Solid):
         parser.add_argument("-cl", "--clearance",
                             help="Clearance gap at the bottom of tooth valleys.",
                             type=float, default=None)
+        parser.add_argument("-gs", "--gear_spin",
+                            help="Rotational offset of worm gear teeth in degrees.",
+                            type=float, default=0)
         return parser
 
     def configure(self):
@@ -199,6 +202,7 @@ class Worm(Solid):
             pressure_angle=self.cli.pressure_angle,
             backlash=self.cli.backlash,
             clearance=self.cli.clearance,
+            gear_spin=self.cli.gear_spin,
         )
         return self.api.polyhedron(points=verts, faces=faces)
 
@@ -215,7 +219,7 @@ def main(args=None):
                 args=args)
 
 
-def test_worm(apis=None):
+def test_worm(self,apis=None):
     tests = {
         'default': ['-refv', '640.35'],
         'l_handed': ['-lh'],
@@ -224,8 +228,8 @@ def test_worm(apis=None):
     test_loop(module=__name__, tests=tests, apis=apis)
 
 
-def test_worm_mock():
-    test_worm(apis=['mock'])
+def test_worm_mock(self):
+    test_worm(self, apis=['mock'])
 
 
 if __name__ == '__main__':

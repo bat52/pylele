@@ -627,13 +627,23 @@ class PVPolyhedron(PVShape):
         for face in faces:
             if len(face) >= 3:
                 for i in range(1, len(face) - 1):
-                    # Reverse winding to ensure positive volume (like hull operation)
-                    triangles.append([face[0], face[i + 1], face[i]])
-        # PyVista expects each face prefixed with its vertex count: [n, v0, v1, v2, n, v0, v1, v2, ...]
+                    # Triangulate using standard fan (same as MFPolyhedron).
+                    # PyVista expects each face prefixed with its vertex count: [n, v0, v1, v2, n, v0, v1, v2, ...]
+                    triangles.append([face[0], face[i], face[i + 1]])
         faces_arr = []
         for tri in triangles:
             faces_arr.extend([3, tri[0], tri[1], tri[2]])
         self.solid = pv.PolyData(np.array(points, dtype=np.float32), np.array(faces_arr, dtype=np.int64))
+        # Ensure outward-facing normals: check with trimesh and flip if volume is negative.
+        try:
+            import tempfile, trimesh
+            with tempfile.NamedTemporaryFile(suffix='.stl', delete=True) as tmp:
+                self.solid.save(tmp.name)
+                tm = trimesh.load(tmp.name)
+                if tm.is_watertight and tm.volume < 0:
+                    self.solid = self.solid.flip_faces()
+        except Exception:
+            pass
 
 
 class PVLineSplineExtrusionZ(PVShape):
