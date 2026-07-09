@@ -10,15 +10,13 @@
 
 try:
     from solid2 import sphere, minkowski
-    from solid2.extensions.bosl2.gears import worm_gear, worm, enveloping_worm, worm_gear_thickness, worm_dist
+    from solid2.extensions.bosl2.gears import worm, enveloping_worm, worm_dist
     WORM_DRIVE_AVAILABLE = True
 except ImportError:
     sphere = None
     minkowski = None
-    worm_gear = None
     worm = None
     enveloping_worm = None
-    worm_gear_thickness = None
     worm_dist = None
     WORM_DRIVE_AVAILABLE = False
 
@@ -29,6 +27,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from b13d.api.solid import Solid, test_loop, main_maker, Implementation
 from b13d.api.core import Shape
 from b13d.parts.pencil import Pencil
+from b13d.parts.worm import Worm
+from b13d.parts.enveloping_worm import EnvelopingWorm
 
 class WormDrive(Solid):
     """ Generate Worm Drive """
@@ -108,7 +108,7 @@ class WormDrive(Solid):
         self.tol = self.cut_tolerance if self.isCut else 0
 
     def gen(self) -> Shape:
-        assert self.isCut or (self.cli.implementation in [Implementation.SOLID2, Implementation.MOCK])
+        # assert self.isCut or (self.cli.implementation in [Implementation.SOLID2, Implementation.MOCK])
     
         drive = self.gen_drive(minkowski_en=self.cli.minkowski_en)
         return drive
@@ -123,37 +123,63 @@ class WormDrive(Solid):
                 rad=self.cli.worm_diam/2+self.drive_teeth_l/2+self.tol
                 )
         else:
-            if not self.cli.enveloping_worm:
-                bworm = worm(   circ_pitch=self.cli.circ_pitch,
-                                d=self.cli.worm_diam,
-                                starts=self.cli.worm_starts,
-                                l=self.drive_h,
-                                pressure_angle=self.cli.pressure_angle,
-                                # mod = self.modulus,
-                                spin = spin
-                                )
-            else:
-                bworm = enveloping_worm(
-                                circ_pitch=self.cli.circ_pitch,
-                                d=self.cli.worm_diam,
-                                starts=self.cli.worm_starts,
-                                l=self.drive_h,
-                                pressure_angle=self.cli.pressure_angle,
-                                # mod = self.modulus,
-                                mate_teeth = self.cli.teeth,
-                                spin = spin
-                                )
-            
-            if minkowski_en:
-                # extend worm with fitting tolerance
-                bworm = minkowski()(
-                    bworm,
-                    sphere(self.cut_tolerance)
-                    )
+            if self.cli.implementation == Implementation.SOLID2:
+                if not self.cli.enveloping_worm:
+                    bworm = worm(   circ_pitch=self.cli.circ_pitch,
+                                    d=self.cli.worm_diam,
+                                    starts=self.cli.worm_starts,
+                                    l=self.drive_h,
+                                    pressure_angle=self.cli.pressure_angle,
+                                    # mod = self.modulus,
+                                    spin = spin
+                                    )
+                else:
+                    bworm = enveloping_worm(
+                                    circ_pitch=self.cli.circ_pitch,
+                                    d=self.cli.worm_diam,
+                                    starts=self.cli.worm_starts,
+                                    l=self.drive_h,
+                                    pressure_angle=self.cli.pressure_angle,
+                                    # mod = self.modulus,
+                                    mate_teeth = self.cli.teeth,
+                                    spin = spin
+                                    )
+                
+                if minkowski_en:
+                    # extend worm with fitting tolerance
+                    bworm = minkowski()(
+                        bworm,
+                        sphere(self.cut_tolerance)
+                        )
 
-            drive = self.api.genShape(
-                    solid=bworm
-                )
+                drive = self.api.genShape(
+                        solid=bworm
+                    )
+            else:
+                if not self.cli.enveloping_worm:
+            
+                    drive = Worm(
+                        args = ['-i', self.cli.implementation,
+                                '-cp', str(self.cli.circ_pitch),
+                                '-wd', str(self.cli.worm_diam),
+                                '-ws', str(self.cli.worm_starts),
+                                '-l', str(self.drive_h),
+                                '-pa', str(self.cli.pressure_angle),
+                                '-gs', str(spin),
+                                ]
+                    ).gen_full()
+                else:
+                    drive = EnvelopingWorm(
+                        args = ['-i', self.cli.implementation,
+                                '-cp', str(self.cli.circ_pitch),
+                                '-wd', str(self.cli.worm_diam),
+                                '-ws', str(self.cli.worm_starts),
+                                '-l', str(self.drive_h),
+                                '-pa', str(self.cli.pressure_angle),
+                                '-gs', str(spin),
+                                '-mt', str(self.cli.teeth)
+                                ]
+                    ).gen_full()
 
         return drive
     
@@ -216,7 +242,7 @@ def main(args=None):
                 class_name='WormDrive',
                 args=args)
 
-def test_worm_drive(self,apis=[Implementation.SOLID2]):
+def test_worm_drive(self,apis=None):
     """ Test worm drive """
     tests = {'default':[],
              'cut'    :['-C']}
@@ -227,4 +253,4 @@ def test_worm_drive_mock(self):
     test_loop(module=__name__,apis=[Implementation.MOCK])
 
 if __name__ == '__main__':
-    main(args=sys.argv[1:]+['-i',Implementation.SOLID2])
+    main()
