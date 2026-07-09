@@ -244,6 +244,7 @@ class B13DTestMethods(unittest.TestCase):
     from b13d.parts.rounded_rectangle_extrusion import test_rounded_rectangle, test_rounded_rectangle_mock
     from b13d.parts.rounded_face_rectangle import test_rounded_face_rectangle, test_rounded_face_rectangle_mock
     from b13d.parts.torus import test_torus, test_torus_mock
+    from b13d.parts.worm import test_worm, test_worm_mock
 
     def test_zz_report(self):
         """ Generate Test Report """
