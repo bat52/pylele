@@ -499,10 +499,19 @@ class MFPolyhedron(MFShape):
         api: MFShapeAPI,
     ):
         super().__init__(api)
-        # Note: Manifold.hull_points creates a convex hull from vertices.
-        # This works correctly for most polyhedra but may differ from OpenSCAD's
-        # behavior for non-convex or degenerate polyhedra.
-        self.solid = Manifold.hull_points(points)
+        self._build_from_verts_faces(points, faces)
+
+    def _build_from_verts_faces(
+        self,
+        points: list[tuple[float, float, float]],
+        faces: list[list[int]],
+    ):
+        verts = np.array(points, dtype=np.float32)
+        tris = []
+        for face in faces:
+            for i in range(1, len(face) - 1):
+                tris.append([face[0], face[i], face[i + 1]])
+        self.solid = Manifold(Mesh(vert_properties=verts, tri_verts=np.array(tris, dtype=np.int32)))
 
 
 # draw mix of straight lines from pt to pt, or draw spline with [(x,y,dx,dy), ...], then extrude on Z-axis

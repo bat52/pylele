@@ -671,6 +671,11 @@ class Sp2Polyhedron(Sp2Shape):
         api: Sp2ShapeAPI,
     ):
         super().__init__(api)
+        if polyhedron is None:
+            raise RuntimeError(
+                "solid2 'polyhedron' function is not available. "
+                "The solid2 package is required for SOLID2/SP2 backend."
+            )
         self.solid = polyhedron(points=points, faces=faces, convexity=convexity)
         if api.backup_api is not None:
             self.backup_solid = api.backup_api.polyhedron(points, faces, convexity)
