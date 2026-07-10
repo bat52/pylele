@@ -58,6 +58,40 @@ from b13d.api.utils import (
 class BDShapeAPI(ShapeAPI):
     """build123d implementation of ShapeAPI."""
 
+    BOOLEAN_TIMEOUT = 120  # seconds; raise if a single boolean op takes longer
+
+    def _run_with_timeout(self, fn, args, timeout):
+        """Run a callable in a thread with a timeout.
+
+        If the callable does not complete within *timeout* seconds, a
+        TimeoutError is raised.
+        """
+        result = [None]
+        exception = [None]
+
+        def worker():
+            try:
+                result[0] = fn(*args)
+            except Exception as e:
+                exception[0] = e
+
+        t = threading.Thread(target=worker, daemon=True)
+        t.start()
+        t.join(timeout)
+        if t.is_alive():
+            # The operation is still running past the timeout.
+            # We cannot forcibly kill the thread, but we can stop waiting
+            # and let it eventually become a zombie.  To avoid resource
+            # leaks we detach it (daemon=True) and proceed.
+            raise TimeoutError(
+                f"build123d boolean operation timed out after {timeout}s. "
+                "This is a known limitation with complex geometries. "
+                "Try using the 'mf' (Manifold) backend instead."
+            )
+        if exception[0] is not None:
+            raise exception[0]
+        return result[0]
+
     def export_stl(self, shape: BDShape, path: Union[str, Path]) -> None:
         solid = shape.getImplSolid()
         if isinstance(solid, bd.Compound) and len(solid.solids()) == 0:
@@ -267,40 +301,6 @@ class BDShape(Shape):
                 "Try using the 'mf' (Manifold) backend instead."
             ) from e
 
-    BOOLEAN_TIMEOUT = 120  # seconds; raise if a single boolean op takes longer
-
-    def _run_with_timeout(self, fn, args, timeout):
-        """Run a callable in a thread with a timeout.
-
-        If the callable does not complete within *timeout* seconds, a
-        TimeoutError is raised.
-        """
-        result = [None]
-        exception = [None]
-
-        def worker():
-            try:
-                result[0] = fn(*args)
-            except Exception as e:
-                exception[0] = e
-
-        t = threading.Thread(target=worker, daemon=True)
-        t.start()
-        t.join(timeout)
-        if t.is_alive():
-            # The operation is still running past the timeout.
-            # We cannot forcibly kill the thread, but we can stop waiting
-            # and let it eventually become a zombie.  To avoid resource
-            # leaks we detach it (daemon=True) and proceed.
-            raise TimeoutError(
-                f"build123d boolean operation timed out after {timeout}s. "
-                "This is a known limitation with complex geometries. "
-                "Try using the 'mf' (Manifold) backend instead."
-            )
-        if exception[0] is not None:
-            raise exception[0]
-        return result[0]
-
     def cut(self, cutter: BDShape) -> BDShape:
         if self.cross_section is not None and cutter is not None and cutter.cross_section is not None:
             self.cross_section = self.cross_section - cutter.cross_section
@@ -313,10 +313,10 @@ class BDShape(Shape):
             return self
         # Try raw Part types first (more reliable for complex geometries),
         # fall back to Solid extraction
-        self.solid = self._run_with_timeout(
+        self.solid = self.api._run_with_timeout(
             lambda a, b: self._safe_boolean('cut', a, b),
             (self.solid, cutter.solid),
-            self.BOOLEAN_TIMEOUT,
+            self.api.BOOLEAN_TIMEOUT,
         )
         return self
 
@@ -336,10 +336,10 @@ class BDShape(Shape):
         if joiner is None or joiner.solid is None:
             return self
         # Use Solid+Solid for join (handles disjoint shapes better than Part+Part)
-        result = self._run_with_timeout(
+        result = self.api._run_with_timeout(
             lambda a, b: self._safe_boolean('join', a, b, use_resolve=True),
             (self.solid, joiner.solid),
-            self.BOOLEAN_TIMEOUT,
+            self.api.BOOLEAN_TIMEOUT,
         )
         # build123d returns ShapeList for disjoint solids; convert to Compound for export
         if isinstance(result, ShapeList):
@@ -360,10 +360,10 @@ class BDShape(Shape):
             return self
         # Try raw Part types first (more reliable for complex geometries),
         # fall back to Solid extraction
-        self.solid = self._run_with_timeout(
+        self.solid = self.api._run_with_timeout(
             lambda a, b: self._safe_boolean('intersect', a, b),
             (self.solid, intersector.solid),
-            self.BOOLEAN_TIMEOUT,
+            self.api.BOOLEAN_TIMEOUT,
         )
         return self
 
