@@ -113,9 +113,11 @@ class WormGear(WormDrive):
         )
     
     def gen_drive_wrapper(self, minkowski_en = False, cut_en = False):
-        if self.cli.implementation == Implementation.SOLID2 or self.isCut or cut_en:
+        # if self.cli.implementation == Implementation.SOLID2 or self.isCut or cut_en:
+        try:
             drive = self.gen_drive(minkowski_en=minkowski_en, cut_en=cut_en)
-        else:
+        except Exception as e:
+            print(f"Failed to generate drive: {e}")
             drive = self.gen_import_drive(minkowski_en=minkowski_en)
             if self.cli.mirror_enable:
                 drive = drive.mirror()
