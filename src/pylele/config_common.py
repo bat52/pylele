@@ -294,6 +294,23 @@ FATWORM_TUNER_CFG = WormConfig(
     code = 'F',
 )
 
+# worm11 is pylele2 worm drive with 11 teeth, matching WormGear/WormDrive from pylele.parts
+WORM11_TUNER_CFG = WormConfig(
+    slitHt=50,
+    # slitLen=0,
+    slitWth=3,
+    # diskTck=8,       # gear_h = worm_diam = 8 (carved_gear)
+    # diskRad=8.5,     # gear_out_rad = gear_diam/2 + gear_teeth = 7.3 + 3
+    axleRad=1.5,     # half of worm_axle_diameter default (3.0)
+    axleLen=6,
+    driveRad=7,    # worm_diam/2 + drive_teeth_l/2 + tol = 4 + 0.98 + 0.3
+    # driveLen=11,     # drive_h = worm_diam + gear_teeth = 8 + 3
+    # driveOffset=0,
+    gapAdj=1.5,
+    tailAdj=3,
+    code='W11',
+)
+
 TURNAROUND_CFG = TurnaroundConfig()
 TURNAROUND90_CFG = TurnaroundConfig(peg_config=PEG_90_CFG)
 
@@ -305,6 +322,7 @@ class TunerType(Enum):
     WORM = WORM_TUNER_CFG
     BIGWORM = BIGWORM_TUNER_CFG
     FATWORM = FATWORM_TUNER_CFG
+    WORM11 = WORM11_TUNER_CFG
     TURNAROUND = TURNAROUND_CFG
     TURNAROUND90 = TURNAROUND90_CFG
 

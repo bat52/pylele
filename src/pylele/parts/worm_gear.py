@@ -8,7 +8,13 @@
     https://www.thingiverse.com/thing:6664561
 """
 
-from solid2.extensions.bosl2.gears import worm_gear, worm_gear_thickness
+try:
+    from solid2.extensions.bosl2.gears import worm_gear, worm_gear_thickness
+    WORM_GEAR_AVAILABLE = True
+except ImportError:
+    worm_gear = None
+    worm_gear_thickness = None
+    WORM_GEAR_AVAILABLE = False
 
 import os
 import sys
@@ -31,9 +37,6 @@ class WormGear(WormDrive):
         parser.add_argument("-cg", "--carved_gear",
                             help="Carve gear from drive",
                             action="store_true")
-        parser.add_argument("-cw", "--concealed_worm",
-                            help="Enable concealed worm",
-                            action="store_true")
         # friction shaft arguments
         parser.add_argument("-fse", "--friction_shaft_enable",
                             help="Use friction tuner shaft instead of 3D printing",
@@ -51,6 +54,24 @@ class WormGear(WormDrive):
         parser.add_argument("-wad", "--worm_axle_diameter", 
                             help="Worm Axle Diameter", 
                             type=float, default=3)
+        parser.add_argument("-sfh", "--shaft_h",
+                            help="Shaft height",
+                            type=float, default=None)
+        # concealed worm arguments
+        parser.add_argument(
+            "-wsw",
+            "--worm_slit_width",
+            help="Worm Slit Width [mm]",
+            type=float,
+            default=3,
+        )
+        parser.add_argument(
+            "-wsl",
+            "--worm_slit_height",
+            help="Worm Slit Height [mm]",
+            type=float,
+            default=50,
+        )   
         return parser
 
     def configure(self):
@@ -79,6 +100,9 @@ class WormGear(WormDrive):
         if self.cli.concealed_worm:
             self.shaft_h = 4.5 + self.gear_h/2
             self.shaft_diam = 7
+        elif self.cli.shaft_h is not None:
+            self.shaft_h = self.cli.shaft_h
+            self.shaft_diam = 9
         else:
             self.shaft_h = 33
             self.shaft_diam = 9
@@ -93,7 +117,11 @@ class WormGear(WormDrive):
 
         if self.cli.drive_enable:
             gear += self.gen_drive_wrapper()
-        
+
+        if self.cli.concealed_worm:
+            # align slit position with string y coordinate
+            gear <<= (0,0,-self.slit_z)
+
         return gear
     
     def gen_gear_cylinder(self) -> Shape:
@@ -113,14 +141,10 @@ class WormGear(WormDrive):
         )
     
     def gen_drive_wrapper(self, minkowski_en = False, cut_en = False):
-        # if self.cli.implementation == Implementation.SOLID2 or self.isCut or cut_en:
-        try:
+        if True: # self.cli.implementation in [Implementation.SOLID2, Implementation.MOCK] or self.isCut or cut_en:
             drive = self.gen_drive(minkowski_en=minkowski_en, cut_en=cut_en)
-        except Exception as e:
-            print(f"Failed to generate drive: {e}")
+        else:
             drive = self.gen_import_drive(minkowski_en=minkowski_en)
-            if self.cli.mirror_enable:
-                drive = drive.mirror()
 
         return drive.mv(self.dist,0,0)
 
@@ -184,7 +208,7 @@ class WormGear(WormDrive):
                 rad=self.cli.worm_axle_diameter/2 + self.tol
                 )
             
-        if self.cli.concealed_worm:
+        if self.cli.concealed_worm and not self.isCut:
             # add hole for string
             string_hole = self.api.cylinder_z(
                 l=self.gear_h+2*self.shaft_h,
@@ -212,11 +236,25 @@ class WormGear(WormDrive):
         # shaft
         shaft = self.api.cylinder_z(l=self.shaft_h, rad=self.shaft_diam/2 + self.tol)
 
+        if self.cli.concealed_worm:
+            # calculate slit position
+            slit_d = self.shaft_diam
+            slit_y = self.cli.worm_slit_height
+            slit_h = self.cli.worm_slit_width
+            slit_offset = 0.5
+            slit_z = shaft.top()-slit_h/2-slit_offset
+            self.slit_z=slit_z + self.shaft_h/2
+
         if self.isCut:
             # cut shaft hole on the other side too
             shaft2 = self.api.cylinder_z(l=self.shaft_h, rad=self.shaft_diam/2 + self.tol)
             shaft2 <<= (0,0,-self.shaft_h/2)
             shaft += shaft2
+            if self.cli.concealed_worm:
+                slit = self.api.box(slit_d, slit_y, slit_h)
+                slit <<= (0, -slit_y/2, slit_z)
+                slit = slit.rotate_z(90+30)            
+                shaft += slit
         else:
             # string hole
             if not self.cli.concealed_worm:

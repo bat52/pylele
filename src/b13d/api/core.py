@@ -9,8 +9,6 @@ from pathlib import Path
 from abc import ABC, abstractmethod
 from typing import Union
 
-print(f"DEBUG: core.py imported from {__file__}")
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
 
 from b13d.api.constants import DEFAULT_TEST_DIR, ColorEnum

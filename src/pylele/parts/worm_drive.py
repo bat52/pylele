@@ -62,6 +62,9 @@ class WormDrive(Solid):
                     help="Wall thickness",
                     type=float, default = 4)
         parser.add_argument("-mirror", "--mirror_enable", help="Mirror to inverse thread direction", action="store_true")
+        parser.add_argument("-cw", "--concealed_worm",
+                            help="Enable concealed worm",
+                            action="store_true")
         return parser
 
     def configure(self):
@@ -112,16 +115,30 @@ class WormDrive(Solid):
     
         drive = self.gen_drive(minkowski_en=self.cli.minkowski_en)
         return drive
+    
+    def gen_worm_cut(self):
+        drive_rad = self.cli.worm_diam/2+self.drive_teeth_l/2+self.tol
+        drive_l = self.drive_h+2*self.tol
+        drive = self.api.cylinder_z(
+            l = drive_l,
+            rad=drive_rad
+            )
+        
+        if self.cli.concealed_worm:
+            # add drive extrusion on one side to insert
+            drive_box_len=100
+            drive_box = self.api.box(2*drive_rad, drive_box_len, drive_l).mv(0, drive_box_len/2, 0)
+            drive_box = drive_box.rotate_z(90)
+            drive += drive_box
+
+        return drive
 
     def gen_worm(self, spin = 0, minkowski_en = False, cut_en = False) -> Shape:
         """ Generate worm """
 
         ## drive
         if self.isCut or cut_en:
-            drive = self.api.cylinder_z(
-                l = self.drive_h+2*self.tol,
-                rad=self.cli.worm_diam/2+self.drive_teeth_l/2+self.tol
-                )
+            return self.gen_worm_cut()
         else:
             if self.cli.implementation == Implementation.SOLID2:
                 if not self.cli.enveloping_worm:
@@ -193,11 +210,12 @@ class WormDrive(Solid):
         disk_high <<= (0,0, (h+gap)/2)
         return disk_low + disk_high
 
-    def gen_drive(self, spin = 0, minkowski_en = False, cut_en = False) -> Shape:
-        """ Generate Drive """
+    def simmetric_cylinders_lateral_extension(self, rad, h, gap, ext):
+        """ Generate simmetric cylinders lateral extension box"""
+        return self.api.box(l=2*rad, wth=ext, ht=2*h+gap).mv(0,ext/2,0).rotate_z(90)
 
-        # worm
-        worm_drive = self.gen_worm(spin=spin, minkowski_en=minkowski_en, cut_en=cut_en)
+    def gen_drive_cut(self, cw_ext = 100):
+        drive = self.gen_worm_cut()
 
         # drive cylindrical extensions that keep the worm in place
         holders = self.simmetric_cylinders( rad=self.cli.worm_extension_diam/2+self.tol,
@@ -205,32 +223,62 @@ class WormDrive(Solid):
                                            gap=self.drive_h
         )
 
-        # drive extension
-        if self.isCut:
-            drive_ext = self.simmetric_cylinders( rad=self.hex_hole/2+1+self.tol,
-                                            h=self.cli.wall_thickness + self.disk_h+self.tol,
-                                            gap=self.drive_h
+        # holders lateral extension
+        if self.cli.concealed_worm:
+            holders_lateral = self.simmetric_cylinders_lateral_extension(
+                rad=self.cli.worm_extension_diam/2+self.tol,
+                h=self.disk_h+self.tol,
+                gap=self.drive_h,
+                ext=cw_ext
             )
         else:
-            drive_ext = None
+            holders_lateral = None
+
+        # drive extension
+        drive_ext_rad = self.hex_hole/2+1+self.tol
+        drive_ext_h = self.cli.wall_thickness + self.disk_h+self.tol
+        drive_ext = self.simmetric_cylinders( rad=drive_ext_rad,
+                                        h=drive_ext_h,
+                                        gap=self.drive_h
+        )
+
+        return drive + holders + holders_lateral + drive_ext
+
+    def gen_drive_core(self, spin = 0, minkowski_en = False, cut_en = False) -> Shape:
+        # worm
+        worm_drive = self.gen_worm(spin=spin, minkowski_en=minkowski_en, cut_en=cut_en)
+
+        # drive cylindrical extensions that keep the worm in place
+        holders = self.simmetric_cylinders( rad=self.cli.worm_extension_diam/2+self.tol,
+                                        h=self.disk_h+self.tol,
+                                        gap=self.drive_h
+        )
         
         # hex key hole
-        if not self.isCut:
-            hex_cut = Pencil(
-                args = ['-i', self.cli.implementation,
-                        '-s', f'{self.hex_hole}',
-                        '-d','0',
-                        '-fh','0'
-                        ]
-            ).gen_full()
-            hex_cut = hex_cut.rotate_y(90)
-        else:
-            hex_cut = None
+        hex_cut = Pencil(
+            args = ['-i', self.cli.implementation,
+                    '-s', f'{self.hex_hole}',
+                    '-d','0',
+                    '-fh','0'
+                    ]
+        ).gen_full()
+        hex_cut = hex_cut.rotate_y(90)
         
         # align drive with gear
-        drive = worm_drive + holders + drive_ext - hex_cut
-        drive = drive.rotate_x(90)#.mv(self.dist,0,0)
+        drive = worm_drive + holders - hex_cut
+    
+        return drive
 
+    def gen_drive(self, spin = 0, minkowski_en = False, cut_en = False) -> Shape:
+        """ Generate Drive """
+
+        if self.isCut or cut_en:
+            drive = self.gen_drive_cut()
+        else:
+            drive = self.gen_drive_core(spin=spin, minkowski_en=minkowski_en, cut_en=cut_en)
+        
+        drive = drive.rotate_x(90)#.mv(self.dist,0,0)
+        
         if self.cli.mirror_enable:
             drive = drive.mirror()
         

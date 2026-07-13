@@ -71,13 +71,6 @@ class LeleAllAssembly(LeleBase):
             action="store_true",
         )
 
-        parser.add_argument(
-            "-tnr",
-            "--show_tuners",
-            help="Show tuners in all assembly, just to look nice",
-            action="store_true",
-        )
-
         return super().gen_parser(parser=parser)
 
 
@@ -109,7 +102,8 @@ def test_all_assembly(self, apis=None):
         'flat'           : '1147895',
         'hollow'         :  '991435',
         'travel'         :  '552823',
-        'travelele'      :  '386230'
+        'travelele'      :  '386230',
+        'travel11'       :  '550787'
     }
 
     test_config = {}

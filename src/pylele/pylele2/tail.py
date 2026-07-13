@@ -84,6 +84,9 @@ class LeleTail(LeleBase):
             tail -= LeleTuners(cli=self.cli, isCut=True).gen_full()
             tail -= LeleSpines(cli=self.cli, isCut=True).gen_full()
 
+            if self.cli.show_tuners:
+                tail += LeleTuners(cli=self.cli, isCut=False).gen_full()
+
         return tail
 
     def gen_parser(self, parser=None):

@@ -31,6 +31,12 @@ def pylele_tuners_parser(parser=None):
     """
     parser = pylele_worm_parser(parser=parser)
     parser = create_parser_from_class(LeleTunersConfig, parser=parser)
+    parser.add_argument(
+            "-tnr",
+            "--show_tuners",
+            help="Show tuners in all assembly, just to look nice",
+            action="store_true",
+        )
     return parser
 
 class LeleTuners(LeleBase):
@@ -55,12 +61,12 @@ class LeleTuners(LeleBase):
         for txyz in self.cfg.tnrXYZs:
             if self.is_peg():
                 tnr = LelePeg(isCut=self.isCut, cli=self.cli).gen_full()
-            else: # if tuners.is_worm():
-                if self.is_turnaround():
-                    tnr = LeleTurnaround(isCut=self.isCut, cli=self.cli).gen_full()
-                else:
-                    tnr = LeleWorm(isCut=self.isCut, cli=self.cli).gen_full()
-            # if not tnr is None:
+            elif self.is_worm():
+                tnr = LeleWorm(isCut=self.isCut, cli=self.cli).gen_full()
+            elif self.is_turnaround():
+                tnr = LeleTurnaround(isCut=self.isCut, cli=self.cli).gen_full()
+            else:
+                raise ValueError(f"Unknown tuner type: {self.cli.tuner_type}")
             tnr = tnr.mv(txyz[0], txyz[1], txyz[2])
             tnrs = tnr + tnrs
 

@@ -15,7 +15,7 @@ from b13d.api.core import Shape
 from b13d.api.constants import FIT_TOL
 from b13d.api.solid import main_maker, test_loop
 from pylele.pylele2.base import LeleBase
-
+from pylele.parts.worm_gear import WormGear
 
 def default_or_alternate(def_val, alt_val=None):
     """Override default value with alternate value, if available"""
@@ -32,9 +32,9 @@ def pylele_worm_parser(parser=None):
         parser = argparse.ArgumentParser(description="Pylele Worm Configuration")
 
     parser.add_argument(
-        "-whh",
-        "--worm_hole_heigth",
-        help="Worm Hole Heigth [mm]",
+        "-wsh",
+        "--worm_slit_height",
+        help="Worm Slit Height [mm]",
         type=float,
         default=None,
     )
@@ -193,6 +193,42 @@ def pylele_worm_parser(parser=None):
 class LeleWorm(LeleBase):
     """Pylele Worm Generator class"""
 
+    def is_worm11(self):
+        return self.cli.tuner_type == TunerType.WORM11.name
+
+    def gen_worm11(self) -> Shape:
+        """Generate a single WORM11 tuner cutout or positive shape.
+
+        The gear axis is along Y (lateral across body) so the string winds
+        vertically in Z. A 3D-printed shaft is included on the gear for winding.
+        The worm drive is oriented horizontally along X on top (+Z) of the gear,
+        allowing a winding key to be inserted from the back of the ukulele along -Z.
+        """
+
+        tnrCfg = TunerType[self.cli.tuner_type].value
+
+        worm_gear_args = [
+            '-i', self.cli.implementation,
+            '-t', '11',
+            '-cg',
+            '-me',
+            '--concealed_worm',
+            '--drive_enable',
+            '--worm_slit_width', str(default_or_alternate(tnrCfg.slitWth, self.cli.worm_slit_width)),
+            '--worm_slit_height', str(default_or_alternate(tnrCfg.slitHt, self.cli.worm_slit_height)),
+        ]
+        if self.isCut:
+            worm_gear_args += ['-C']
+
+        wg = WormGear(args=worm_gear_args, isCut=self.isCut)
+        wg.configure()
+
+        gear = wg.gen()
+        gear = gear.rotate_x(90)
+        gear = gear.rotate_y(-90)
+
+        return gear
+
     def worm_config(self):
         """worm configuration"""
         tnrCfg = TunerType[self.cli.tuner_type].value
@@ -207,7 +243,8 @@ class LeleWorm(LeleBase):
 
         c.sltLen = default_or_alternate(tnrCfg.slitLen, self.cli.worm_slit_length)
         c.sltWth = default_or_alternate(tnrCfg.slitWth, self.cli.worm_slit_width)
-        c.sltHt = tnrCfg.slitHt
+        c.sltHt = default_or_alternate(tnrCfg.slitHt, self.cli.worm_slit_height)
+
         c.drvRad = default_or_alternate(
             tnrCfg.driveRad + cutAdj, self.cli.worm_drive_radius
         )
@@ -230,7 +267,7 @@ class LeleWorm(LeleBase):
 
         return c
 
-    def gen(self) -> Shape:
+    def gen_basic(self) -> Shape:
         """Generate Worm"""
 
         c = self.worm_config()
@@ -280,6 +317,16 @@ class LeleWorm(LeleBase):
                 .mv(-c.front, 0, c.sltHt - 2*c.axlRad) # dx was -c.sltLen/2
 
         return worm
+
+    def gen(self) -> Shape:
+        """Generate Worm"""
+
+        if self.is_worm11():
+            tnr = self.gen_worm11()
+        else:
+            tnr = self.gen_basic()
+
+        return tnr
 
     def gen_parser(self, parser=None):
         """
