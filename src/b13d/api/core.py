@@ -74,6 +74,7 @@ class Implementation(StringEnum):
     MANIFOLD = "mf"
     BUILD123D = "bd"
     PYVISTA = "pv"
+    PYTHONSCAD = "ps"
 
     def __repr__(self):
         return f"Implementation({self.value})"
@@ -123,6 +124,7 @@ APIS_INFO = {
     Implementation.MANIFOLD  : {"module": "b13d.api.mf", "class": "MFShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
     Implementation.BUILD123D : {"module": "b13d.api.bd", "class": "BDShapeAPI", "fillet": True, "hull" : True, "linear_extrude": True, "rotate_extrude": True, "offset": True, "offset_volume": False, "projection": True, "minkowski": True},
     Implementation.PYVISTA   : {"module": "b13d.api.pv", "class": "PVShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
+    Implementation.PYTHONSCAD: {"module": "b13d.api.ps", "class": "PsShapeAPI", "fillet": False, "hull" : True, "linear_extrude": True, "rotate_extrude": True, "offset": True, "projection": True, "minkowski": False},
 }
 
 def supported_apis() -> list:
@@ -143,6 +145,7 @@ def supported_apis() -> list:
         (Implementation.BUILD123D, "BD_AVAILABLE"),
         (Implementation.BLENDER, "BPY_AVAILABLE"),
         (Implementation.PYVISTA, "PV_AVAILABLE"),
+        (Implementation.PYTHONSCAD, "PS_AVAILABLE"),
     ]
     for impl, avail_flag in optional_impls:
         try:
