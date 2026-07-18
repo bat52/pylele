@@ -152,13 +152,13 @@ class PsShapeAPI(ShapeAPI):
         return PsCone(l, r1=rad, r2=rad, sides=sides, direction="Z", api=self)
 
     def cylinder_x(self, l: float, rad: float) -> Shape:
-        return PsRod(l, rad, None, self.rotZtoX, self)
+        return PsCone(l, r1=rad, r2=rad, direction="X", api=self)
 
     def cylinder_y(self, l: float, rad: float) -> Shape:
-        return PsRod(l, rad, None, self.rotZtoY, self)
+        return PsCone(l, r1=rad, r2=rad, direction="Y", api=self)
 
     def cylinder_z(self, l: float, rad: float) -> Shape:
-        return PsRod(l, rad, None, None, self)
+        return PsCone(l, r1=rad, r2=rad, direction="Z", api=self)
 
     def cylinder_rounded_z(self, l: float, rad: float, domeRatio: float = 1) -> Shape:
         return PsRndRodZ(l, rad, domeRatio, api=self)
@@ -534,18 +534,6 @@ class PShape(Shape):
                                   cone.mv(0, 0, -ln/2)
             else:
                 self.backup_solid = None
-
-    class PsRod(PShape):
-        def __init__(
-            self, l: float, rad: float, sides, rotMat: NDArray, api: PsShapeAPI
-        ):
-            super().__init__(api)
-            segs = self._smoothing_segments(2 * pi * rad) if sides is None else sides
-            self.solid = cylinder(r=rad, h=l, _fn=segs)
-            if rotMat is not None:
-                # Apply rotation matrix
-                pass  # Simplified for now
-            self.solid = self.solid.translate([0, 0, -l / 2])  # Center
 
     class PsPolyExtrusionZ(PShape):
         def __init__(self, path: list[tuple[float, float]], ht: float, api: PsShapeAPI):
