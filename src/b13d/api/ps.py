@@ -466,204 +466,217 @@ class PShape(Shape):
             self.solid = self.backup_solid.minkowski(other.backup_solid)
         return self
 
-    class PsBall(PShape):
-        def __init__(self, rad: float, api: PsShapeAPI):
-            super().__init__(api)
-            self.rad = rad
-            self.solid = sphere(rad, _fn=self._smoothing_segments(2 * pi * rad))
-            if api.backup_api is not None:
-                self.backup_solid = api.backup_api.sphere(rad)
-            else:
-                self.backup_solid = None
 
-    class PsBox(PShape):
-        def __init__(self, ln: float, wth: float, ht: float, api: PsShapeAPI, center: bool = True):
-            """
-            Create a box with given dimensions
-            :param ln: length of the box
-            :param wth: width of the box
-            :param ht: height of the box
-            :param api: API to use for the box
-            :param center: if True, the box is centered at (0,0,0)
-            """
-            super().__init__(api)
-            self.ln = ln
-            self.wth = wth
-            self.ht = ht
-            # pythonscad's cube centers by default when center=True
-            self.solid = cube(ln, wth, ht, center=center)
-            if api.backup_api is not None:
-                self.backup_solid = api.backup_api.box(ln, wth, ht, center=center)
-            else:
-                self.backup_solid = None
+class PsBall(PShape):
+    def __init__(self, rad: float, api: PsShapeAPI):
+        super().__init__(api)
+        self.rad = rad
+        self.solid = sphere(rad, _fn=self._smoothing_segments(2 * pi * rad))
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.sphere(rad)
+        else:
+            self.backup_solid = None
 
-    class PsCone(PShape):
-        def __init__(
-            self, ln: float, r1: float, r2: float, direction: str, api: PsShapeAPI
-        ):
-            super().__init__(api)
-            self.ln = ln
-            self.r1 = r1
-            self.r2 = r2
 
-            if self.r2 is None:
-                self.r2 = self.r1
-                
-            # Calculate segments for smoothness
-            segs = self._smoothing_segments(2 * pi * max(self.r1, self.r2))
+class PsBox(PShape):
+    def __init__(self, ln: float, wth: float, ht: float, api: PsShapeAPI, center: bool = True):
+        """
+        Create a box with given dimensions
+        :param ln: length of the box
+        :param wth: width of the box
+        :param ht: height of the box
+        :param api: API to use for the box
+        :param center: if True, the box is centered at (0,0,0)
+        """
+        super().__init__(api)
+        self.ln = ln
+        self.wth = wth
+        self.ht = ht
+        # pythonscad's cube centers by default when center=True
+        self.solid = cube(ln, wth, ht, center=center)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.box(ln, wth, ht, center=center)
+        else:
+            self.backup_solid = None
+
+
+class PsCone(PShape):
+    def __init__(
+        self, ln: float, r1: float, r2: float, direction: str, api: PsShapeAPI
+    ):
+        super().__init__(api)
+        self.ln = ln
+        self.r1 = r1
+        self.r2 = r2
+
+        if self.r2 is None:
+            self.r2 = self.r1
             
-            # Create cylinder/cone
-            self.solid = cylinder(h=ln, r1=self.r1, r2=self.r2, _fn=segs)
-            
-            # Center the cylinder
-            self.solid = self.solid.translate([0, 0, -ln / 2])
-            
-            # Rotate based on direction
-            if direction == "X":
-                self.solid = self.solid.rotx(90)
-            elif direction == "Y":
-                self.solid = self.solid.roty(90)
-            # Z direction needs no rotation
+        # Calculate segments for smoothness
+        segs = self._smoothing_segments(2 * pi * max(self.r1, self.r2))
+        
+        # Create cylinder/cone
+        self.solid = cylinder(h=ln, r1=self.r1, r2=self.r2, _fn=segs)
+        
+        # Center the cylinder
+        self.solid = self.solid.translate([0, 0, -ln / 2])
+        
+        # Rotate based on direction
+        if direction == "X":
+            self.solid = self.solid.rotx(90)
+        elif direction == "Y":
+            self.solid = self.solid.roty(90)
+        # Z direction needs no rotation
 
-            if api.backup_api is not None:
-                cone = api.backup_api.cone_x(ln, r1, r2) if direction == "X" else \
-                       api.backup_api.cone_y(ln, r1, r2) if direction == "Y" else \
-                       api.backup_api.cone_z(ln, r1, r2)
-                self.backup_solid = cone.mv(-ln/2, 0, 0) if direction == "X" else \
-                                  cone.mv(0, -ln/2, 0) if direction == "Y" else \
-                                  cone.mv(0, 0, -ln/2)
-            else:
-                self.backup_solid = None
+        if api.backup_api is not None:
+            cone = api.backup_api.cone_x(ln, r1, r2) if direction == "X" else \
+                   api.backup_api.cone_y(ln, r1, r2) if direction == "Y" else \
+                   api.backup_api.cone_z(ln, r1, r2)
+            self.backup_solid = cone.mv(-ln/2, 0, 0) if direction == "X" else \
+                              cone.mv(0, -ln/2, 0) if direction == "Y" else \
+                              cone.mv(0, 0, -ln/2)
+        else:
+            self.backup_solid = None
 
-    class PsPolyExtrusionZ(PShape):
-        def __init__(self, path: list[tuple[float, float]], ht: float, api: PsShapeAPI):
-            super().__init__(api)
-            self.path = path
-            self.ht = ht
-            # Create polygon and extrude
-            poly = polygon(path)
+
+class PsPolyExtrusionZ(PShape):
+    def __init__(self, path: list[tuple[float, float]], ht: float, api: PsShapeAPI):
+        super().__init__(api)
+        self.path = path
+        self.ht = ht
+        # Create polygon and extrude
+        poly = polygon(path)
+        self.solid = poly.linear_extrude(ht)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.polygon_extrusion(path, ht)
+        else:
+            self.backup_solid = None
+
+
+class PSLineSplineExtrusionZ(PShape):
+    def __init__(
+        self,
+        start: tuple[float, float],
+        path: list[tuple[float, float] | list[tuple[float, float, float, float]]],
+        ht: float,
+        api: PsShapeAPI,
+    ):
+        super().__init__(api)
+        self.path = path
+        self.ht = ht
+        if ht < 0:
+            poly = polygon(lineSplineXY(start, path, abs(ht)))
+            self.solid = poly.linear_extrude(ht).translate([0, 0, -abs(ht)])
+        else:
+            poly = polygon(lineSplineXY(start, path, ht))
             self.solid = poly.linear_extrude(ht)
-            if api.backup_api is not None:
-                self.backup_solid = api.backup_api.polygon_extrusion(path, ht)
-            else:
-                self.backup_solid = None
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.spline_extrusion(start, path, ht)
+        else:
+            self.backup_solid = None
 
-    class PSLineSplineExtrusionZ(PShape):
-        def __init__(
-            self,
-            start: tuple[float, float],
-            path: list[tuple[float, float] | list[tuple[float, float, float, float]]],
-            ht: float,
-            api: PsShapeAPI,
-        ):
-            super().__init__(api)
-            self.path = path
-            self.ht = ht
-            if ht < 0:
-                poly = polygon(lineSplineXY(start, path, abs(ht)))
-                self.solid = poly.linear_extrude(ht).translate([0, 0, -abs(ht)])
-            else:
-                poly = polygon(lineSplineXY(start, path, ht))
-                self.solid = poly.linear_extrude(ht)
-            if api.backup_api is not None:
-                self.backup_solid = api.backup_api.spline_extrusion(start, path, ht)
-            else:
-                self.backup_solid = None
 
-    class PSLineSplineRevolveX(PShape):
-        def __init__(
-            self,
-            start: tuple[float, float],
-            path: list[tuple[float, float] | list[tuple[float, float, float, float]]],
-            deg: float,
-            api: PsShapeAPI,
-        ):
-            super().__init__(api)
-            self.path = path
-            self.deg = deg
-            # Create profile and revolve
-            poly = polygon(lineSplineXY(start, path))
-            self.solid = poly.rotate_extrude(deg)
-            if api.backup_api is not None:
-                self.backup_solid = api.backup_api.spline_revolve(start, path, deg)
-            else:
-                self.backup_solid = None
+class PSLineSplineRevolveX(PShape):
+    def __init__(
+        self,
+        start: tuple[float, float],
+        path: list[tuple[float, float] | list[tuple[float, float, float, float]]],
+        deg: float,
+        api: PsShapeAPI,
+    ):
+        super().__init__(api)
+        self.path = path
+        self.deg = deg
+        # Create profile and revolve
+        poly = polygon(lineSplineXY(start, path))
+        self.solid = poly.rotate_extrude(deg)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.spline_revolve(start, path, deg)
+        else:
+            self.backup_solid = None
 
-    class PCirclePolySweep(PShape):
-        def __init__(
-            self,
-            rad: float,
-            path: list[tuple[float, float, float]],
-            api: PsShapeAPI = PsShapeAPI,
-        ):
-            super().__init__(api)
-            self.path = path
-            self.rad = rad
-            # Create circle and sweep along path
-            circle_poly = circle(rad, _fn=self._smoothing_segments(2 * pi * rad))
-            self.solid = circle_poly.path_extrude(path)
-            if api.backup_api is not None:
-                self.backup_solid = api.backup_api.regpoly_sweep(rad, path)
-            else:
-                self.backup_solid = None
 
-    class PSTextZ(PShape):
-        def __init__(
-            self,
-            txt: str,
-            fontSize: float,
-            tck: float,
-            font: str,
-            api: PsShapeAPI,
-        ):
-            super().__init__(api)
-            self.txt = txt
-            self.fontSize = fontSize
-            self.tck = tck
-            self.font = font
+class PCirclePolySweep(PShape):
+    def __init__(
+        self,
+        rad: float,
+        path: list[tuple[float, float, float]],
+        api: PsShapeAPI = PsShapeAPI,
+    ):
+        super().__init__(api)
+        self.path = path
+        self.rad = rad
+        # Create circle and sweep along path
+        circle_poly = circle(rad, _fn=self._smoothing_segments(2 * pi * rad))
+        self.solid = circle_poly.path_extrude(path)
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.regpoly_sweep(rad, path)
+        else:
+            self.backup_solid = None
 
-            # Create text and extrude
-            text_shape = text(txt, size=fontSize)
-            if font:
-                # Try to set font if supported
-                try:
-                    text_shape = text_shape.font(font)
-                except:
-                    pass  # Font not supported, continue without it
-            self.solid = text_shape.linear_extrude(tck)
+
+class PSTextZ(PShape):
+    def __init__(
+        self,
+        txt: str,
+        fontSize: float,
+        tck: float,
+        font: str,
+        api: PsShapeAPI,
+    ):
+        super().__init__(api)
+        self.txt = txt
+        self.fontSize = fontSize
+        self.tck = tck
+        self.font = font
+
+        # Create text and extrude
+        text_shape = text(txt, size=fontSize)
+        if font:
+            # Try to set font if supported
+            try:
+                text_shape = text_shape.font(font)
+            except:
+                pass  # Font not supported, continue without it
+        self.solid = text_shape.linear_extrude(tck)
+        
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.text(txt, fontSize, tck, font)
+        else:
+            self.backup_solid = None
+
+
+class PImport(PShape):
+    def __init__(
+        self,
+        infile: str,
+        extrude: float = None,
+        api: PsShapeAPI = PsShapeAPI,
+    ):
+        super().__init__(api)
+        assert os.path.isfile(infile) or os.path.isdir(
+            infile
+        ), f"ERROR: file/directory {infile} does not exist!"
+        self.infile = infile
+
+        _, fext = os.path.splitext(infile)
+
+        # Import using pythonscad's osimport
+        imported = osimport(infile)
+        
+        if extrude is not None:
+            self.solid = imported.linear_extrude(extrude)
+        else:
+            self.solid = imported
             
-            if api.backup_api is not None:
-                self.backup_solid = api.backup_api.text(txt, fontSize, tck, font)
-            else:
-                self.backup_solid = None
+        if api.backup_api is not None:
+            self.backup_solid = api.backup_api.genImport(infile, extrude=extrude)
+        else:
+            self.backup_solid = None
 
-    class PImport(PShape):
-        def __init__(
-            self,
-            infile: str,
-            extrude: float = None,
-            api: PsShapeAPI = PsShapeAPI,
-        ):
-            super().__init__(api)
-            assert os.path.isfile(infile) or os.path.isdir(
-                infile
-            ), f"ERROR: file/directory {infile} does not exist!"
-            self.infile = infile
 
-            _, fext = os.path.splitext(infile)
-
-            # Import using pythonscad's osimport
-            imported = osimport(infile)
-            
-            if extrude is not None:
-                self.solid = imported.linear_extrude(extrude)
-            else:
-                self.solid = imported
-                
-            if api.backup_api is not None:
-                self.backup_solid = api.backup_api.genImport(infile, extrude=extrude)
-            else:
-                self.backup_solid = None
+if __name__ == "__main__":
+    run_api_test("pythonscad")    
 
 if __name__ == "__main__":
     run_api_test("pythonscad")
