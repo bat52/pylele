@@ -718,8 +718,9 @@ class ShapeAPI(ABC):
     def _export_and_validate(self, shape: Shape, expDir: Path, base_name: str, min_volume: float = 0):
         """Export and validate a shape, returning the next counter value."""
         name = self._numbered_name(self._test_counter, base_name)
-        self.export_stl(shape, expDir / name)
-        self._validate_stl(expDir / f"{name}.stl", name, min_volume=min_volume)
+        stl_path = expDir / f"{name}.stl"
+        self.export_stl(shape, stl_path)
+        self._validate_stl(stl_path, name, min_volume=min_volume)
         self._test_counter += 1
         return self._test_counter
 

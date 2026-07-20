@@ -90,6 +90,15 @@ def test_import3d(self,apis=supported_apis()):
         'pv_svg': ['-imp',test_svg, '-eh', '10'],
         }
     
+    tests[Implementation.PYTHONSCAD]={
+        'ps_stl': ['-imp',test_stl],
+        }
+    if SVG2DXF_AVAILABLE:
+        tests[Implementation.PYTHONSCAD]={
+            'ps_svg': ['-imp',test_svg, '-eh', '10'],
+            # 'ps_dxf': ['-imp',test_dxf, '-eh', '10'],
+            }
+
     tests[Implementation.MOCK]={
         'mock_svg': ['-imp',test_svg, '-eh', '10'],
         }
