@@ -74,6 +74,7 @@ class Implementation(StringEnum):
     MANIFOLD = "mf"
     BUILD123D = "bd"
     PYVISTA = "pv"
+    PYTHONSCAD = "ps"
 
     def __repr__(self):
         return f"Implementation({self.value})"
@@ -123,6 +124,7 @@ APIS_INFO = {
     Implementation.MANIFOLD  : {"module": "b13d.api.mf", "class": "MFShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
     Implementation.BUILD123D : {"module": "b13d.api.bd", "class": "BDShapeAPI", "fillet": True, "hull" : True, "linear_extrude": True, "rotate_extrude": True, "offset": True, "offset_volume": False, "projection": True, "minkowski": True},
     Implementation.PYVISTA   : {"module": "b13d.api.pv", "class": "PVShapeAPI", "fillet": False, "hull" : True, "linear_extrude": False, "rotate_extrude": False, "offset": False, "projection": False, "minkowski": False},
+    Implementation.PYTHONSCAD: {"module": "b13d.api.ps", "class": "PsShapeAPI", "fillet": False, "hull" : True, "linear_extrude": True, "rotate_extrude": True, "offset": True, "projection": True, "minkowski": False},
 }
 
 def supported_apis() -> list:
@@ -143,6 +145,7 @@ def supported_apis() -> list:
         (Implementation.BUILD123D, "BD_AVAILABLE"),
         (Implementation.BLENDER, "BPY_AVAILABLE"),
         (Implementation.PYVISTA, "PV_AVAILABLE"),
+        (Implementation.PYTHONSCAD, "PS_AVAILABLE"),
     ]
     for impl, avail_flag in optional_impls:
         try:
@@ -715,8 +718,9 @@ class ShapeAPI(ABC):
     def _export_and_validate(self, shape: Shape, expDir: Path, base_name: str, min_volume: float = 0):
         """Export and validate a shape, returning the next counter value."""
         name = self._numbered_name(self._test_counter, base_name)
-        self.export_stl(shape, expDir / name)
-        self._validate_stl(expDir / f"{name}.stl", name, min_volume=min_volume)
+        stl_path = expDir / f"{name}.stl"
+        self.export_stl(shape, stl_path)
+        self._validate_stl(stl_path, name, min_volume=min_volume)
         self._test_counter += 1
         return self._test_counter
 
@@ -744,6 +748,14 @@ class ShapeAPI(ABC):
         print(f"[{implCode}] Testing box...")
         box = self.box(10, 20, 30)
         self._export_and_validate(box, expDir, "box", min_volume=5000)
+
+        print(f"[{implCode}] Testing box with keyword arguments...")
+        box_kw = self.box(l=10, wth=20, ht=30)
+        self._export_and_validate(box_kw, expDir, "box-kw", min_volume=5000)
+        # Verify keyword-constructed box matches positional-constructed box
+        bbox_tol = self.fidelity.tolerance()
+        assert fabs(box_kw.top() - box.top()) < bbox_tol, f"box(kw) top={box_kw.top()} != box(pos) top={box.top()}"
+        assert fabs(box_kw.length() - box.length()) < bbox_tol, f"box(kw) len={box_kw.length()} != box(pos) len={box.length()}"
 
         print(f"[{implCode}] Testing cylinder_x...")
         xRod = self.cylinder_x(30, 5)

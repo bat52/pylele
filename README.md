@@ -55,6 +55,7 @@ Supported:
 * [CadQuery (cq)](https://github.com/CadQuery/cadquery) (Most Accurate, supports fillet)
 fillet, Python 3.10 and 3.11 only)
 * [SolidPython2 (sp2)](https://github.com/jeff-dh/SolidPython) (Supports .stl, .svg, .scad, and [BOSL2](https://github.com/BelfrySCAD/BOSL2) library import, fast when using manifold option)
+* [PythonSCAD (ps)](https://pythonscad.org/) (Native Python OpenSCAD interpreter, supports hull, linear_extrude, rotate_extrude, offset, and projection)
 
 Experimental (Buggy)
 * [Blender (bpy)](https://github.com/blender/blender) (*Still a little buggy...*, supports 
@@ -115,10 +116,16 @@ To enable the PyVista (pv) backend:
 pip install git+https://github.com/bat52/pylele@main[pyvista]
 ```
 
+To enable the PythonSCAD (ps) backend:
+
+```
+pip install git+https://github.com/bat52/pylele@main[pythonscad]
+```
+
 Multiple extras can be combined, e.g.:
 
 ```
-pip install git+https://github.com/bat52/pylele@main[cadquery,build123d,blender]
+pip install git+https://github.com/bat52/pylele@main[cadquery,build123d,blender,pythonscad]
 ```
 
 ### Simple (for Ubuntu/Debian)

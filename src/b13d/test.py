@@ -233,6 +233,10 @@ class B13DTestMethods(unittest.TestCase):
         """Test PyVista API"""
         run_api_test(api=Implementation.PYVISTA)
 
+    def test_pythonscad_api(self):
+        """Test PythonSCAD API"""
+        run_api_test(api=Implementation.PYTHONSCAD)
+
     ## Solid Parts
     from b13d.parts.tube import test_tube, test_tube_mock
     from b13d.parts.screw import test_screw, test_screw_mock

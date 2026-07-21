@@ -188,3 +188,7 @@ src/b1scad/scad/*.py
 parser.out
 .aider*
 llm/aider_cfg.sh
+
+# scad tmp
+ps_tmp_*.scad
+sp2_tmp_*.scad

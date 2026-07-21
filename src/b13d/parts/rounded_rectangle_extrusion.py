@@ -170,6 +170,7 @@ class RoundedRectangle(Solid):
                                           Implementation.TRIMESH, 
                                           Implementation.MANIFOLD,
                                           Implementation.PYVISTA,
+                                          Implementation.PYTHONSCAD,
                                           ]:
             # apis that support hull
             return self.gen_solidpython()

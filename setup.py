@@ -64,6 +64,9 @@ setup(
         "svg2dxf": [
             "svg2dxf @ git+https://github.com/multigcs/svg2dxf@main",
         ],
+        "pythonscad": [
+            "pythonscad>=1.0.0",
+        ],
     },
     entry_points={
         "console_scripts": [
