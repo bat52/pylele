@@ -749,6 +749,14 @@ class ShapeAPI(ABC):
         box = self.box(10, 20, 30)
         self._export_and_validate(box, expDir, "box", min_volume=5000)
 
+        print(f"[{implCode}] Testing box with keyword arguments...")
+        box_kw = self.box(l=10, wth=20, ht=30)
+        self._export_and_validate(box_kw, expDir, "box-kw", min_volume=5000)
+        # Verify keyword-constructed box matches positional-constructed box
+        bbox_tol = self.fidelity.tolerance()
+        assert fabs(box_kw.top() - box.top()) < bbox_tol, f"box(kw) top={box_kw.top()} != box(pos) top={box.top()}"
+        assert fabs(box_kw.length() - box.length()) < bbox_tol, f"box(kw) len={box_kw.length()} != box(pos) len={box.length()}"
+
         print(f"[{implCode}] Testing cylinder_x...")
         xRod = self.cylinder_x(30, 5)
         self._export_and_validate(xRod, expDir, "xrod", min_volume=2000)
