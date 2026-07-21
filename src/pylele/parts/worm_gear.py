@@ -108,7 +108,9 @@ class WormGear(WormDrive):
             self.shaft_diam = 9
 
     def gen(self) -> Shape:
-        assert self.isCut or (self.cli.implementation in [Implementation.SOLID2,
+        # The carved gear path (primary for WORM11) uses generic primitives
+        # (cylinder_z, box, rotate, subtraction) and works with all backends.
+        assert self.isCut or self.cli.carved_gear or (self.cli.implementation in [Implementation.SOLID2,
                                                           Implementation.MANIFOLD,
                                                           Implementation.MOCK]
                                                           )
